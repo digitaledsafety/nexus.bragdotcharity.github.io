@@ -19,10 +19,15 @@ contract Reward is ERC721 {
     uint256 minimumDonation;
 
     // Maximum token supply
-    uint256 public maxId; 
+    uint256 public maxId;
 
     // Event emitted when a donation is made
     event DonationMade(address donor, uint256 amount, uint256 tokenId);
+
+    // Getter for testing purposes
+    function getNextTokenId() public view returns (uint256) {
+        return nextTokenId;
+    }
 
     constructor(address payable _wallet, uint256 _minimumDonation, uint256 _maxId)
         ERC721(myName, mySymbol) {
@@ -42,13 +47,20 @@ contract Reward is ERC721 {
 
     // Function to donate cryptocurrency with a message
     function donate() public payable {
+        // Checks
         require(msg.value > 0, "Donation amount must be more than 0");
         require(msg.value >= minimumDonation, "Donation amount is below minimum");
-        require(nextTokenId + 1 <= maxId, "Cannot exceed maximum supply of rewards");
-        wallet.transfer(msg.value);
+        require(nextTokenId < maxId, "Cannot exceed maximum supply of rewards"); // If nextTokenId is 0-indexed and maxId is count
 
-        _safeMint(msg.sender, nextTokenId++);
+        // Effects
+        uint256 tokenIdToMint = nextTokenId;
+        nextTokenId++;
 
-        emit DonationMade(msg.sender, msg.value, nextTokenId);
+        // Emit event before interactions
+        emit DonationMade(msg.sender, msg.value, tokenIdToMint);
+
+        // Interactions
+        _safeMint(msg.sender, tokenIdToMint);
+        wallet.transfer(msg.value); // wallet.transfer should be last if it's to an external wallet
     }
 }

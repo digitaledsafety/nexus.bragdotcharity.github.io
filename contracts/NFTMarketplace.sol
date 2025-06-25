@@ -2,8 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract NFTMarketplace {
+contract NFTMarketplace is Ownable {
     struct Offer {
         address buyer;
         uint256 price;
@@ -19,6 +20,9 @@ contract NFTMarketplace {
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
     event RefundRequested(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 amount);
+    event RefundPeriodUpdated(uint256 newRefundPeriod, address indexed updater);
+
+    constructor() Ownable(msg.sender) {}
 
     /**
      * @notice Create an offer for an NFT
@@ -55,16 +59,19 @@ contract NFTMarketplace {
             "Contract not approved to transfer NFT"
         );
 
+        // Checks-Effects-Interactions Pattern:
+        // 1. Effects (update state)
+        delete offers[nftContract][tokenId];
+
+        // 2. Emit event before external interactions
+        emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price);
+
+        // 3. Interactions (external calls)
         // Transfer the NFT to the buyer
         nft.safeTransferFrom(msg.sender, offer.buyer, tokenId);
 
         // Pay the seller
         payable(msg.sender).transfer(offer.price);
-
-        // Clear the offer
-        delete offers[nftContract][tokenId];
-
-        emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price);
     }
 
     /**
@@ -108,7 +115,8 @@ contract NFTMarketplace {
      * @notice Update the refund period (only by the contract owner)
      * @param newRefundPeriod The new refund period in seconds
      */
-    function updateRefundPeriod(uint256 newRefundPeriod) external {
+    function updateRefundPeriod(uint256 newRefundPeriod) external onlyOwner {
         refundPeriod = newRefundPeriod;
+        emit RefundPeriodUpdated(newRefundPeriod, msg.sender);
     }
 }
