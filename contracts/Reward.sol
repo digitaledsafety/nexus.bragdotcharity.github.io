@@ -10,7 +10,7 @@ contract Reward is ERC721 {
     string constant mySymbol = "DESF";
 
     // Address to withdraw donations
-    address payable wallet;
+    address payable public wallet;
 
     // Current NFT token ID
     uint256 private nextTokenId;
