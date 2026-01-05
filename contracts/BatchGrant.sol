@@ -6,8 +6,11 @@ interface IERC20 {
 }
 
 contract BatchGrant {
-    // USDC on Base: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
-    address public constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    address public immutable USDC;
+
+    constructor(address _usdc) {
+        USDC = _usdc;
+    }
 
     function distributeUSDC(address[] calldata recipients, uint256[] calldata amounts) external {
         require(recipients.length == amounts.length, "Mismatched arrays");
