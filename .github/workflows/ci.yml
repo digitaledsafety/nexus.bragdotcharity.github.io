@@ -1,4 +1,4 @@
-name: Deploy Counter Contract
+name: Run Tests
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,9 +23,3 @@ jobs:
 
       - name: Run tests
         run: npx hardhat test
-
-      - name: Deploy to Sepolia
-        run: npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
-        env:
-          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
-          SEPOLIA_PRIVATE_KEY: ${{ secrets.SEPOLIA_PRIVATE_KEY }}
