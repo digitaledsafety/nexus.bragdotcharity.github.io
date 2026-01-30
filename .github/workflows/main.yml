@@ -20,6 +20,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+
+      - name: Cache Hardhat compiler
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/hardhat-nodejs
+          key: ${{ runner.os }}-hardhat-compiler-${{ hashFiles('hardhat.config.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-hardhat-compiler-
 
       - name: Install dependencies
         run: npm install
