@@ -4,28 +4,24 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+interface IDonationReceipt {
+    function mint(address to, uint256 amount, string calldata message) external returns (uint256);
+}
+
 /**
  * @title BragNFT
- * @dev A Soulbound NFT that acts as a donation receipt.
- * Can be "loaned" to authorized exhibition contracts.
+ * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
  */
 contract BragNFT is ERC721, Ownable {
-    struct Donation {
-        address donor;
-        uint256 amount;
-        uint256 timestamp;
-        string message;
-    }
-
     uint256 private _nextTokenId;
     address public treasury;
     uint256 public minimumDonation;
+    IDonationReceipt public receiptContract;
 
-    mapping(uint256 => Donation) public donations;
-    mapping(address => bool) public authorizedExhibitions;
+    // Link between BragNFT tokenId and DonationReceipt tokenId
+    mapping(uint256 => uint256) public nftToReceipt;
 
-    event Donated(address indexed donor, uint256 amount, uint256 tokenId, string message);
-    event ExhibitionAuthorized(address indexed exhibition, bool status);
+    event Donated(address indexed donor, uint256 amount, uint256 nftTokenId, uint256 receiptTokenId, string message);
 
     constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
         ERC721("BragNFT", "BRAG")
@@ -44,58 +40,32 @@ contract BragNFT is ERC721, Ownable {
         minimumDonation = _minimumDonation;
     }
 
-    function setAuthorizedExhibition(address exhibition, bool status) external onlyOwner {
-        authorizedExhibitions[exhibition] = status;
-        emit ExhibitionAuthorized(exhibition, status);
+    function setReceiptContract(address _receiptContract) external onlyOwner {
+        receiptContract = IDonationReceipt(_receiptContract);
     }
 
     /**
-     * @dev Mint a new BragNFT by donating ETH.
+     * @dev Mint a new BragNFT by donating ETH. Also mints a soulbound DonationReceipt.
      * @param message A message to include with the donation receipt.
      */
     function donate(string calldata message) external payable {
+        require(address(receiptContract) != address(0), "Receipt contract not set");
         require(msg.value >= minimumDonation, "Donation below minimum");
 
-        uint256 tokenId = _nextTokenId++;
+        uint256 nftTokenId = _nextTokenId++;
 
-        donations[tokenId] = Donation({
-            donor: msg.sender,
-            amount: msg.value,
-            timestamp: block.timestamp,
-            message: message
-        });
+        // Mint the transferable BragNFT
+        _safeMint(msg.sender, nftTokenId);
 
-        _safeMint(msg.sender, tokenId);
+        // Mint the soulbound receipt
+        uint256 receiptTokenId = receiptContract.mint(msg.sender, msg.value, message);
+
+        // Link them
+        nftToReceipt[nftTokenId] = receiptTokenId;
 
         (bool success, ) = treasury.call{value: msg.value}("");
         require(success, "Transfer to treasury failed");
 
-        emit Donated(msg.sender, msg.value, tokenId, message);
-    }
-
-    /**
-     * @dev Returns the donation receipt details for a given token.
-     */
-    function getDonation(uint256 tokenId) external view returns (Donation memory) {
-        _requireOwned(tokenId);
-        return donations[tokenId];
-    }
-
-    /**
-     * @dev Soulbound logic: Transfers are only allowed to or from authorized exhibition contracts.
-     * Minting and burning are always allowed.
-     */
-    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
-        address from = _ownerOf(tokenId);
-
-        // If it's not a mint or burn
-        if (from != address(0) && to != address(0)) {
-            // Allow transfer if either 'from' or 'to' is an authorized exhibition
-            if (!authorizedExhibitions[from] && !authorizedExhibitions[to]) {
-                revert("BragNFT: Soulbound token cannot be transferred to non-exhibition addresses");
-            }
-        }
-
-        return super._update(to, tokenId, auth);
+        emit Donated(msg.sender, msg.value, nftTokenId, receiptTokenId, message);
     }
 }
