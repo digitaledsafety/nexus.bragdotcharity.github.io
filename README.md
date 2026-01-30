@@ -40,7 +40,7 @@ This project includes an example Ignition module to deploy the contract. You can
 To run the deployment to a local chain:
 
 ```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
+npx hardhat ignition deploy ignition/modules/App.ts
 ```
 
 To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
@@ -56,5 +56,38 @@ npx hardhat keystore set SEPOLIA_PRIVATE_KEY
 After setting the variable, you can run the deployment with the Sepolia network:
 
 ```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
+npx hardhat ignition deploy --network sepolia ignition/modules/App.ts
 ```
+
+## CI/CD and Deployment Workflow
+
+This project uses GitHub Actions for continuous testing and manual deployments.
+
+### Continuous Integration
+
+On every push and pull request to the `main` branch:
+1. **Run Tests**: Executes the full test suite using `npx hardhat test`.
+2. **Verify Local Deployment**: Ensures that the Ignition deployment modules are valid by performing a dry-run deployment against a local Hardhat network.
+
+### Manual Sepolia Deployment
+
+You can manually trigger a deployment to the Sepolia network via the **Actions** tab in GitHub:
+
+1. Go to the **Actions** tab.
+2. Select the **Deploy to Sepolia** workflow.
+3. Click **Run workflow**.
+
+#### Required GitHub Secrets
+
+To use the Sepolia deployment workflow, you must configure the following [GitHub Repository Secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions):
+
+- `SEPOLIA_RPC_URL`: Your Sepolia RPC endpoint (e.g., from Alchemy or Infura).
+- `SEPOLIA_PRIVATE_KEY`: The private key of the account used for deployment and as the initial owner.
+- `TREASURY_ADDRESS`: (Optional) The ETH address that will receive donations. Defaults to the deployer address if not provided.
+
+#### Tracking Deployed Addresses
+
+After a successful manual deployment, you can find the contract addresses by:
+1. Opening the specific workflow run.
+2. Downloading the `sepolia-deployment` artifact.
+3. Inspecting the `deployed_addresses.json` file within the artifact.

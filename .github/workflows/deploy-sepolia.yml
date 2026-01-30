@@ -1,0 +1,37 @@
+name: Deploy to Sepolia
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy to Sepolia
+        env:
+          HARDHAT_VAR_SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+          HARDHAT_VAR_SEPOLIA_PRIVATE_KEY: ${{ secrets.SEPOLIA_PRIVATE_KEY }}
+        run: |
+          if [ -n "${{ secrets.TREASURY_ADDRESS }}" ]; then
+            echo "{\"AppModule\": {\"treasury\": \"${{ secrets.TREASURY_ADDRESS }}\"}}" > parameters.json
+            npx hardhat ignition deploy ignition/modules/App.ts --network sepolia --parameters parameters.json --reset
+          else
+            npx hardhat ignition deploy ignition/modules/App.ts --network sepolia --reset
+          fi
+
+      - name: Upload Deployment Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sepolia-deployment
+          path: ignition/deployments/
