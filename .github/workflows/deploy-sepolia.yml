@@ -22,13 +22,7 @@ jobs:
         env:
           HARDHAT_VAR_SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
           HARDHAT_VAR_SEPOLIA_PRIVATE_KEY: ${{ secrets.SEPOLIA_PRIVATE_KEY }}
-        run: |
-          if [ -n "${{ secrets.TREASURY_ADDRESS }}" ]; then
-            echo "{\"AppModule\": {\"treasury\": \"${{ secrets.TREASURY_ADDRESS }}\"}}" > parameters.json
-            npx hardhat ignition deploy ignition/modules/App.ts --network sepolia --parameters parameters.json --reset
-          else
-            npx hardhat ignition deploy ignition/modules/App.ts --network sepolia --reset
-          fi
+        run: npx hardhat ignition deploy ignition/modules/App.ts --network sepolia --reset
 
       - name: Upload Deployment Artifacts
         uses: actions/upload-artifact@v4

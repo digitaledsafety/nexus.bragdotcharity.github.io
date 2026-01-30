@@ -3,8 +3,10 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 export default buildModule("AppModule", (m) => {
   // Parameters with default values for local development
   const initialOwner = m.getParameter("initialOwner", m.getAccount(0));
-  const treasury = m.getParameter("treasury", m.getAccount(0));
   const minimumDonation = m.getParameter("minimumDonation", 1n);
+
+  // Deploy Treasury
+  const treasury = m.contract("Treasury", [initialOwner]);
 
   // Deploy SummonRegistry
   const summonRegistry = m.contract("SummonRegistry", [initialOwner]);
@@ -22,5 +24,5 @@ export default buildModule("AppModule", (m) => {
   m.call(donationReceipt, "setMinter", [bragNFT, true]);
   m.call(bragNFT, "setReceiptContract", [donationReceipt]);
 
-  return { summonRegistry, exhibition, donationReceipt, bragNFT };
+  return { treasury, summonRegistry, exhibition, donationReceipt, bragNFT };
 });

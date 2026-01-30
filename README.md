@@ -83,7 +83,15 @@ To use the Sepolia deployment workflow, you must configure the following [GitHub
 
 - `SEPOLIA_RPC_URL`: Your Sepolia RPC endpoint (e.g., from Alchemy or Infura).
 - `SEPOLIA_PRIVATE_KEY`: The private key of the account used for deployment and as the initial owner.
-- `TREASURY_ADDRESS`: (Optional) The ETH address that will receive donations. Defaults to the deployer address if not provided.
+
+### Treasury Contract
+
+This project includes a `Treasury.sol` contract. It is a simple, secure vault designed to:
+- **Receive ETH**: It has a `receive()` function to handle donations from `BragNFT`.
+- **Receive NFTs**: It implements `ERC721Holder` and `ERC1155Holder`, making it compatible with all NFT types.
+- **Owner Control**: Only the contract owner can withdraw ETH or manage assets within the treasury.
+
+By default, the deployment module will create a new instance of this `Treasury` contract during deployment.
 
 #### Tracking Deployed Addresses
 
