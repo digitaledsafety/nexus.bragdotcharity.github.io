@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
 
       - name: Install dependencies
         run: npm install
@@ -28,4 +28,6 @@ jobs:
         run: npx hardhat test
 
       - name: Verify local deployment
+        env:
+          HARDHAT_IGNITION_CONFIRM_DEPLOYMENT: 'true'
         run: npx hardhat ignition deploy ignition/modules/App.ts
