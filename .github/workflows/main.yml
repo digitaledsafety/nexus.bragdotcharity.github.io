@@ -26,3 +26,6 @@ jobs:
 
       - name: Run tests
         run: npx hardhat test
+
+      - name: Verify local deployment
+        run: npx hardhat ignition deploy ignition/modules/App.ts
