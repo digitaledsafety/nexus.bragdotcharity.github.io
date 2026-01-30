@@ -3,8 +3,18 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 export default buildModule("AppModule", (m) => {
   // Parameters with default values for local development
   const initialOwner = m.getParameter("initialOwner", m.getAccount(0));
-  const treasury = m.getParameter("treasury", m.getAccount(0));
   const minimumDonation = m.getParameter("minimumDonation", 1n);
+
+  // We check for an environment variable during module definition.
+  // This allows us to conditionally deploy the Treasury contract.
+  const externalTreasury = process.env.TREASURY_ADDRESS;
+
+  let treasury;
+  if (externalTreasury && externalTreasury !== "") {
+    treasury = externalTreasury;
+  } else {
+    treasury = m.contract("Treasury", [initialOwner]);
+  }
 
   // Deploy SummonRegistry
   const summonRegistry = m.contract("SummonRegistry", [initialOwner]);
@@ -22,5 +32,11 @@ export default buildModule("AppModule", (m) => {
   m.call(donationReceipt, "setMinter", [bragNFT, true]);
   m.call(bragNFT, "setReceiptContract", [donationReceipt]);
 
-  return { summonRegistry, exhibition, donationReceipt, bragNFT };
+  // We only return the treasury if we deployed it
+  const result: any = { summonRegistry, exhibition, donationReceipt, bragNFT };
+  if (typeof treasury !== "string") {
+    result.treasury = treasury;
+  }
+
+  return result;
 });
