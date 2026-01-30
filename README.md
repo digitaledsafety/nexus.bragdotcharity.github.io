@@ -83,6 +83,7 @@ To use the Sepolia deployment workflow, you must configure the following [GitHub
 
 - `SEPOLIA_RPC_URL`: Your Sepolia RPC endpoint (e.g., from Alchemy or Infura).
 - `SEPOLIA_PRIVATE_KEY`: The private key of the account used for deployment and as the initial owner.
+- `TREASURY_ADDRESS`: (Optional) An external ETH address to receive donations. If provided, the deployment of a new `Treasury` contract will be skipped.
 
 ### Treasury Contract
 
