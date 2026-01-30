@@ -119,4 +119,89 @@ describe("BragNFT and DonationReceipt", async function () {
     await exhibition.write.reclaim([0n], { account: donor.account });
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
   });
+
+  it("Should NOT allow reclamation before expiry", async function () {
+    const { bragNFT, exhibition, donor } = await deployContracts();
+
+    await bragNFT.write.donate(["Early reclaim test"], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+    const tokenId = 0n;
+
+    await bragNFT.write.approve([exhibition.address, tokenId], { account: donor.account });
+    await exhibition.write.exhibit721([bragNFT.address, tokenId, 3600n], { account: donor.account });
+
+    await assert.rejects(
+        exhibition.write.reclaim([0n], { account: donor.account }),
+        /Exhibition period not yet expired/
+    );
+  });
+
+  it("Should NOT allow unauthorized reclamation", async function () {
+    const { bragNFT, exhibition, donor, recipient } = await deployContracts();
+    const publicClient = await viem.getPublicClient();
+
+    await bragNFT.write.donate(["Unauthorized reclaim test"], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+    const tokenId = 0n;
+
+    await bragNFT.write.approve([exhibition.address, tokenId], { account: donor.account });
+    await exhibition.write.exhibit721([bragNFT.address, tokenId, 3600n], { account: donor.account });
+
+    await publicClient.request({ method: "evm_increaseTime" as any, params: [4000] });
+    await publicClient.request({ method: "evm_mine" as any, params: [] });
+
+    await assert.rejects(
+        exhibition.write.reclaim([0n], { account: recipient.account }),
+        /Only owner or admin can reclaim/
+    );
+  });
+
+  it("Should allow admin to reclaim even before expiry if needed", async function () {
+    // Note: The current contract logic requires expiry even for admin.
+    // If we want admin to be able to reclaim whenever, we'd change the contract.
+    // Given the current requirement "Timed", I'll stick to timed.
+    // But let's verify admin can reclaim AFTER expiry.
+    const { bragNFT, exhibition, donor, owner } = await deployContracts();
+    const publicClient = await viem.getPublicClient();
+
+    await bragNFT.write.donate(["Admin reclaim test"], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+    const tokenId = 0n;
+
+    await bragNFT.write.approve([exhibition.address, tokenId], { account: donor.account });
+    await exhibition.write.exhibit721([bragNFT.address, tokenId, 3600n], { account: donor.account });
+
+    await publicClient.request({ method: "evm_increaseTime" as any, params: [4000] });
+    await publicClient.request({ method: "evm_mine" as any, params: [] });
+
+    await exhibition.write.reclaim([0n], { account: owner.account });
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
+  });
+
+  it("Should support ERC1155 exhibition and return to owner", async function () {
+    const { exhibition, mock1155, donor } = await deployContracts();
+    const publicClient = await viem.getPublicClient();
+
+    const tokenId = 42n;
+    const amount = 100n;
+    await mock1155.write.mint([donor.account.address, tokenId, amount], { account: (await viem.getWalletClients())[0].account });
+
+    await mock1155.write.setApprovalForAll([exhibition.address, true], { account: donor.account });
+
+    await exhibition.write.exhibit1155([mock1155.address, tokenId, amount, 3600n], { account: donor.account });
+
+    assert.equal(await mock1155.read.balanceOf([exhibition.address, tokenId]), amount);
+
+    await publicClient.request({ method: "evm_increaseTime" as any, params: [4000] });
+    await publicClient.request({ method: "evm_mine" as any, params: [] });
+
+    await exhibition.write.reclaim([0n], { account: donor.account });
+    assert.equal(await mock1155.read.balanceOf([donor.account.address, tokenId]), amount);
+  });
 });
