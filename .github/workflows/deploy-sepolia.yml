@@ -20,8 +20,8 @@ jobs:
 
       - name: Deploy to Sepolia
         env:
-          HARDHAT_VAR_SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
-          HARDHAT_VAR_SEPOLIA_PRIVATE_KEY: ${{ secrets.SEPOLIA_PRIVATE_KEY }}
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+          SEPOLIA_PRIVATE_KEY: ${{ secrets.SEPOLIA_PRIVATE_KEY }}
         run: npx hardhat ignition deploy ignition/modules/App.ts --network sepolia --reset
 
       - name: Upload Deployment Artifacts
