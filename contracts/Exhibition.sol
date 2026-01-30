@@ -1,47 +1,128 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract Exhibition is Ownable
-{
-    struct ExhibitionDetails {
+/**
+ * @title Exhibition
+ * @dev A generic vault for exhibiting ERC721 and ERC1155 tokens for a set duration.
+ */
+contract Exhibition is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
+    struct ExhibitionInfo {
+        address owner;
+        address nftContract;
+        uint256 tokenId;
+        uint256 amount; // 1 for ERC721
+        uint256 expiry;
+        bool isERC1155;
         bool active;
-        uint256 locationId;
     }
 
-    // Mapping to store exhibition details (location, duration, etc.) for each NFT
-    mapping(uint256 => ExhibitionDetails) public exhibitionDetails;
-    address public nftContract;
+    uint256 private _nextExhibitionId;
+    mapping(uint256 => ExhibitionInfo) public exhibitions;
 
-    modifier onlyNFTContract() {
-        require(msg.sender == nftContract, "Only NFT contract can call this");
-        _;
+    event Exhibited(
+        uint256 indexed exhibitionId,
+        address indexed owner,
+        address indexed nftContract,
+        uint256 tokenId,
+        uint256 expiry
+    );
+
+    event Reclaimed(
+        uint256 indexed exhibitionId,
+        address indexed owner
+    );
+
+    constructor(address _initialOwner) Ownable(_initialOwner) {}
+
+    /**
+     * @dev Deposit an ERC721 token for exhibition.
+     * @param nftContract The address of the ERC721 contract.
+     * @param tokenId The ID of the token to exhibit.
+     * @param duration The duration of the exhibition in seconds.
+     */
+    function exhibit721(address nftContract, uint256 tokenId, uint256 duration) external nonReentrant returns (uint256) {
+        require(duration > 0, "Duration must be positive");
+
+        // Transfer the NFT to this vault
+        IERC721(nftContract).safeTransferFrom(msg.sender, address(this), tokenId);
+
+        uint256 exhibitionId = _nextExhibitionId++;
+        exhibitions[exhibitionId] = ExhibitionInfo({
+            owner: msg.sender,
+            nftContract: nftContract,
+            tokenId: tokenId,
+            amount: 1,
+            expiry: block.timestamp + duration,
+            isERC1155: false,
+            active: true
+        });
+
+        emit Exhibited(exhibitionId, msg.sender, nftContract, tokenId, exhibitions[exhibitionId].expiry);
+        return exhibitionId;
     }
 
-    constructor() Ownable(msg.sender) {}
+    /**
+     * @dev Deposit ERC1155 tokens for exhibition.
+     * @param nftContract The address of the ERC1155 contract.
+     * @param tokenId The ID of the token to exhibit.
+     * @param amount The number of tokens to exhibit.
+     * @param duration The duration of the exhibition in seconds.
+     */
+    function exhibit1155(address nftContract, uint256 tokenId, uint256 amount, uint256 duration) external nonReentrant returns (uint256) {
+        require(duration > 0, "Duration must be positive");
+        require(amount > 0, "Amount must be positive");
 
-    function setNFTContract(address _nftContract) public onlyOwner {
-        require(nftContract == address(0), "NFT contract already set");
-        nftContract = _nftContract;
+        // Transfer the tokens to this vault
+        IERC1155(nftContract).safeTransferFrom(msg.sender, address(this), tokenId, amount, "");
+
+        uint256 exhibitionId = _nextExhibitionId++;
+        exhibitions[exhibitionId] = ExhibitionInfo({
+            owner: msg.sender,
+            nftContract: nftContract,
+            tokenId: tokenId,
+            amount: amount,
+            expiry: block.timestamp + duration,
+            isERC1155: true,
+            active: true
+        });
+
+        emit Exhibited(exhibitionId, msg.sender, nftContract, tokenId, exhibitions[exhibitionId].expiry);
+        return exhibitionId;
     }
 
-    function getExhibitionDetails(uint256 tokenId) public view returns (ExhibitionDetails memory) {
-        return exhibitionDetails[tokenId];
+    /**
+     * @dev Reclaim a token after the exhibition period has expired.
+     * Uses a "Pull" pattern for safety.
+     * @param exhibitionId The ID of the exhibition record.
+     */
+    function reclaim(uint256 exhibitionId) external nonReentrant {
+        ExhibitionInfo storage info = exhibitions[exhibitionId];
+        require(info.active, "Exhibition not active");
+        require(block.timestamp >= info.expiry, "Exhibition period not yet expired");
+        require(msg.sender == info.owner || msg.sender == owner(), "Only owner or admin can reclaim");
+
+        info.active = false;
+
+        if (info.isERC1155) {
+            IERC1155(info.nftContract).safeTransferFrom(address(this), info.owner, info.tokenId, info.amount, "");
+        } else {
+            IERC721(info.nftContract).safeTransferFrom(address(this), info.owner, info.tokenId);
+        }
+
+        emit Reclaimed(exhibitionId, info.owner);
     }
 
-    function exhibitNFT(uint256 tokenId, uint256 locationId) public onlyNFTContract {
-        // Set exhibition details
-        exhibitionDetails[tokenId] = ExhibitionDetails(true, locationId);
-    }
-
-    function endExhibition(uint256 tokenId) public onlyNFTContract {
-        exhibitionDetails[tokenId].active = false;
-    }
-
-    function retrieveNFT(uint256 tokenId) public onlyNFTContract {
-        // Clear exhibition details
-        delete exhibitionDetails[tokenId];
+    /**
+     * @dev Get details of an exhibition.
+     */
+    function getExhibition(uint256 exhibitionId) external view returns (ExhibitionInfo memory) {
+        return exhibitions[exhibitionId];
     }
 }
