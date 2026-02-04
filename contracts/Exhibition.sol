@@ -3,16 +3,20 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title Exhibition
  * @dev A generic vault for exhibiting ERC721 and ERC1155 tokens for a set duration.
+ * Also compliant with ERC-4626 for an underlying ERC-20 asset.
  */
-contract Exhibition is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
+contract Exhibition is ERC4626, ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
     struct ExhibitionInfo {
         address owner;
         address nftContract;
@@ -39,7 +43,12 @@ contract Exhibition is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
         address indexed owner
     );
 
-    constructor(address _initialOwner) Ownable(_initialOwner) {}
+    constructor(
+        address _initialOwner,
+        IERC20 _asset,
+        string memory _name,
+        string memory _symbol
+    ) ERC4626(_asset) ERC20(_name, _symbol) Ownable(_initialOwner) {}
 
     /**
      * @dev Deposit an ERC721 token for exhibition.
@@ -124,5 +133,12 @@ contract Exhibition is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
      */
     function getExhibition(uint256 exhibitionId) external view returns (ExhibitionInfo memory) {
         return exhibitions[exhibitionId];
+    }
+
+    /**
+     * @dev Override decimals offset to protect against inflation attacks.
+     */
+    function _decimalsOffset() internal view virtual override returns (uint8) {
+        return 3;
     }
 }

@@ -3,8 +3,11 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
@@ -16,8 +19,9 @@ interface ISummonRegistry {
  * @title SummonVault
  * @dev A vault contract where NFTs are "summoned".
  * It tracks the original owner and allows them to unsummon (withdraw) or move the NFT.
+ * Also compliant with ERC-4626 for an underlying ERC-20 asset.
  */
-contract SummonVault is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
+contract SummonVault is ERC4626, ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
     ISummonRegistry public registry;
 
     // Track original owner of ERC721 tokens
@@ -35,7 +39,13 @@ contract SummonVault is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
     event Moved721(address indexed nftContract, uint256 indexed tokenId, address indexed owner, address destinationVault);
     event Moved1155(address indexed nftContract, uint256 indexed tokenId, address indexed owner, uint256 amount, address destinationVault);
 
-    constructor(address _initialOwner, address _registry) Ownable(_initialOwner) {
+    constructor(
+        address _initialOwner,
+        address _registry,
+        IERC20 _asset,
+        string memory _name,
+        string memory _symbol
+    ) ERC4626(_asset) ERC20(_name, _symbol) Ownable(_initialOwner) {
         registry = ISummonRegistry(_registry);
     }
 
@@ -160,5 +170,12 @@ contract SummonVault is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
         require(balances1155[nftContract][tokenId][fromUser] >= amount, "Insufficient balance");
         balances1155[nftContract][tokenId][fromUser] -= amount;
         IERC1155(nftContract).safeTransferFrom(address(this), to, tokenId, amount, "");
+    }
+
+    /**
+     * @dev Override decimals offset to protect against inflation attacks.
+     */
+    function _decimalsOffset() internal view virtual override returns (uint8) {
+        return 3;
     }
 }

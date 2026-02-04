@@ -9,11 +9,24 @@ describe("Summoning System", async function () {
   async function deployContracts() {
     const [owner, user, user2, admin] = await viem.getWalletClients();
 
+    const mockUsdc = await viem.deployContract("MockUSDC");
     const registry = await viem.deployContract("SummonRegistry", [owner.account.address]);
 
     // Deploy two vaults
-    const vault1 = await viem.deployContract("SummonVault", [owner.account.address, registry.address]);
-    const vault2 = await viem.deployContract("SummonVault", [owner.account.address, registry.address]);
+    const vault1 = await viem.deployContract("SummonVault", [
+      owner.account.address,
+      registry.address,
+      mockUsdc.address,
+      "Minecraft Vault",
+      "MCV"
+    ]);
+    const vault2 = await viem.deployContract("SummonVault", [
+      owner.account.address,
+      registry.address,
+      mockUsdc.address,
+      "Roblox Vault",
+      "RBV"
+    ]);
 
     // Verify vaults in registry
     await registry.write.verifyVault([vault1.address, 0, "Minecraft Vault", "Vault for Minecraft"]);
