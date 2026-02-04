@@ -24,8 +24,20 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Compile contracts
+        run: npx hardhat compile
+
       - name: Run tests
         run: npx hardhat test
 
       - name: Verify local deployment
         run: npx hardhat ignition deploy ignition/modules/App.ts
+
+      - name: Export ABIs
+        run: node scripts/export-abis.cjs
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./frontend
