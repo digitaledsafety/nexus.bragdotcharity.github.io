@@ -94,6 +94,23 @@ This project includes a `Treasury.sol` contract. It is a simple, secure vault de
 
 By default, the deployment module will create a new instance of this `Treasury` contract during deployment.
 
+## BragNFT Manager (Web Interface)
+
+This project includes a built-in web-based manager that allows you to interact with all the smart contracts through a user-friendly interface.
+
+- **URL**: Once deployed to GitHub Pages, it is typically available at `https://your-username.github.io/your-repo-name/`.
+- **Local Access**: You can also open `frontend/index.html` directly in your browser.
+
+### Key Features:
+- **Minting**: Donate ETH to mint BragNFTs.
+- **Summoning**: Deploy and manage "Summon Vaults" for your NFTs across games and galleries.
+- **Exhibition**: Put your NFTs on display with customizable expiry times.
+- **Marketplace**: Create, accept, and cancel offers on NFTs.
+- **Contract Explorer**: A dynamic section that automatically generates a UI for **every function** in your smart contracts.
+
+### Auto-Updating ABIs
+The interface is powered by a GitHub Action (`deploy-pages.yml`) that automatically updates the contract ABIs and deployment addresses whenever you push changes to the `main` branch. This means your web interface is always in sync with your latest Solidity code.
+
 #### Tracking Deployed Addresses
 
 After a successful manual deployment, you can find the contract addresses by:
