@@ -4,11 +4,11 @@ This is a vanilla HTML/JS interface for interacting with the BragNFT smart contr
 
 ## Deployment to GitHub Pages
 
-1. Go to your repository settings on GitHub.
-2. Select **Pages** from the sidebar.
-3. Under **Build and deployment**, set the source to **Deploy from a branch**.
-4. Choose the branch and folder (e.g., `main` branch and `/frontend` folder, or you can move these files to a `docs/` folder in the root).
-5. Click **Save**.
+This project is configured with a GitHub Action (`.github/workflows/deploy-pages.yml`) that automatically handles deployment for you.
+
+1. Push your changes to the `main` branch.
+2. The Action will compile your contracts, update the ABIs, and push the site to a `gh-pages` branch.
+3. In your GitHub Repo settings, under **Pages**, ensure the source is set to **Deploy from a branch** and the branch is set to **gh-pages**.
 
 ## Local Development
 

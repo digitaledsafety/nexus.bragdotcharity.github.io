@@ -78,7 +78,10 @@
 
         <!-- Contract Settings -->
         <section class="mb-8 brag-card rounded-xl p-6">
-            <h2 class="section-title">Contract Settings</h2>
+            <div class="flex justify-between items-center mb-4 border-b-2 border-slate-700 pb-2">
+                <h2 class="text-xl font-bold text-slate-300">Contract Settings</h2>
+                <button id="btnAutofill" class="btn-secondary text-xs">Auto-fill From Deployment</button>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm mb-1">BragNFT Address</label>
@@ -236,6 +239,20 @@
             </section>
 
         </div>
+
+        <!-- Contract Explorer (Dynamic) -->
+        <section class="mt-8 brag-card rounded-xl p-6">
+            <h2 class="section-title"><i class="fas fa-code mr-2"></i>Contract Explorer (Auto-Generated)</h2>
+            <p class="text-sm text-slate-400 mb-4">This section automatically updates when you change your smart contracts.</p>
+
+            <div class="flex border-b border-slate-700 mb-4 overflow-x-auto" id="contractTabs">
+                <!-- Tabs will be injected here -->
+            </div>
+
+            <div id="contractFunctions" class="space-y-4">
+                <div class="text-center py-8 text-slate-500 italic">Connect wallet and select a contract above to explore functions.</div>
+            </div>
+        </section>
 
         <!-- Logs -->
         <section class="mt-8 brag-card rounded-xl p-6">

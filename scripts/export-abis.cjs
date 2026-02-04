@@ -1,22 +1,28 @@
 const fs = require("fs");
 const path = require("path");
 
-const contracts = ["BragNFT", "SummonRegistry", "SummonVault", "Exhibition", "NFTMarketplace", "DonationReceipt"];
 const output = {};
+const contractsDir = path.join(__dirname, "..", "artifacts", "contracts");
 
-contracts.forEach(name => {
-  const artifactPath = path.join(__dirname, "..", "artifacts", "contracts", `${name}.sol`, `${name}.json`);
-  if (fs.existsSync(artifactPath)) {
-    const data = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-    output[name] = {
-      abi: data.abi,
-      bytecode: data.bytecode
-    };
-    console.log(`Extracted ABI for ${name}`);
-  } else {
-    console.warn(`Warning: Artifact for ${name} not found at ${artifactPath}`);
-  }
-});
+if (fs.existsSync(contractsDir)) {
+  const solFiles = fs.readdirSync(contractsDir);
+  solFiles.forEach(solFolder => {
+    if (solFolder.endsWith(".sol")) {
+      const contractName = solFolder.replace(".sol", "");
+      const artifactPath = path.join(contractsDir, solFolder, `${contractName}.json`);
+      if (fs.existsSync(artifactPath)) {
+        const data = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
+        if (data.abi && data.abi.length > 0) {
+          output[contractName] = {
+            abi: data.abi,
+            bytecode: data.bytecode
+          };
+          console.log(`Extracted ABI for ${contractName}`);
+        }
+      }
+    }
+  });
+}
 
 // Try to find deployment addresses in ignition/deployments
 // This is a bit heuristic since there might be multiple deployments
@@ -32,7 +38,7 @@ if (fs.existsSync(deploymentsDir)) {
       // We map the instance names (e.g. "AppModule#BragNFT") to the contract names
       for (const [key, addr] of Object.entries(deployed)) {
         const nameMatch = key.split("#")[1];
-        if (nameMatch && contracts.includes(nameMatch)) {
+        if (nameMatch) {
           if (!addresses[chain]) addresses[chain] = {};
           addresses[chain][nameMatch] = addr;
         }
