@@ -49,15 +49,31 @@ contract BragNFT is ERC721, Ownable {
      * @param message A message to include with the donation receipt.
      */
     function donate(string calldata message) external payable {
+        _donate(msg.sender, message);
+    }
+
+    /**
+     * @dev Mint a new BragNFT by donating ETH to a specific recipient.
+     * @param recipient The address to receive the transferable BragNFT.
+     * @param message A message to include with the donation receipt.
+     */
+    function donateTo(address recipient, string calldata message) external payable {
+        _donate(recipient, message);
+    }
+
+    /**
+     * @dev Internal donation logic.
+     */
+    function _donate(address recipient, string calldata message) internal {
         require(address(receiptContract) != address(0), "Receipt contract not set");
         require(msg.value >= minimumDonation, "Donation below minimum");
 
         uint256 nftTokenId = _nextTokenId++;
 
-        // Mint the transferable BragNFT
-        _safeMint(msg.sender, nftTokenId);
+        // Mint the transferable BragNFT to the specified recipient
+        _safeMint(recipient, nftTokenId);
 
-        // Mint the soulbound receipt
+        // Mint the soulbound receipt to the donor (always msg.sender)
         uint256 receiptTokenId = receiptContract.mint(msg.sender, msg.value, message);
 
         // Link them
