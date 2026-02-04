@@ -4,6 +4,15 @@ export default buildModule("AppModule", (m) => {
   // Parameters with default values for local development
   const initialOwner = m.getParameter("initialOwner", m.getAccount(0));
   const minimumDonation = m.getParameter("minimumDonation", 1n);
+  const assetAddress = m.getParameter("assetAddress", "");
+
+  // Deploy MockUSDC to use as the underlying asset for vaults if none provided
+  let asset: any;
+  if (assetAddress === "") {
+    asset = m.contract("MockUSDC");
+  } else {
+    asset = assetAddress;
+  }
 
   // We check for an environment variable during module definition.
   // This allows us to conditionally deploy the Treasury contract.
@@ -13,14 +22,24 @@ export default buildModule("AppModule", (m) => {
   if (externalTreasury && externalTreasury !== "") {
     treasury = externalTreasury;
   } else {
-    treasury = m.contract("Treasury", [initialOwner]);
+    treasury = m.contract("Treasury", [
+      initialOwner,
+      asset,
+      "Treasury Vault Shares",
+      "TVS"
+    ]);
   }
 
   // Deploy SummonRegistry
   const summonRegistry = m.contract("SummonRegistry", [initialOwner]);
 
   // Deploy Exhibition
-  const exhibition = m.contract("Exhibition", [initialOwner]);
+  const exhibition = m.contract("Exhibition", [
+    initialOwner,
+    asset,
+    "Exhibition Vault Shares",
+    "EVS"
+  ]);
 
   // Deploy DonationReceipt
   const donationReceipt = m.contract("DonationReceipt", [initialOwner]);

@@ -7,13 +7,25 @@ describe("BragNFT and DonationReceipt", async function () {
   const { viem } = await network.connect();
 
   async function deployContracts() {
-    const [owner, donor, treasury, recipient] = await viem.getWalletClients();
+    const [owner, donor, treasuryWallet, recipient] = await viem.getWalletClients();
 
-    const exhibition = await viem.deployContract("Exhibition", [owner.account.address]);
+    const mockUsdc = await viem.deployContract("MockUSDC");
+    const exhibition = await viem.deployContract("Exhibition", [
+        owner.account.address,
+        mockUsdc.address,
+        "Exhibition Vault",
+        "EXH"
+    ]);
+    const treasury = await viem.deployContract("Treasury", [
+        owner.account.address,
+        mockUsdc.address,
+        "Treasury Vault",
+        "TSY"
+    ]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const bragNFT = await viem.deployContract("BragNFT", [
         owner.account.address,
-        treasury.account.address,
+        treasury.address,
         parseEther("0.1")
     ]);
 
@@ -32,7 +44,7 @@ describe("BragNFT and DonationReceipt", async function () {
     const message = "Generous donor";
 
     const publicClient = await viem.getPublicClient();
-    const initialTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });
+    const initialTreasuryBalance = await publicClient.getBalance({ address: treasury.address });
 
     await bragNFT.write.donate([message], {
         account: donor.account,
@@ -53,7 +65,7 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.equal(receiptDetails.message, message);
 
     // 3. Check Treasury
-    const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });
+    const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.address });
     assert.equal(finalTreasuryBalance, initialTreasuryBalance + donationAmount);
   });
 
