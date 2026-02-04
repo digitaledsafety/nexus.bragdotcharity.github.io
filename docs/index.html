@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BragNFT Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js" type="application/javascript"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .brag-gradient {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+        .brag-card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+        }
+        .input-field {
+            background-color: #334155;
+            border: 1px solid #475569;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            width: 100%;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        .btn-secondary {
+            background-color: #475569;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .btn-secondary:hover {
+            background-color: #64748b;
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #cbd5e1;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Navbar -->
+    <nav class="border-b border-slate-700 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold bg-clip-text text-transparent brag-gradient">BRAG</span>
+                    <span class="ml-2 text-xl font-light">NFT Manager</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="networkStatus" class="text-sm text-slate-400"></div>
+                    <button id="connectBtn" class="btn-primary">Connect Wallet</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Contract Settings -->
+        <section class="mb-8 brag-card rounded-xl p-6">
+            <h2 class="section-title">Contract Settings</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm mb-1">BragNFT Address</label>
+                    <input type="text" id="addrBragNFT" class="input-field" placeholder="0x...">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">SummonRegistry Address</label>
+                    <input type="text" id="addrSummonRegistry" class="input-field" placeholder="0x...">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Exhibition Address</label>
+                    <input type="text" id="addrExhibition" class="input-field" placeholder="0x...">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Marketplace Address</label>
+                    <input type="text" id="addrMarketplace" class="input-field" placeholder="0x...">
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- Minting Section -->
+            <section class="brag-card rounded-xl p-6">
+                <h2 class="section-title"><i class="fas fa-plus-circle mr-2"></i>Mint BragNFT</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm mb-1">Donation Amount (ETH)</label>
+                        <input type="number" id="mintAmount" class="input-field" value="0.01" step="0.001">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Message</label>
+                        <input type="text" id="mintMessage" class="input-field" placeholder="Thank you!">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Recipient (Optional)</label>
+                        <input type="text" id="mintRecipient" class="input-field" placeholder="Leave blank for self">
+                    </div>
+                    <button id="btnMint" class="btn-primary w-full">Donate & Mint</button>
+                </div>
+            </section>
+
+            <!-- Vault Management -->
+            <section class="brag-card rounded-xl p-6">
+                <h2 class="section-title"><i class="fas fa-vault mr-2"></i>Vault Management</h2>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-md font-semibold mb-2">Deploy New SummonVault</h3>
+                        <button id="btnDeployVault" class="btn-secondary w-full">Deploy Vault</button>
+                    </div>
+                    <div class="border-t border-slate-700 pt-4">
+                        <h3 class="text-md font-semibold mb-2">Register Vault in Registry</h3>
+                        <div class="space-y-2">
+                            <input type="text" id="regVaultAddr" class="input-field" placeholder="Vault Address">
+                            <input type="text" id="regVaultName" class="input-field" placeholder="Vault Name">
+                            <input type="text" id="regVaultDesc" class="input-field" placeholder="Description">
+                            <select id="regVaultType" class="input-field">
+                                <option value="0">Game</option>
+                                <option value="1">Physical</option>
+                                <option value="2">Website</option>
+                                <option value="3">Gallery</option>
+                                <option value="4">Other</option>
+                            </select>
+                            <button id="btnRegisterVault" class="btn-primary w-full">Register Vault</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Summoning Actions -->
+            <section class="brag-card rounded-xl p-6">
+                <h2 class="section-title"><i class="fas fa-magic mr-2"></i>Summoning</h2>
+                <div class="space-y-4">
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Move NFT between Vaults</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="moveFromVault" class="input-field" placeholder="Source Vault">
+                            <input type="text" id="moveToVault" class="input-field" placeholder="Dest Vault">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="moveNFTContract" class="input-field" placeholder="NFT Contract">
+                            <input type="text" id="moveNFTId" class="input-field" placeholder="Token ID">
+                        </div>
+                        <input type="number" id="moveAmount" class="input-field mb-2" placeholder="Amount (for ERC1155)" value="1">
+                        <button id="btnMove721" class="btn-primary w-full mb-2">Move ERC721</button>
+                        <button id="btnMove1155" class="btn-secondary w-full">Move ERC1155</button>
+                    </div>
+
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Withdraw from Vault</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="withdrawVault" class="input-field" placeholder="Vault Address">
+                            <input type="text" id="withdrawNFTContract" class="input-field" placeholder="NFT Contract">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="withdrawNFTId" class="input-field" placeholder="Token ID">
+                            <input type="number" id="withdrawAmount" class="input-field" placeholder="Amount" value="1">
+                        </div>
+                        <button id="btnWithdraw721" class="btn-primary w-full mb-2">Withdraw ERC721</button>
+                        <button id="btnWithdraw1155" class="btn-secondary w-full">Withdraw ERC1155</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Exhibition -->
+            <section class="brag-card rounded-xl p-6">
+                <h2 class="section-title"><i class="fas fa-eye mr-2"></i>Exhibition</h2>
+                <div class="space-y-4">
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Exhibit NFT</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="exhNFTContract" class="input-field" placeholder="NFT Contract">
+                            <input type="text" id="exhTokenId" class="input-field" placeholder="Token ID">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="number" id="exhAmount" class="input-field" placeholder="Amount" value="1">
+                            <input type="number" id="exhDuration" class="input-field" placeholder="Duration (sec)" value="3600">
+                        </div>
+                        <button id="btnExhibit721" class="btn-primary w-full mb-2">Exhibit ERC721</button>
+                        <button id="btnExhibit1155" class="btn-secondary w-full">Exhibit ERC1155</button>
+                    </div>
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Reclaim NFT</h3>
+                        <input type="number" id="reclaimId" class="input-field mb-2" placeholder="Exhibition ID">
+                        <button id="btnReclaim" class="btn-primary w-full">Reclaim</button>
+                    </div>
+                </div>
+            </section>
+
+             <!-- Marketplace -->
+             <section class="brag-card rounded-xl p-6 lg:col-span-2">
+                <h2 class="section-title"><i class="fas fa-shopping-cart mr-2"></i>Marketplace</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Create Offer</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="offNFTContract" class="input-field" placeholder="NFT Contract">
+                            <input type="text" id="offTokenId" class="input-field" placeholder="Token ID">
+                        </div>
+                        <input type="number" id="offPrice" class="input-field mb-2" placeholder="Price (ETH)" step="0.001">
+                        <button id="btnCreateOffer" class="btn-primary w-full">Create Offer</button>
+                    </div>
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Accept / Cancel Offer</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="accNFTContract" class="input-field" placeholder="NFT Contract">
+                            <input type="text" id="accTokenId" class="input-field" placeholder="Token ID">
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="btnAcceptOffer" class="btn-primary flex-1">Accept</button>
+                            <button id="btnCancelOffer" class="btn-secondary flex-1">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Logs -->
+        <section class="mt-8 brag-card rounded-xl p-6">
+            <h2 class="section-title">Activity Log</h2>
+            <div id="logs" class="bg-slate-900 rounded p-4 h-64 overflow-y-auto font-mono text-sm text-green-400">
+                <div>> Application started. Please connect wallet.</div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="mt-12 py-8 border-t border-slate-800 text-center text-slate-500 text-sm">
+        &copy; 2026. All Rights Reserved - brag.charity is a Digital Education & Safety Foundation Inc. Property
+    </footer>
+
+    <script src="contracts.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
