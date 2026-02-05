@@ -18,9 +18,11 @@ function log(message, type = 'info') {
 // Persistent addresses
 const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrMarketplace'];
 addressFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
     const saved = localStorage.getItem(id);
-    if (saved) document.getElementById(id).value = saved;
-    document.getElementById(id).addEventListener('change', (e) => {
+    if (saved) el.value = saved;
+    el.addEventListener('change', (e) => {
         localStorage.setItem(id, e.target.value);
         // Sync with explorer if visible
         const contractName = id.replace('addr', '');
@@ -50,9 +52,13 @@ async function connectWallet() {
         const chainId = network.chainId.toString();
         if (CONTRACT_DATA.deployments && CONTRACT_DATA.deployments[chainId]) {
             const deps = CONTRACT_DATA.deployments[chainId];
-            if (deps.BragNFT && !document.getElementById('addrBragNFT').value) document.getElementById('addrBragNFT').value = deps.BragNFT;
-            if (deps.ExhibitRegistry && !document.getElementById('addrExhibitRegistry').value) document.getElementById('addrExhibitRegistry').value = deps.ExhibitRegistry;
-            if (deps.NFTMarketplace && !document.getElementById('addrMarketplace').value) document.getElementById('addrMarketplace').value = deps.NFTMarketplace;
+            const setIfEmpty = (id, val) => {
+                const el = document.getElementById(id);
+                if (el && !el.value) el.value = val;
+            };
+            if (deps.BragNFT) setIfEmpty('addrBragNFT', deps.BragNFT);
+            if (deps.ExhibitRegistry) setIfEmpty('addrExhibitRegistry', deps.ExhibitRegistry);
+            if (deps.NFTMarketplace) setIfEmpty('addrMarketplace', deps.NFTMarketplace);
         }
 
         window.ethereum.on('accountsChanged', () => window.location.reload());
