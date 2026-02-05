@@ -4,11 +4,11 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title SummonRegistry
- * @dev A central registry for verified "Summon Vaults".
- * Each vault represents a location (Game, Gallery, Website, etc.) where an NFT can be "summoned".
+ * @title ExhibitRegistry
+ * @dev A central registry for verified "Exhibit Vaults".
+ * Each vault represents a location (Game, Gallery, Website, etc.) where an NFT can be "exhibited".
  */
-contract SummonRegistry is Ownable {
+contract ExhibitRegistry is Ownable {
     enum LocationType { Game, Physical, Website, Gallery, Other }
 
     struct VaultInfo {
@@ -67,5 +67,9 @@ contract SummonRegistry is Ownable {
 
     function getVaultCount() external view returns (uint256) {
         return vaultAddresses.length;
+    }
+
+    function getVaultInfo(address vault) external view returns (VaultInfo memory) {
+        return vaults[vault];
     }
 }

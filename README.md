@@ -103,13 +103,12 @@ This project includes a built-in web-based manager that allows you to interact w
 
 ### Key Features:
 - **Minting**: Donate ETH to mint BragNFTs.
-- **Summoning**: Deploy and manage "Summon Vaults" for your NFTs across games and galleries.
-- **Exhibition**: Put your NFTs on display with customizable expiry times.
+- **Exhibition**: Deploy and manage "Exhibit Vaults" for your NFTs across games, galleries, and websites.
 - **Marketplace**: Create, accept, and cancel offers on NFTs.
 - **Contract Explorer**: A dynamic section that automatically generates a UI for **every function** in your smart contracts.
 
 ### Auto-Updating ABIs
-The interface is powered by a GitHub Action (`deploy-pages.yml`) that automatically updates the contract ABIs and deployment addresses whenever you push changes to the `main` branch. This means your web interface is always in sync with your latest Solidity code.
+The interface is powered by a GitHub Action that automatically updates the contract ABIs and deployment addresses whenever you push changes to the `main` branch. This means your web interface is always in sync with your latest Solidity code.
 
 #### Tracking Deployed Addresses
 

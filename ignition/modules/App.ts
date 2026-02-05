@@ -16,11 +16,8 @@ export default buildModule("AppModule", (m) => {
     treasury = m.contract("Treasury", [initialOwner]);
   }
 
-  // Deploy SummonRegistry
-  const summonRegistry = m.contract("SummonRegistry", [initialOwner]);
-
-  // Deploy Exhibition
-  const exhibition = m.contract("Exhibition", [initialOwner]);
+  // Deploy ExhibitRegistry
+  const exhibitRegistry = m.contract("ExhibitRegistry", [initialOwner]);
 
   // Deploy DonationReceipt
   const donationReceipt = m.contract("DonationReceipt", [initialOwner]);
@@ -33,7 +30,7 @@ export default buildModule("AppModule", (m) => {
   m.call(bragNFT, "setReceiptContract", [donationReceipt]);
 
   // We only return the treasury if we deployed it
-  const result: any = { summonRegistry, exhibition, donationReceipt, bragNFT };
+  const result: any = { exhibitRegistry, donationReceipt, bragNFT };
   if (typeof treasury !== "string") {
     result.treasury = treasury;
   }
