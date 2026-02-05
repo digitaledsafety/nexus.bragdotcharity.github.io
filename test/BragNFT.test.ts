@@ -9,7 +9,12 @@ describe("BragNFT and DonationReceipt", async function () {
   async function deployContracts() {
     const [owner, donor, treasury, recipient] = await viem.getWalletClients();
 
-    const exhibition = await viem.deployContract("Exhibition", [owner.account.address]);
+    const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
+    const vault = await viem.deployContract("ExhibitVault", [owner.account.address, registry.address]);
+
+    // Verify vault in registry
+    await registry.write.verifyVault([vault.address, 3, "Art Gallery", "Main gallery"]);
+
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const bragNFT = await viem.deployContract("BragNFT", [
         owner.account.address,
@@ -23,7 +28,7 @@ describe("BragNFT and DonationReceipt", async function () {
 
     const mock1155 = await viem.deployContract("MockERC1155", []);
 
-    return { exhibition, bragNFT, receipt, mock1155, owner, donor, treasury, recipient };
+    return { registry, vault, bragNFT, receipt, mock1155, owner, donor, treasury, recipient };
   }
 
   it("Should mint both BragNFT and DonationReceipt on donation", async function () {
@@ -86,7 +91,7 @@ describe("BragNFT and DonationReceipt", async function () {
   });
 
   it("Should allow BragNFT to be exhibited", async function () {
-    const { bragNFT, exhibition, donor } = await deployContracts();
+    const { bragNFT, vault, donor } = await deployContracts();
 
     await bragNFT.write.donate(["Exhibition piece"], {
         account: donor.account,
@@ -94,114 +99,41 @@ describe("BragNFT and DonationReceipt", async function () {
     });
     const tokenId = 0n;
 
-    await bragNFT.write.approve([exhibition.address, tokenId], { account: donor.account });
-    await exhibition.write.exhibit721([bragNFT.address, tokenId, 3600n], { account: donor.account });
+    await bragNFT.write.safeTransferFrom([donor.account.address, vault.address, tokenId], { account: donor.account });
 
-    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(exhibition.address));
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(vault.address));
+    assert.equal(await vault.read.owner721([bragNFT.address, tokenId]), getAddress(donor.account.address));
   });
 
-  it("Should allow reclamation of BragNFT after exhibition", async function () {
-    const { bragNFT, exhibition, donor } = await deployContracts();
-    const publicClient = await viem.getPublicClient();
+  it("Should allow withdrawal of BragNFT from exhibit", async function () {
+    const { bragNFT, vault, donor } = await deployContracts();
 
-    await bragNFT.write.donate(["Timed exhibition"], {
+    await bragNFT.write.donate(["Withdrawal test"], {
         account: donor.account,
         value: parseEther("0.1")
     });
     const tokenId = 0n;
 
-    await bragNFT.write.approve([exhibition.address, tokenId], { account: donor.account });
-    await exhibition.write.exhibit721([bragNFT.address, tokenId, 3600n], { account: donor.account });
+    await bragNFT.write.safeTransferFrom([donor.account.address, vault.address, tokenId], { account: donor.account });
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(vault.address));
 
-    await publicClient.request({ method: "evm_increaseTime" as any, params: [4000] });
-    await publicClient.request({ method: "evm_mine" as any, params: [] });
-
-    await exhibition.write.reclaim([0n], { account: donor.account });
-    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
-  });
-
-  it("Should NOT allow reclamation before expiry", async function () {
-    const { bragNFT, exhibition, donor } = await deployContracts();
-
-    await bragNFT.write.donate(["Early reclaim test"], {
-        account: donor.account,
-        value: parseEther("0.1")
-    });
-    const tokenId = 0n;
-
-    await bragNFT.write.approve([exhibition.address, tokenId], { account: donor.account });
-    await exhibition.write.exhibit721([bragNFT.address, tokenId, 3600n], { account: donor.account });
-
-    await assert.rejects(
-        exhibition.write.reclaim([0n], { account: donor.account }),
-        /Exhibition period not yet expired/
-    );
-  });
-
-  it("Should NOT allow unauthorized reclamation", async function () {
-    const { bragNFT, exhibition, donor, recipient } = await deployContracts();
-    const publicClient = await viem.getPublicClient();
-
-    await bragNFT.write.donate(["Unauthorized reclaim test"], {
-        account: donor.account,
-        value: parseEther("0.1")
-    });
-    const tokenId = 0n;
-
-    await bragNFT.write.approve([exhibition.address, tokenId], { account: donor.account });
-    await exhibition.write.exhibit721([bragNFT.address, tokenId, 3600n], { account: donor.account });
-
-    await publicClient.request({ method: "evm_increaseTime" as any, params: [4000] });
-    await publicClient.request({ method: "evm_mine" as any, params: [] });
-
-    await assert.rejects(
-        exhibition.write.reclaim([0n], { account: recipient.account }),
-        /Only owner or admin can reclaim/
-    );
-  });
-
-  it("Should allow admin to reclaim even before expiry if needed", async function () {
-    // Note: The current contract logic requires expiry even for admin.
-    // If we want admin to be able to reclaim whenever, we'd change the contract.
-    // Given the current requirement "Timed", I'll stick to timed.
-    // But let's verify admin can reclaim AFTER expiry.
-    const { bragNFT, exhibition, donor, owner } = await deployContracts();
-    const publicClient = await viem.getPublicClient();
-
-    await bragNFT.write.donate(["Admin reclaim test"], {
-        account: donor.account,
-        value: parseEther("0.1")
-    });
-    const tokenId = 0n;
-
-    await bragNFT.write.approve([exhibition.address, tokenId], { account: donor.account });
-    await exhibition.write.exhibit721([bragNFT.address, tokenId, 3600n], { account: donor.account });
-
-    await publicClient.request({ method: "evm_increaseTime" as any, params: [4000] });
-    await publicClient.request({ method: "evm_mine" as any, params: [] });
-
-    await exhibition.write.reclaim([0n], { account: owner.account });
+    await vault.write.withdraw721([bragNFT.address, tokenId], { account: donor.account });
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
   });
 
   it("Should support ERC1155 exhibition and return to owner", async function () {
-    const { exhibition, mock1155, donor } = await deployContracts();
-    const publicClient = await viem.getPublicClient();
+    const { vault, mock1155, donor } = await deployContracts();
 
     const tokenId = 42n;
     const amount = 100n;
     await mock1155.write.mint([donor.account.address, tokenId, amount], { account: (await viem.getWalletClients())[0].account });
 
-    await mock1155.write.setApprovalForAll([exhibition.address, true], { account: donor.account });
+    await mock1155.write.safeTransferFrom([donor.account.address, vault.address, tokenId, amount, "0x"], { account: donor.account });
 
-    await exhibition.write.exhibit1155([mock1155.address, tokenId, amount, 3600n], { account: donor.account });
+    assert.equal(await mock1155.read.balanceOf([vault.address, tokenId]), amount);
+    assert.equal(await vault.read.balances1155([mock1155.address, tokenId, donor.account.address]), amount);
 
-    assert.equal(await mock1155.read.balanceOf([exhibition.address, tokenId]), amount);
-
-    await publicClient.request({ method: "evm_increaseTime" as any, params: [4000] });
-    await publicClient.request({ method: "evm_mine" as any, params: [] });
-
-    await exhibition.write.reclaim([0n], { account: donor.account });
+    await vault.write.withdraw1155([mock1155.address, tokenId, amount], { account: donor.account });
     assert.equal(await mock1155.read.balanceOf([donor.account.address, tokenId]), amount);
   });
 });
