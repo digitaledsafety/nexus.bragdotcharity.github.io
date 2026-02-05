@@ -16,7 +16,7 @@ function log(message, type = 'info') {
 }
 
 // Persistent addresses
-const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrMarketplace'];
+const addressFields = ['addrBragNFT', 'addrSummonRegistry', 'addrExhibition', 'addrMarketplace'];
 addressFields.forEach(id => {
     const saved = localStorage.getItem(id);
     if (saved) document.getElementById(id).value = saved;
@@ -51,7 +51,8 @@ async function connectWallet() {
         if (CONTRACT_DATA.deployments && CONTRACT_DATA.deployments[chainId]) {
             const deps = CONTRACT_DATA.deployments[chainId];
             if (deps.BragNFT && !document.getElementById('addrBragNFT').value) document.getElementById('addrBragNFT').value = deps.BragNFT;
-            if (deps.ExhibitRegistry && !document.getElementById('addrExhibitRegistry').value) document.getElementById('addrExhibitRegistry').value = deps.ExhibitRegistry;
+            if (deps.SummonRegistry && !document.getElementById('addrSummonRegistry').value) document.getElementById('addrSummonRegistry').value = deps.SummonRegistry;
+            if (deps.Exhibition && !document.getElementById('addrExhibition').value) document.getElementById('addrExhibition').value = deps.Exhibition;
             if (deps.NFTMarketplace && !document.getElementById('addrMarketplace').value) document.getElementById('addrMarketplace').value = deps.NFTMarketplace;
         }
 
@@ -107,18 +108,18 @@ document.getElementById('btnMint').addEventListener('click', async () => {
 document.getElementById('btnDeployVault').addEventListener('click', async () => {
     try {
         const factory = new ethers.ContractFactory(
-            CONTRACT_DATA.contracts.ExhibitVault.abi,
-            CONTRACT_DATA.contracts.ExhibitVault.bytecode,
+            CONTRACT_DATA.contracts.SummonVault.abi,
+            CONTRACT_DATA.contracts.SummonVault.bytecode,
             signer
         );
         const owner = await signer.getAddress();
-        const registry = document.getElementById('addrExhibitRegistry').value;
+        const registry = document.getElementById('addrSummonRegistry').value;
 
-        log('Deploying ExhibitVault...');
+        log('Deploying SummonVault...');
         const contract = await factory.deploy(owner, registry);
         log(`Vault deployment tx: ${contract.deployTransaction.hash}`);
         await contract.deployed();
-        log(`ExhibitVault deployed at: ${contract.address}`, 'success');
+        log(`SummonVault deployed at: ${contract.address}`, 'success');
         document.getElementById('regVaultAddr').value = contract.address;
     } catch (error) {
         log(`Deployment failed: ${error.message}`, 'error');
@@ -126,58 +127,25 @@ document.getElementById('btnDeployVault').addEventListener('click', async () => 
 });
 
 document.getElementById('btnRegisterVault').addEventListener('click', async () => {
-    const addr = document.getElementById('addrExhibitRegistry').value;
+    const addr = document.getElementById('addrSummonRegistry').value;
     const vault = document.getElementById('regVaultAddr').value;
     const type = document.getElementById('regVaultType').value;
     const name = document.getElementById('regVaultName').value;
     const desc = document.getElementById('regVaultDesc').value;
 
-    const contract = getContract('ExhibitRegistry', addr);
+    const contract = getContract('SummonRegistry', addr);
     await txHandler(contract.verifyVault(vault, type, name, desc), 'Vault Registered');
 });
 
-// Exhibiting from Wallet
-document.getElementById('btnExhibit721').addEventListener('click', async () => {
-    const vault = document.getElementById('exhVault').value;
-    const nftAddr = document.getElementById('exhNFT').value;
-    const id = document.getElementById('exhId').value;
-    const dur = document.getElementById('exhDuration').value;
-
-    const nft = new ethers.Contract(nftAddr, ["function safeTransferFrom(address from, address to, uint256 tokenId, bytes data) public"], signer);
-    const data = dur > 0 ? ethers.utils.defaultAbiCoder.encode(['uint256'], [dur]) : "0x";
-    const from = await signer.getAddress();
-
-    await txHandler(nft["safeTransferFrom(address,address,uint256,bytes)"](from, vault, id, data), 'ERC721 Exhibited');
-});
-
-document.getElementById('btnExhibit1155').addEventListener('click', async () => {
-    const vault = document.getElementById('exhVault').value;
-    const nftAddr = document.getElementById('exhNFT').value;
-    const id = document.getElementById('exhId').value;
-    const amount = document.getElementById('exhAmount').value;
-    const dur = document.getElementById('exhDuration').value;
-
-    const nft = new ethers.Contract(nftAddr, ["function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data) public"], signer);
-    const data = dur > 0 ? ethers.utils.defaultAbiCoder.encode(['uint256'], [dur]) : "0x";
-    const from = await signer.getAddress();
-
-    await txHandler(nft.safeTransferFrom(from, vault, id, amount, data), 'ERC1155 Exhibited');
-});
-
-// Move
+// Summoning
 document.getElementById('btnMove721').addEventListener('click', async () => {
     const vaultAddr = document.getElementById('moveFromVault').value;
     const destVault = document.getElementById('moveToVault').value;
     const nft = document.getElementById('moveNFTContract').value;
     const id = document.getElementById('moveNFTId').value;
-    const dur = document.getElementById('moveDuration').value;
 
-    const vault = getContract('ExhibitVault', vaultAddr);
-    if (dur > 0) {
-        await txHandler(vault.move721WithDuration(nft, id, destVault, dur), 'ERC721 Moved with duration');
-    } else {
-        await txHandler(vault.move721(nft, id, destVault), 'ERC721 Moved');
-    }
+    const vault = getContract('SummonVault', vaultAddr);
+    await txHandler(vault.move721(nft, id, destVault), 'ERC721 Moved');
 });
 
 document.getElementById('btnMove1155').addEventListener('click', async () => {
@@ -186,23 +154,17 @@ document.getElementById('btnMove1155').addEventListener('click', async () => {
     const nft = document.getElementById('moveNFTContract').value;
     const id = document.getElementById('moveNFTId').value;
     const amount = document.getElementById('moveAmount').value;
-    const dur = document.getElementById('moveDuration').value;
 
-    const vault = getContract('ExhibitVault', vaultAddr);
-    if (dur > 0) {
-        await txHandler(vault.move1155WithDuration(nft, id, amount, destVault, dur), 'ERC1155 Moved with duration');
-    } else {
-        await txHandler(vault.move1155(nft, id, amount, destVault), 'ERC1155 Moved');
-    }
+    const vault = getContract('SummonVault', vaultAddr);
+    await txHandler(vault.move1155(nft, id, amount, destVault), 'ERC1155 Moved');
 });
 
-// Withdraw
 document.getElementById('btnWithdraw721').addEventListener('click', async () => {
     const vaultAddr = document.getElementById('withdrawVault').value;
     const nft = document.getElementById('withdrawNFTContract').value;
     const id = document.getElementById('withdrawNFTId').value;
 
-    const vault = getContract('ExhibitVault', vaultAddr);
+    const vault = getContract('SummonVault', vaultAddr);
     await txHandler(vault.withdraw721(nft, id), 'ERC721 Withdrawn');
 });
 
@@ -212,8 +174,49 @@ document.getElementById('btnWithdraw1155').addEventListener('click', async () =>
     const id = document.getElementById('withdrawNFTId').value;
     const amount = document.getElementById('withdrawAmount').value;
 
-    const vault = getContract('ExhibitVault', vaultAddr);
+    const vault = getContract('SummonVault', vaultAddr);
     await txHandler(vault.withdraw1155(nft, id, amount), 'ERC1155 Withdrawn');
+});
+
+// Exhibition
+document.getElementById('btnExhibit721').addEventListener('click', async () => {
+    const addr = document.getElementById('addrExhibition').value;
+    const nft = document.getElementById('exhNFTContract').value;
+    const id = document.getElementById('exhTokenId').value;
+    const dur = document.getElementById('exhDuration').value;
+
+    // First approve
+    const nftContract = new ethers.Contract(nft, ["function approve(address to, uint256 tokenId) public"], signer);
+    log('Approving NFT...');
+    const appTx = await nftContract.approve(addr, id);
+    await appTx.wait();
+
+    const contract = getContract('Exhibition', addr);
+    await txHandler(contract.exhibit721(nft, id, dur), 'ERC721 Exhibited');
+});
+
+document.getElementById('btnExhibit1155').addEventListener('click', async () => {
+    const addr = document.getElementById('addrExhibition').value;
+    const nft = document.getElementById('exhNFTContract').value;
+    const id = document.getElementById('exhTokenId').value;
+    const amount = document.getElementById('exhAmount').value;
+    const dur = document.getElementById('exhDuration').value;
+
+    // First approve
+    const nftContract = new ethers.Contract(nft, ["function setApprovalForAll(address operator, bool approved) public"], signer);
+    log('Approving NFT...');
+    const appTx = await nftContract.setApprovalForAll(addr, true);
+    await appTx.wait();
+
+    const contract = getContract('Exhibition', addr);
+    await txHandler(contract.exhibit1155(nft, id, amount, dur), 'ERC1155 Exhibited');
+});
+
+document.getElementById('btnReclaim').addEventListener('click', async () => {
+    const addr = document.getElementById('addrExhibition').value;
+    const id = document.getElementById('reclaimId').value;
+    const contract = getContract('Exhibition', addr);
+    await txHandler(contract.reclaim(id), 'NFT Reclaimed');
 });
 
 // Marketplace

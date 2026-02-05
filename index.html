@@ -88,8 +88,12 @@
                     <input type="text" id="addrBragNFT" class="input-field" placeholder="0x...">
                 </div>
                 <div>
-                    <label class="block text-sm mb-1">ExhibitRegistry Address</label>
-                    <input type="text" id="addrExhibitRegistry" class="input-field" placeholder="0x...">
+                    <label class="block text-sm mb-1">SummonRegistry Address</label>
+                    <input type="text" id="addrSummonRegistry" class="input-field" placeholder="0x...">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Exhibition Address</label>
+                    <input type="text" id="addrExhibition" class="input-field" placeholder="0x...">
                 </div>
                 <div>
                     <label class="block text-sm mb-1">Marketplace Address</label>
@@ -125,7 +129,7 @@
                 <h2 class="section-title"><i class="fas fa-vault mr-2"></i>Vault Management</h2>
                 <div class="space-y-6">
                     <div>
-                        <h3 class="text-md font-semibold mb-2">Deploy New ExhibitVault</h3>
+                        <h3 class="text-md font-semibold mb-2">Deploy New SummonVault</h3>
                         <button id="btnDeployVault" class="btn-secondary w-full">Deploy Vault</button>
                     </div>
                     <div class="border-t border-slate-700 pt-4">
@@ -147,52 +151,62 @@
                 </div>
             </section>
 
-            <!-- Exhibition Actions -->
-            <section class="brag-card rounded-xl p-6 lg:col-span-2">
-                <h2 class="section-title"><i class="fas fa-magic mr-2"></i>Exhibition</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <!-- Exhibit from Wallet -->
+            <!-- Summoning Actions -->
+            <section class="brag-card rounded-xl p-6">
+                <h2 class="section-title"><i class="fas fa-magic mr-2"></i>Summoning</h2>
+                <div class="space-y-4">
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
-                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Exhibit from Wallet</h3>
-                        <div class="space-y-2">
-                            <input type="text" id="exhVault" class="input-field" placeholder="Vault Address">
-                            <input type="text" id="exhNFT" class="input-field" placeholder="NFT Contract">
-                            <input type="text" id="exhId" class="input-field" placeholder="Token ID">
-                            <input type="number" id="exhAmount" class="input-field" placeholder="Amount (1155)" value="1">
-                            <input type="number" id="exhDuration" class="input-field" placeholder="Duration (sec)" value="0">
-                            <button id="btnExhibit721" class="btn-primary w-full">Exhibit ERC721</button>
-                            <button id="btnExhibit1155" class="btn-secondary w-full">Exhibit ERC1155</button>
-                        </div>
-                    </div>
-
-                    <!-- Move -->
-                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
-                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Move between Vaults</h3>
-                        <div class="space-y-2">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Move NFT between Vaults</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
                             <input type="text" id="moveFromVault" class="input-field" placeholder="Source Vault">
                             <input type="text" id="moveToVault" class="input-field" placeholder="Dest Vault">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
                             <input type="text" id="moveNFTContract" class="input-field" placeholder="NFT Contract">
                             <input type="text" id="moveNFTId" class="input-field" placeholder="Token ID">
-                            <input type="number" id="moveAmount" class="input-field" placeholder="Amount (1155)" value="1">
-                            <input type="number" id="moveDuration" class="input-field" placeholder="New Duration (sec)" value="0">
-                            <button id="btnMove721" class="btn-primary w-full">Move ERC721</button>
-                            <button id="btnMove1155" class="btn-secondary w-full">Move ERC1155</button>
                         </div>
+                        <input type="number" id="moveAmount" class="input-field mb-2" placeholder="Amount (for ERC1155)" value="1">
+                        <button id="btnMove721" class="btn-primary w-full mb-2">Move ERC721</button>
+                        <button id="btnMove1155" class="btn-secondary w-full">Move ERC1155</button>
                     </div>
 
-                    <!-- Withdraw -->
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
                         <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Withdraw from Vault</h3>
-                        <div class="space-y-2">
+                        <div class="grid grid-cols-2 gap-2 mb-2">
                             <input type="text" id="withdrawVault" class="input-field" placeholder="Vault Address">
                             <input type="text" id="withdrawNFTContract" class="input-field" placeholder="NFT Contract">
-                            <input type="text" id="withdrawNFTId" class="input-field" placeholder="Token ID">
-                            <input type="number" id="withdrawAmount" class="input-field" placeholder="Amount (1155)" value="1">
-                            <div class="pt-2">
-                                <button id="btnWithdraw721" class="btn-primary w-full mb-2">Withdraw ERC721</button>
-                                <button id="btnWithdraw1155" class="btn-secondary w-full">Withdraw ERC1155</button>
-                            </div>
                         </div>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="withdrawNFTId" class="input-field" placeholder="Token ID">
+                            <input type="number" id="withdrawAmount" class="input-field" placeholder="Amount" value="1">
+                        </div>
+                        <button id="btnWithdraw721" class="btn-primary w-full mb-2">Withdraw ERC721</button>
+                        <button id="btnWithdraw1155" class="btn-secondary w-full">Withdraw ERC1155</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Exhibition -->
+            <section class="brag-card rounded-xl p-6">
+                <h2 class="section-title"><i class="fas fa-eye mr-2"></i>Exhibition</h2>
+                <div class="space-y-4">
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Exhibit NFT</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="exhNFTContract" class="input-field" placeholder="NFT Contract">
+                            <input type="text" id="exhTokenId" class="input-field" placeholder="Token ID">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="number" id="exhAmount" class="input-field" placeholder="Amount" value="1">
+                            <input type="number" id="exhDuration" class="input-field" placeholder="Duration (sec)" value="3600">
+                        </div>
+                        <button id="btnExhibit721" class="btn-primary w-full mb-2">Exhibit ERC721</button>
+                        <button id="btnExhibit1155" class="btn-secondary w-full">Exhibit ERC1155</button>
+                    </div>
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Reclaim NFT</h3>
+                        <input type="number" id="reclaimId" class="input-field mb-2" placeholder="Exhibition ID">
+                        <button id="btnReclaim" class="btn-primary w-full">Reclaim</button>
                     </div>
                 </div>
             </section>
