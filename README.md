@@ -1,118 +1,84 @@
-# Sample Hardhat 3 Beta Project (`node:test` and `viem`)
+# brag.charity 🏆 🎗️
+
+### *The De-Fi Way to Flex Your Philanthropy*
 
 [![CI](https://github.com/digitaledsafety/smart-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/digitaledsafety/smart-contracts/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project showcases a Hardhat 3 Beta project using the native Node.js test runner (`node:test`) and the `viem` library for Ethereum interactions.
+Welcome to **brag.charity**, the ultimate protocol for turning your altruism into on-chain influence. We believe that doing good should be rewarded, verified, and—most importantly—shown off.
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+Whether you're a developer building the next generation of social-impact dApps or a degen looking to offset those gas fees with some positive karma, brag.charity has the infrastructure you need.
 
-## Project Overview
+---
 
-This example project includes:
+## 💎 The Ecosystem
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using [`node:test`](nodejs.org/api/test.html), the new Node.js native test runner, and [`viem`](https://viem.sh/).
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+Our protocol is built on a stack of highly-optimized, "atomic" smart contracts designed for transparency and flex-ability.
 
-## Usage
+### 1. The Mint-to-Donate Engine (`BragNFT` & `DonationReceipt`)
+When you donate, we don't just send a "thank you" email. We mint history.
+- **BragNFT (ERC-721)**: A transferable, high-status NFT that proves you're a patron of the protocol. Trade it, exhibit it, or hold it as a badge of honor.
+- **DonationReceipt (Soulbound)**: A permanent, non-transferable record of your specific contribution. Linked on-chain to your BragNFT, ensuring your legacy is immutable even if the NFT changes hands.
 
-### Running Tests
+### 2. The Exhibition System (`ExhibitVault` & `ExhibitRegistry`)
+Don't just keep your NFTs in a cold wallet. Put them on the stage.
+- **Verified Vaults**: Our exhibition system uses a registry of verified vaults (galleries, games, websites) where you can "lock" your NFTs for a duration.
+- **Atomic Exhibition**: Move your NFTs between verified locations without ever losing proof of ownership. Perfect for non-profit showcases and digital art festivals.
 
-To run all the tests in the project, execute the following command:
+### 3. NFT Marketplace
+A purpose-built marketplace for trading your BragNFTs.
+- **Native Bidding**: Create and accept offers with built-in refund periods.
+- **Philanthropy Liquidity**: Turn your charitable status into a liquid asset.
 
-```shell
-npx hardhat test
-```
+### 4. The Treasury
+The protocol's multi-asset war chest. Securely manages ETH, ERC-721s, and ERC-1155s, ensuring every wei is accounted for before it's deployed for good.
 
-You can also selectively run the Solidity or `node:test` tests:
+---
 
-```shell
-npx hardhat test solidity
-npx hardhat test nodejs
-```
+## 🎮 Gaming Integration: Minecraft Bedrock
 
-### Make a deployment to Sepolia
+We're bringing the blockchain to the block-game. brag.charity includes a native **Minecraft Bedrock Addon** that bridges your on-chain assets into the virtual world.
 
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
+- **Proof of Ownership**: A Google Apps Script bridge verifies your wallet's NFT status in real-time.
+- **In-Game Perks**: Holding a BragNFT isn't just a flex—it's survival. Verified holders unlock exclusive perks, like making **aggressive cows** ignore you. (Seriously, those cows are mean.)
 
-To run the deployment to a local chain:
+---
 
-```shell
-npx hardhat ignition deploy ignition/modules/App.ts
-```
+## 🛠️ Developer Guide
 
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
+Built for the modern Ethereum stack using **Hardhat 3 (Beta)**, **Viem**, and the native **Node.js test runner**.
 
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
+### Prerequisites
+- Node.js 20+
+- A burning desire to make the world better (and more decentralized)
 
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
+### Getting Started
+1. **Install Dependencies**:
+   ```shell
+   npm install
+   ```
 
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
-```
+2. **Run the Test Suite**:
+   We use `node:test` for lightning-fast execution.
+   ```shell
+   npx hardhat test
+   ```
 
-After setting the variable, you can run the deployment with the Sepolia network:
+3. **Deploy to Sepolia**:
+   Configure your `SEPOLIA_RPC_URL` and `SEPOLIA_PRIVATE_KEY` in your environment or via Hardhat variables.
+   ```shell
+   npx hardhat ignition deploy --network sepolia ignition/modules/App.ts
+   ```
 
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/App.ts
-```
+---
 
-## CI/CD and Deployment Workflow
+## 🌐 Web Interface (BragNFT Manager)
 
-This project uses GitHub Actions for continuous testing and manual deployments.
+Manage your donations, exhibitions, and marketplace offers through our built-in frontend.
+- **URL**: [https://digitaledsafety.github.io/smart-contracts/](https://digitaledsafety.github.io/smart-contracts/)
+- **Features**: Contract explorer, ABI auto-sync, and a direct interface for every protocol function.
 
-### Continuous Integration
+---
 
-On every push and pull request to the `main` branch:
-1. **Run Tests**: Executes the full test suite using `npx hardhat test`.
-2. **Verify Local Deployment**: Ensures that the Ignition deployment modules are valid by performing a dry-run deployment against a local Hardhat network.
-
-### Manual Sepolia Deployment
-
-You can manually trigger a deployment to the Sepolia network via the **Actions** tab in GitHub:
-
-1. Go to the **Actions** tab.
-2. Select the **Deploy to Sepolia** workflow.
-3. Click **Run workflow**.
-
-#### Required GitHub Secrets
-
-To use the Sepolia deployment workflow, you must configure the following [GitHub Repository Secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions):
-
-- `SEPOLIA_RPC_URL`: Your Sepolia RPC endpoint (e.g., from Alchemy or Infura).
-- `SEPOLIA_PRIVATE_KEY`: The private key of the account used for deployment and as the initial owner.
-- `TREASURY_ADDRESS`: (Optional) An external ETH address to receive donations. If provided, the deployment of a new `Treasury` contract will be skipped.
-
-### Treasury Contract
-
-This project includes a `Treasury.sol` contract. It is a simple, secure vault designed to:
-- **Receive ETH**: It has a `receive()` function to handle donations from `BragNFT`.
-- **Receive NFTs**: It implements `ERC721Holder` and `ERC1155Holder`, making it compatible with all NFT types.
-- **Owner Control**: Only the contract owner can withdraw ETH or manage assets within the treasury.
-
-By default, the deployment module will create a new instance of this `Treasury` contract during deployment.
-
-## BragNFT Manager (Web Interface)
-
-This project includes a built-in web-based manager that allows you to interact with all the smart contracts through a user-friendly interface.
-
-- **URL**: Once deployed to GitHub Pages, it is typically available at `https://your-username.github.io/your-repo-name/`.
-- **Local Access**: You can also open `frontend/index.html` directly in your browser.
-
-### Key Features:
-- **Minting**: Donate ETH to mint BragNFTs.
-- **Exhibition**: Deploy and manage "Exhibit Vaults" for your NFTs across games, galleries, and websites.
-- **Marketplace**: Create, accept, and cancel offers on NFTs.
-- **Contract Explorer**: A dynamic section that automatically generates a UI for **every function** in your smart contracts.
-
-### Auto-Updating ABIs
-The interface is powered by a GitHub Action that automatically updates the contract ABIs and deployment addresses whenever you push changes to the `main` branch. This means your web interface is always in sync with your latest Solidity code.
-
-#### Tracking Deployed Addresses
-
-After a successful manual deployment, you can find the contract addresses by:
-1. Opening the specific workflow run.
-2. Downloading the `sepolia-deployment` artifact.
-3. Inspecting the `deployed_addresses.json` file within the artifact.
+## 📜 License
+MIT. Build it, fork it, give it away. Just remember to brag about it. 🚀
