@@ -173,7 +173,8 @@ async function handleChat(
                 if (data.isHolder && data.nfts && data.nfts.length > 0) {
                     player.sendMessage("§eYour NFTs:§r");
                     data.nfts.forEach((nft: any) => {
-                        player.sendMessage(`§b- ID #${nft.tokenId}: §f${nft.tokenURI}§r`);
+                        const uriText = nft.tokenURI ? `: §f${nft.tokenURI}` : "";
+                        player.sendMessage(`§b- ID #${nft.tokenId}${uriText}§r`);
                     });
                 } else {
                     player.sendMessage("§6No NFTs found in your linked wallet.§r");
@@ -322,13 +323,16 @@ describe('Minecraft Script Logic', () => {
     describe('handleChat', () => {
         const testUuid = "550e8400-e29b-41d4-a716-446655440000";
 
-        it('should handle !my_nfts command', async () => {
+        it('should handle !my_nfts command with mixed URIs', async () => {
             mockPlayer.getDynamicProperty.mock.mockImplementation(() => testUuid);
             mockHttp.request.mock.mockImplementation(async () => ({
                 status: 200,
                 body: JSON.stringify({
                     isHolder: true,
-                    nfts: [{ tokenId: 42, tokenURI: "ipfs://test" }]
+                    nfts: [
+                        { tokenId: 42, tokenURI: "ipfs://test" },
+                        { tokenId: 43, tokenURI: "" }
+                    ]
                 })
             }));
 
@@ -336,8 +340,8 @@ describe('Minecraft Script Logic', () => {
             await handleChat(event, mockHttp, MockHttpRequest, mockHttpRequestMethod);
 
             assert.strictEqual(event.cancel, true);
-            assert.ok(mockPlayer.sendMessage.mock.calls.some(c => (c.arguments[0] as string).includes("ID #42")));
-            assert.ok(mockPlayer.sendMessage.mock.calls.some(c => (c.arguments[0] as string).includes("ipfs://test")));
+            assert.ok(mockPlayer.sendMessage.mock.calls.some(c => (c.arguments[0] as string).includes("ID #42: §fipfs://test")));
+            assert.ok(mockPlayer.sendMessage.mock.calls.some(c => (c.arguments[0] as string).includes("ID #43") && !(c.arguments[0] as string).includes(":")));
         });
 
         it('should provide registration link when !register is typed', async () => {

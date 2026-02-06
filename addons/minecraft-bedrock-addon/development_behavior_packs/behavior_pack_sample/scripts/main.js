@@ -144,7 +144,8 @@ async function handleChat(event) {
                 if (data.isHolder && data.nfts && data.nfts.length > 0) {
                     player.sendMessage("§eYour NFTs:§r");
                     data.nfts.forEach(nft => {
-                        player.sendMessage(`§b- ID #${nft.tokenId}: §f${nft.tokenURI}§r`);
+                        const uriText = nft.tokenURI ? `: §f${nft.tokenURI}` : "";
+                        player.sendMessage(`§b- ID #${nft.tokenId}${uriText}§r`);
                     });
                 } else {
                     player.sendMessage("§6No NFTs found in your linked wallet.§r");

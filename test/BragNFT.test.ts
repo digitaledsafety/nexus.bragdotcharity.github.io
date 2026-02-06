@@ -138,4 +138,19 @@ describe("BragNFT and DonationReceipt", async function () {
     await vault.write.withdraw1155([mock1155.address, tokenId, amount], { account: donor.account });
     assert.equal(await mock1155.read.balanceOf([donor.account.address, tokenId]), amount);
   });
+
+  it("Should allow minting with an empty tokenURI", async function () {
+    const { bragNFT, donor } = await deployContracts();
+
+    await bragNFT.write.donate(["No URI here", ""], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const tokenId = 0n;
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
+
+    // ERC721URIStorage returns empty string if not set and no baseURI
+    assert.equal(await bragNFT.read.tokenURI([tokenId]), "");
+  });
 });

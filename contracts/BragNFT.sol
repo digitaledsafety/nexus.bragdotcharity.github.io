@@ -74,7 +74,9 @@ contract BragNFT is ERC721URIStorage, Ownable {
 
         // Mint the transferable BragNFT to the specified recipient
         _safeMint(recipient, nftTokenId);
-        _setTokenURI(nftTokenId, tokenURI_);
+        if (bytes(tokenURI_).length > 0) {
+            _setTokenURI(nftTokenId, tokenURI_);
+        }
 
         // Mint the soulbound receipt to the donor (always msg.sender)
         uint256 receiptTokenId = receiptContract.mint(msg.sender, msg.value, message);
