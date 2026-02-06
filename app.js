@@ -31,7 +31,18 @@ addressFields.forEach(id => {
 
 async function connectWallet() {
     if (typeof window.ethereum === 'undefined') {
-        log('MetaMask not found!', 'error');
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            log('Wallet not found. Redirecting to MetaMask app...', 'info');
+            // Construct deep link: metamask.app.link/dapp/[url_without_protocol]
+            const dappUrl = window.location.href.replace(/^https?:\/\//, '');
+            const metamaskAppDeepLink = "https://metamask.app.link/dapp/" + dappUrl;
+            setTimeout(() => {
+                window.location.href = metamaskAppDeepLink;
+            }, 1200);
+        } else {
+            log('Web3 Wallet not found! Please install MetaMask or another wallet extension.', 'error');
+        }
         return;
     }
 
