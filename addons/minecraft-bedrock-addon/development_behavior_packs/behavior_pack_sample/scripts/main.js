@@ -3,6 +3,12 @@ import { http, HttpRequest, HttpRequestMethod } from "@minecraft/server-net";
 
 // Replace this with your Web App URL from Deploy > Manage Deployments
 const GAS_DEPLOY_URL = "https://script.google.com/macros/s/AKfycbwlfwzG3H0e150GYlSXsRQQR57rdoRYYrR0su_GUAd8eJm0ISTX03sshosnmyjTIr-s/exec";
+const LOCAL_BRIDGE_URL = "http://localhost:9000";
+
+// Set to true to use the local bridge for testing
+const USE_LOCAL_BRIDGE = false;
+
+const BRIDGE_URL = USE_LOCAL_BRIDGE ? LOCAL_BRIDGE_URL : GAS_DEPLOY_URL;
 
 /**
  * Handles checking NFT status when a player spawns.
@@ -25,7 +31,7 @@ async function checkNftStatus(event) {
 
         // Sync with server if local UUID is missing
         if (!uuid) {
-            const checkUrl = `${GAS_DEPLOY_URL}?path=check-platform&platform=minecraft&platformId=${platformId}`;
+            const checkUrl = `${BRIDGE_URL}?path=check-platform&platform=minecraft&platformId=${platformId}`;
             const checkRequest = new HttpRequest(checkUrl);
             checkRequest.method = HttpRequestMethod.Get;
             const checkResponse = await http.request(checkRequest);
@@ -46,7 +52,7 @@ async function checkNftStatus(event) {
         }
 
         // GAS Routing: use query parameters instead of URL paths
-        const url = `${GAS_DEPLOY_URL}?path=check-ownership&uuid=${uuid}`;
+        const url = `${BRIDGE_URL}?path=check-ownership&uuid=${uuid}`;
         const request = new HttpRequest(url);
         request.method = HttpRequestMethod.Get;
 
@@ -91,7 +97,7 @@ async function handleChat(event) {
 
         try {
             // GAS Routing: path=request-token, platform=minecraft, platformId=...
-            const url = `${GAS_DEPLOY_URL}?path=request-token&platform=minecraft&platformId=${platformId}`;
+            const url = `${BRIDGE_URL}?path=request-token&platform=minecraft&platformId=${platformId}`;
             const request = new HttpRequest(url);
             request.method = HttpRequestMethod.Get;
 
@@ -103,7 +109,7 @@ async function handleChat(event) {
                 // Save the new UUID
                 player.setDynamicProperty("nft_uuid", uuid);
 
-                const registrationUrl = `${GAS_DEPLOY_URL}?path=register&token=${token}`;
+                const registrationUrl = `${BRIDGE_URL}?path=register&token=${token}`;
 
                 player.sendMessage("§e====================================§r");
                 player.sendMessage("§aTo link your wallet, visit this URL:§r");
@@ -141,7 +147,7 @@ async function handleChat(event) {
 
         try {
             // GAS Routing: path=request-token, platform=minecraft, platformId=..., uuid=...
-            const url = `${GAS_DEPLOY_URL}?path=request-token&platform=minecraft&platformId=${platformId}&uuid=${uuid}`;
+            const url = `${BRIDGE_URL}?path=request-token&platform=minecraft&platformId=${platformId}&uuid=${uuid}`;
             const request = new HttpRequest(url);
             request.method = HttpRequestMethod.Get;
 
@@ -153,7 +159,7 @@ async function handleChat(event) {
                 // Update saved UUID
                 player.setDynamicProperty("nft_uuid", returnedUuid);
 
-                const registrationUrl = `${GAS_DEPLOY_URL}?path=register&token=${token}`;
+                const registrationUrl = `${BRIDGE_URL}?path=register&token=${token}`;
 
                 player.sendMessage("§e====================================§r");
                 player.sendMessage("§aTo link your existing account, visit:§r");
