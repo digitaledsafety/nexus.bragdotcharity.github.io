@@ -13,6 +13,9 @@
 # Hardhat compilation (v2) support directory
 /cache
 
+# Local Hardhat Ignition deployments
+/ignition/deployments/chain-31337
+
 # Typechain output
 /types
 

@@ -16,6 +16,30 @@ This example project includes:
 - TypeScript integration tests using [`node:test`](nodejs.org/api/test.html), the new Node.js native test runner, and [`viem`](https://viem.sh/).
 - Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
 
+## Local Development
+
+You can run a local Ethereum network to test the contracts and addons without deploying to a public testnet.
+
+### 1. Start the Local Node
+In a separate terminal, start the Hardhat network:
+```shell
+npm run node
+```
+This will start a JSON-RPC server at `http://127.0.0.1:8545`.
+
+### 2. Deploy Contracts Locally
+Deploy the contracts to your local node and export the ABIs/addresses for the frontend:
+```shell
+npm run deploy:local
+```
+
+### 3. Start the NFT Bridge (for Addons)
+If you are testing the Minecraft addon locally, start the NFT bridge:
+```shell
+npm run bridge
+```
+The bridge listens on port 9000 and connects to your local Hardhat node. To use it in Minecraft, ensure you set `USE_LOCAL_BRIDGE = true` in `addons/minecraft-bedrock-addon/development_behavior_packs/behavior_pack_sample/scripts/main.js`.
+
 ## Usage
 
 ### Running Tests

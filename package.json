@@ -1,4 +1,11 @@
 {
+  "scripts": {
+    "node": "hardhat node",
+    "deploy:local": "HARDHAT_IGNITION_CONFIRM_DEPLOYMENT=true hardhat ignition deploy ignition/modules/App.ts --network localhost && node scripts/export-abis.cjs",
+    "bridge": "node scripts/nft-bridge.js",
+    "test": "hardhat test",
+    "compile": "hardhat compile"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.0",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
