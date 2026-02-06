@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IDonationReceipt {
@@ -12,7 +12,7 @@ interface IDonationReceipt {
  * @title BragNFT
  * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
  */
-contract BragNFT is ERC721, Ownable {
+contract BragNFT is ERC721URIStorage, Ownable {
     uint256 private _nextTokenId;
     address public treasury;
     uint256 public minimumDonation;
@@ -47,24 +47,26 @@ contract BragNFT is ERC721, Ownable {
     /**
      * @dev Mint a new BragNFT by donating ETH. Also mints a soulbound DonationReceipt.
      * @param message A message to include with the donation receipt.
+     * @param tokenURI_ The URI for the NFT media.
      */
-    function donate(string calldata message) external payable {
-        _donate(msg.sender, message);
+    function donate(string calldata message, string calldata tokenURI_) external payable {
+        _donate(msg.sender, message, tokenURI_);
     }
 
     /**
      * @dev Mint a new BragNFT by donating ETH to a specific recipient.
      * @param recipient The address to receive the transferable BragNFT.
      * @param message A message to include with the donation receipt.
+     * @param tokenURI_ The URI for the NFT media.
      */
-    function donateTo(address recipient, string calldata message) external payable {
-        _donate(recipient, message);
+    function donateTo(address recipient, string calldata message, string calldata tokenURI_) external payable {
+        _donate(recipient, message, tokenURI_);
     }
 
     /**
      * @dev Internal donation logic.
      */
-    function _donate(address recipient, string calldata message) internal {
+    function _donate(address recipient, string calldata message, string calldata tokenURI_) internal {
         require(address(receiptContract) != address(0), "Receipt contract not set");
         require(msg.value >= minimumDonation, "Donation below minimum");
 
@@ -72,6 +74,7 @@ contract BragNFT is ERC721, Ownable {
 
         // Mint the transferable BragNFT to the specified recipient
         _safeMint(recipient, nftTokenId);
+        _setTokenURI(nftTokenId, tokenURI_);
 
         // Mint the soulbound receipt to the donor (always msg.sender)
         uint256 receiptTokenId = receiptContract.mint(msg.sender, msg.value, message);
@@ -84,4 +87,5 @@ contract BragNFT is ERC721, Ownable {
 
         emit Donated(msg.sender, msg.value, nftTokenId, receiptTokenId, message);
     }
+
 }

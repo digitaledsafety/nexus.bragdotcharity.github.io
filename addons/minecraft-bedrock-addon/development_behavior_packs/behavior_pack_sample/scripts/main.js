@@ -59,6 +59,10 @@ async function checkNftStatus(event) {
                 player.sendMessage(`§aVerified NFT Holder! (${data.address.substring(0, 6)}...)§r`);
                 player.addTag("nft_holder");
                 player.sendMessage("§eSpecial perks unlocked: Aggressive cows will now ignore you.§r");
+
+                if (data.nfts && data.nfts.length > 0) {
+                    player.sendMessage(`§eYou have ${data.nfts.length} NFT(s) loaded. Type §f!my_nfts§e to see them.§r`);
+                }
             } else {
                 player.sendMessage("§eNo qualifying NFTs found in your linked wallet.§r");
                 player.removeTag("nft_holder");
@@ -118,6 +122,38 @@ async function handleChat(event) {
         } catch (error) {
             player.sendMessage("§cBridge server is offline.§r");
             console.warn("Registration Error: " + error);
+        }
+    } else if (message.toLowerCase() === "!my_nfts") {
+        event.cancel = true;
+        const uuid = player.getDynamicProperty("nft_uuid");
+        if (!uuid) {
+            player.sendMessage("§cYou must be registered to view your NFTs.§r");
+            return;
+        }
+
+        player.sendMessage("§bFetching your NFTs...§r");
+
+        try {
+            const url = `${GAS_DEPLOY_URL}?path=check-ownership&uuid=${uuid}`;
+            const request = new HttpRequest(url);
+            request.method = HttpRequestMethod.Get;
+            const response = await http.request(request);
+
+            if (response.status === 200) {
+                const data = JSON.parse(response.body);
+                if (data.isHolder && data.nfts && data.nfts.length > 0) {
+                    player.sendMessage("§eYour NFTs:§r");
+                    data.nfts.forEach(nft => {
+                        player.sendMessage(`§b- ID #${nft.tokenId}: §f${nft.tokenURI}§r`);
+                    });
+                } else {
+                    player.sendMessage("§6No NFTs found in your linked wallet.§r");
+                }
+            } else {
+                player.sendMessage("§cFailed to fetch NFTs.§r");
+            }
+        } catch (error) {
+            player.sendMessage("§cBridge server error.§r");
         }
     } else if (message.toLowerCase().startsWith("!link")) {
         event.cancel = true;
