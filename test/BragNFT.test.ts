@@ -35,11 +35,12 @@ describe("BragNFT and DonationReceipt", async function () {
     const { bragNFT, receipt, donor, treasury } = await deployContracts();
     const donationAmount = parseEther("0.5");
     const message = "Generous donor";
+    const tokenURI = "https://example.com/nft.json";
 
     const publicClient = await viem.getPublicClient();
     const initialTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });
 
-    await bragNFT.write.donate([message], {
+    await bragNFT.write.donate([message, tokenURI], {
         account: donor.account,
         value: donationAmount
     });
@@ -47,6 +48,7 @@ describe("BragNFT and DonationReceipt", async function () {
     // 1. Check BragNFT
     const nftTokenId = 0n;
     assert.equal(await bragNFT.read.ownerOf([nftTokenId]), getAddress(donor.account.address));
+    assert.equal(await bragNFT.read.tokenURI([nftTokenId]), tokenURI);
 
     // 2. Check DonationReceipt
     const receiptTokenId = await bragNFT.read.nftToReceipt([nftTokenId]);
@@ -64,7 +66,7 @@ describe("BragNFT and DonationReceipt", async function () {
 
   it("Should allow BragNFT to be transferred (not soulbound)", async function () {
     const { bragNFT, donor, recipient } = await deployContracts();
-    await bragNFT.write.donate(["Transferable NFT"], {
+    await bragNFT.write.donate(["Transferable NFT", "ipfs://uri1"], {
         account: donor.account,
         value: parseEther("0.1")
     });
@@ -77,7 +79,7 @@ describe("BragNFT and DonationReceipt", async function () {
 
   it("Should NOT allow DonationReceipt to be transferred (soulbound)", async function () {
     const { bragNFT, receipt, donor, recipient } = await deployContracts();
-    await bragNFT.write.donate(["Soulbound receipt"], {
+    await bragNFT.write.donate(["Soulbound receipt", "ipfs://uri2"], {
         account: donor.account,
         value: parseEther("0.1")
     });
@@ -93,7 +95,7 @@ describe("BragNFT and DonationReceipt", async function () {
   it("Should allow BragNFT to be exhibited", async function () {
     const { bragNFT, vault, donor } = await deployContracts();
 
-    await bragNFT.write.donate(["Exhibition piece"], {
+    await bragNFT.write.donate(["Exhibition piece", "ipfs://uri3"], {
         account: donor.account,
         value: parseEther("0.1")
     });
@@ -108,7 +110,7 @@ describe("BragNFT and DonationReceipt", async function () {
   it("Should allow withdrawal of BragNFT from exhibit", async function () {
     const { bragNFT, vault, donor } = await deployContracts();
 
-    await bragNFT.write.donate(["Withdrawal test"], {
+    await bragNFT.write.donate(["Withdrawal test", "ipfs://uri4"], {
         account: donor.account,
         value: parseEther("0.1")
     });
@@ -135,5 +137,20 @@ describe("BragNFT and DonationReceipt", async function () {
 
     await vault.write.withdraw1155([mock1155.address, tokenId, amount], { account: donor.account });
     assert.equal(await mock1155.read.balanceOf([donor.account.address, tokenId]), amount);
+  });
+
+  it("Should allow minting with an empty tokenURI", async function () {
+    const { bragNFT, donor } = await deployContracts();
+
+    await bragNFT.write.donate(["No URI here", ""], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const tokenId = 0n;
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
+
+    // ERC721URIStorage returns empty string if not set and no baseURI
+    assert.equal(await bragNFT.read.tokenURI([tokenId]), "");
   });
 });

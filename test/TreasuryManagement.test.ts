@@ -28,7 +28,7 @@ describe("Treasury Management", async function () {
   it("Should allow donating to treasury and then withdrawing by owner", async function () {
     const { bragNFT, treasury, donor, owner } = await deployContracts();
 
-    await bragNFT.write.donateTo([treasury.address, "For the treasury"], {
+    await bragNFT.write.donateTo([treasury.address, "For the treasury", ""], {
         account: donor.account,
         value: parseEther("0.1")
     });
@@ -46,7 +46,7 @@ describe("Treasury Management", async function () {
     const publicClient = await viem.getPublicClient();
 
     // 1. Mint to treasury
-    await bragNFT.write.donateTo([treasury.address, "To be sold"], {
+    await bragNFT.write.donateTo([treasury.address, "To be sold", ""], {
         account: donor.account,
         value: parseEther("0.1")
     });

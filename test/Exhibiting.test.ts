@@ -38,7 +38,7 @@ describe("Exhibiting System", async function () {
     const { bragNFT, vault1, user } = await deployContracts();
 
     // Mint NFT to user
-    await bragNFT.write.donate(["test"], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["test", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
     // Exhibit: Transfer to vault
@@ -60,7 +60,7 @@ describe("Exhibiting System", async function () {
     const { bragNFT, vault1, user } = await deployContracts();
     const publicClient = await viem.getPublicClient();
 
-    await bragNFT.write.donate(["timed exhibit"], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["timed exhibit", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
     // Exhibit for 1 hour (3600 seconds)
@@ -115,7 +115,7 @@ describe("Exhibiting System", async function () {
     const { bragNFT, vault1, vault2, user } = await deployContracts();
     const publicClient = await viem.getPublicClient();
 
-    await bragNFT.write.donate(["move timed"], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["move timed", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
     // Summon to Vault 1
@@ -142,7 +142,7 @@ describe("Exhibiting System", async function () {
   it("Should NOT allow moving to unverified vault", async function () {
     const { bragNFT, vault1, user, user2 } = await deployContracts();
 
-    await bragNFT.write.donate(["unverified test"], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["unverified test", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
     await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId], { account: user.account });
@@ -179,7 +179,7 @@ describe("Exhibiting System", async function () {
   it("Should allow admin force withdraw bypassing expiry", async function () {
     const { bragNFT, vault1, user, owner, user2 } = await deployContracts();
 
-    await bragNFT.write.donate(["force bypass"], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["force bypass", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
     // Exhibit with 1 year duration

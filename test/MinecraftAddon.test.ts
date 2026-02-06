@@ -89,6 +89,10 @@ async function checkNftStatus(
                 player.sendMessage(`§aVerified NFT Holder! (${data.address.substring(0, 6)}...)§r`);
                 player.addTag("nft_holder");
                 player.sendMessage("§eSpecial perks unlocked: Aggressive cows will now ignore you.§r");
+
+                if (data.nfts && data.nfts.length > 0) {
+                    player.sendMessage(`§eYou have ${data.nfts.length} NFT(s) loaded. Type §f!my_nfts§e to see them.§r`);
+                }
             } else {
                 player.sendMessage("§eNo qualifying NFTs found in your linked wallet.§r");
                 player.removeTag("nft_holder");
@@ -147,6 +151,39 @@ async function handleChat(
             }
         } catch (error) {
             player.sendMessage("§cBridge server is offline.§r");
+        }
+    } else if (message.toLowerCase() === "!my_nfts") {
+        event.cancel = true;
+        const uuid = player.getDynamicProperty("nft_uuid");
+        if (!uuid) {
+            player.sendMessage("§cYou must be registered to view your NFTs.§r");
+            return;
+        }
+
+        player.sendMessage("§bFetching your NFTs...§r");
+
+        try {
+            const url = `${GAS_DEPLOY_URL}?path=check-ownership&uuid=${uuid}`;
+            const request = new HttpRequest(url);
+            request.method = HttpRequestMethod.Get;
+            const response = await http.request(request);
+
+            if (response.status === 200) {
+                const data = JSON.parse(response.body);
+                if (data.isHolder && data.nfts && data.nfts.length > 0) {
+                    player.sendMessage("§eYour NFTs:§r");
+                    data.nfts.forEach((nft: any) => {
+                        const uriText = nft.tokenURI ? `: §f${nft.tokenURI}` : "";
+                        player.sendMessage(`§b- ID #${nft.tokenId}${uriText}§r`);
+                    });
+                } else {
+                    player.sendMessage("§6No NFTs found in your linked wallet.§r");
+                }
+            } else {
+                player.sendMessage("§cFailed to fetch NFTs.§r");
+            }
+        } catch (error) {
+            player.sendMessage("§cBridge server error.§r");
         }
     } else if (message.toLowerCase().startsWith("!link")) {
         event.cancel = true;
@@ -223,7 +260,11 @@ describe('Minecraft Script Logic', () => {
             mockPlayer.getDynamicProperty.mock.mockImplementation(() => testUuid);
             mockHttp.request.mock.mockImplementation(async () => ({
                 status: 200,
-                body: JSON.stringify({ isHolder: true, address: "0x1234567890" })
+                body: JSON.stringify({
+                    isHolder: true,
+                    address: "0x1234567890",
+                    nfts: [{ tokenId: 1, tokenURI: "https://media.com/1" }]
+                })
             }));
 
             const event = { player: mockPlayer, initialSpawn: true };
@@ -231,6 +272,7 @@ describe('Minecraft Script Logic', () => {
 
             assert.strictEqual(mockHttp.request.mock.calls.length, 1);
             assert.strictEqual(mockPlayer.addTag.mock.calls[0].arguments[0], "nft_holder");
+            assert.ok(mockPlayer.sendMessage.mock.calls.some(c => (c.arguments[0] as string).includes("1 NFT(s) loaded")));
         });
 
         it('should sync with check-platform if UUID is missing', async () => {
@@ -238,7 +280,14 @@ describe('Minecraft Script Logic', () => {
             mockHttp.request.mock.mockImplementation(async () => {
                 callCount++;
                 if (callCount === 1) return { status: 200, body: JSON.stringify({ linked: true, uuid: testUuid }) };
-                return { status: 200, body: JSON.stringify({ isHolder: true, address: "0x1234567890" }) };
+                return {
+                    status: 200,
+                    body: JSON.stringify({
+                        isHolder: true,
+                        address: "0x1234567890",
+                        nfts: []
+                    })
+                };
             });
 
             const event = { player: mockPlayer, initialSpawn: true };
@@ -273,6 +322,27 @@ describe('Minecraft Script Logic', () => {
 
     describe('handleChat', () => {
         const testUuid = "550e8400-e29b-41d4-a716-446655440000";
+
+        it('should handle !my_nfts command with mixed URIs', async () => {
+            mockPlayer.getDynamicProperty.mock.mockImplementation(() => testUuid);
+            mockHttp.request.mock.mockImplementation(async () => ({
+                status: 200,
+                body: JSON.stringify({
+                    isHolder: true,
+                    nfts: [
+                        { tokenId: 42, tokenURI: "ipfs://test" },
+                        { tokenId: 43, tokenURI: "" }
+                    ]
+                })
+            }));
+
+            const event = { message: "!my_nfts", sender: mockPlayer, cancel: false };
+            await handleChat(event, mockHttp, MockHttpRequest, mockHttpRequestMethod);
+
+            assert.strictEqual(event.cancel, true);
+            assert.ok(mockPlayer.sendMessage.mock.calls.some(c => (c.arguments[0] as string).includes("ID #42: §fipfs://test")));
+            assert.ok(mockPlayer.sendMessage.mock.calls.some(c => (c.arguments[0] as string).includes("ID #43") && !(c.arguments[0] as string).includes(":")));
+        });
 
         it('should provide registration link when !register is typed', async () => {
             mockHttp.request.mock.mockImplementation(async () => ({
