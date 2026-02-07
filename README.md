@@ -134,6 +134,23 @@ This project includes a built-in web-based manager that allows you to interact w
 ### Auto-Updating ABIs
 The interface is powered by a GitHub Action that automatically updates the contract ABIs and deployment addresses whenever you push changes to the `main` branch. This means your web interface is always in sync with your latest Solidity code.
 
+## Cross-Platform Wallet Verification (Best Practices)
+
+This project demonstrates the industry-standard method for verifying wallet ownership across platforms (like Minecraft, Discord, or Websites) where the user does not have their private key directly available.
+
+### The Architecture: "The Verification Handshake"
+
+1.  **Identity Request (In-Game):** The player types `!register` in Minecraft. The game requests a short-lived **Linking Token** from the Bridge.
+2.  **Web Proof (Off-Game):** The player visits the BragNFT Manager website and enters the Linking Token.
+3.  **Cryptographic Signature (SIWE):** The player signs a "Sign-In with Ethereum" (EIP-4361) message. This proves they own the wallet address without sending a transaction.
+4.  **Persistent Mapping (Off-Chain):** The bridge verifies the signature, recovers the address, and **stores the relationship** (e.g., `Minecraft_XUID` -> `Wallet_Address`) in a database.
+5.  **Seamless Access:** Every time the player spawns, the game sends their XUID to the bridge. The bridge looks up the mapped wallet and checks for NFTs on-chain.
+
+### Why this method?
+-   **Security:** Users never expose their private keys to the game client or the bridge.
+-   **Cost-Effective:** Verifying a signature and storing a mapping off-chain is free, whereas storing this relationship on-chain would cost Gas.
+-   **UX:** The user only has to "link" once. Afterward, their perks are available automatically.
+
 #### Tracking Deployed Addresses
 
 After a successful manual deployment, you can find the contract addresses by:

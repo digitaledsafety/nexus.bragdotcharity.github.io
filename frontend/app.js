@@ -510,6 +510,7 @@ document.getElementById('btnVerifySIWE').addEventListener('click', async () => {
     try {
         const message = document.getElementById('siweMessage').value;
         const address = await signer.getAddress();
+        const linkToken = document.getElementById('linkToken').value;
 
         // Recover the address from the signature
         const recoveredAddress = ethers.utils.verifyMessage(message, currentSignature);
@@ -518,8 +519,36 @@ document.getElementById('btnVerifySIWE').addEventListener('click', async () => {
         resultDiv.classList.remove('hidden', 'bg-blue-900/20', 'border-blue-500', 'text-blue-300');
 
         if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
+            let extraMsg = "Match confirmed for your wallet.";
+
+            // If a link token is provided, send to bridge
+            if (linkToken) {
+                log(`Sending link verification for token ${linkToken}...`);
+                try {
+                    const resp = await fetch('http://localhost:9000/verify-link', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            token: linkToken,
+                            signature: currentSignature,
+                            message: message,
+                            address: recoveredAddress
+                        })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        extraMsg += `<br><strong>Linked to Minecraft!</strong> (XUID: ${data.platformId})`;
+                        log(`Successfully linked to Minecraft (XUID: ${data.platformId})`, 'success');
+                    } else {
+                        extraMsg += `<br><strong>Bridge Error:</strong> ${data.error}`;
+                        log(`Bridge linking failed: ${data.error}`, 'error');
+                    }
+                } catch (e) {
+                    log(`Bridge unavailable (is 'npm run bridge' running?)`, 'error');
+                }
+            }
+
             resultDiv.classList.add('bg-green-900/20', 'border-green-500', 'text-green-400');
-            resultDiv.innerHTML = `<strong>Verification Successful!</strong><br>Recovered: ${recoveredAddress}<br>Match confirmed for your wallet.`;
+            resultDiv.innerHTML = `<strong>Verification Successful!</strong><br>Recovered: ${recoveredAddress}<br>${extraMsg}`;
             log('Wallet verification successful!', 'success');
         } else {
             resultDiv.classList.add('bg-red-900/20', 'border-red-500', 'text-red-400');
