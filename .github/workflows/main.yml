@@ -39,6 +39,7 @@ jobs:
               (cd "$parent_dir" && zip -r ../../../minecraft-addon.mcaddon "$pack_dir")
             fi
           done
+          
       - name: Upload .mcaddon artifact
         uses: actions/upload-artifact@v4
         with:
