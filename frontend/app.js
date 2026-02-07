@@ -456,5 +456,83 @@ async function callExplorerFunction(contractName, funcName, btnElement) {
 // Global exposure for onclick handlers
 window.callExplorerFunction = callExplorerFunction;
 
+// --- Wallet Verification (SIWE) Logic ---
+
+let currentSignature = "";
+let currentNonce = "";
+
+function generateNonce() {
+    return Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+}
+
+function updateSIWEMessage() {
+    currentNonce = generateNonce();
+    const messageBox = document.getElementById('siweMessage');
+    messageBox.value = `Welcome to brag.charity!
+
+Click to sign in and accept the Terms of Service.
+
+Domain: brag.charity
+Statement: Securely verify wallet ownership.
+Nonce: ${currentNonce}`;
+}
+
+document.getElementById('btnSignSIWE').addEventListener('click', async () => {
+    if (!signer) {
+        log('Please connect wallet first', 'error');
+        return;
+    }
+
+    try {
+        updateSIWEMessage();
+        const message = document.getElementById('siweMessage').value;
+        log('Requesting signature...');
+
+        currentSignature = await signer.signMessage(message);
+
+        const resultDiv = document.getElementById('siweResult');
+        resultDiv.classList.remove('hidden', 'bg-red-900/20', 'border-red-500', 'text-red-400', 'bg-green-900/20', 'border-green-500', 'text-green-400');
+        resultDiv.classList.add('block', 'bg-blue-900/20', 'border-blue-500', 'text-blue-300');
+        resultDiv.innerText = `Signature generated: ${currentSignature.substring(0, 20)}...`;
+
+        log('Signature generated successfully', 'success');
+    } catch (error) {
+        log(`Signing failed: ${error.message}`, 'error');
+    }
+});
+
+document.getElementById('btnVerifySIWE').addEventListener('click', async () => {
+    if (!currentSignature) {
+        log('No signature found. Please sign the message first.', 'error');
+        return;
+    }
+
+    try {
+        const message = document.getElementById('siweMessage').value;
+        const address = await signer.getAddress();
+
+        // Recover the address from the signature
+        const recoveredAddress = ethers.utils.verifyMessage(message, currentSignature);
+
+        const resultDiv = document.getElementById('siweResult');
+        resultDiv.classList.remove('hidden', 'bg-blue-900/20', 'border-blue-500', 'text-blue-300');
+
+        if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
+            resultDiv.classList.add('bg-green-900/20', 'border-green-500', 'text-green-400');
+            resultDiv.innerHTML = `<strong>Verification Successful!</strong><br>Recovered: ${recoveredAddress}<br>Match confirmed for your wallet.`;
+            log('Wallet verification successful!', 'success');
+        } else {
+            resultDiv.classList.add('bg-red-900/20', 'border-red-500', 'text-red-400');
+            resultDiv.innerHTML = `<strong>Verification Failed!</strong><br>Recovered: ${recoveredAddress}<br>Does not match your wallet: ${address}`;
+            log('Wallet verification failed!', 'error');
+        }
+    } catch (error) {
+        log(`Verification error: ${error.message}`, 'error');
+    }
+});
+
 // Initialize when page loads
-window.addEventListener('DOMContentLoaded', initContractExplorer);
+window.addEventListener('DOMContentLoaded', () => {
+    initContractExplorer();
+    updateSIWEMessage();
+});
