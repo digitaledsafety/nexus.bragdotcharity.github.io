@@ -1,11 +1,30 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { createPublicClient, http as viemHttp, getContract } from 'viem';
+import { createPublicClient, http as viemHttp, getContract, verifyMessage } from 'viem';
 import { mainnet, localhost } from 'viem/chains';
 
 const PORT = 9000;
 const CHAIN_ID = 31337; // Hardhat Localhost
+const MAPPINGS_FILE = path.join(process.cwd(), 'mappings.json');
+
+// Simulated Database with Persistence
+let mappings = new Map(); // XUID -> ETH Address
+if (fs.existsSync(MAPPINGS_FILE)) {
+    try {
+        const data = JSON.parse(fs.readFileSync(MAPPINGS_FILE, 'utf8'));
+        mappings = new Map(Object.entries(data));
+        console.log(`Loaded ${mappings.size} mappings from ${MAPPINGS_FILE}`);
+    } catch (e) {
+        console.error("Failed to load mappings:", e);
+    }
+}
+
+const pendingTokens = new Map(); // Token -> { xuid, expires }
+
+function saveMappings() {
+    fs.writeFileSync(MAPPINGS_FILE, JSON.stringify(Object.fromEntries(mappings), null, 2));
+}
 
 // Path to deployment info
 const DEPLOYMENT_PATH = path.join(process.cwd(), 'ignition', 'deployments', `chain-${CHAIN_ID}`, 'deployed_addresses.json');
@@ -39,7 +58,8 @@ const publicClient = createPublicClient({
 const server = http.createServer(async (req, res) => {
     // Basic CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Content-Type', 'application/json');
 
     if (req.method === 'OPTIONS') {
@@ -55,28 +75,112 @@ const server = http.createServer(async (req, res) => {
     console.log(`Incoming request: ${req.method} ${req.url}`);
 
     try {
+        // --- Endpoints ---
+
+        // 1. Check if a platform account is linked
+        if (searchParams.get('path') === 'check-platform') {
+            const platformId = searchParams.get('platformId');
+            const linkedAddress = mappings.get(platformId);
+
+            res.writeHead(200);
+            res.end(JSON.stringify({
+                linked: !!linkedAddress,
+                address: linkedAddress || null,
+                uuid: platformId
+            }));
+            return;
+        }
+
+        // 2. Request a linking token (called from Minecraft)
+        if (searchParams.get('path') === 'request-token') {
+            const platformId = searchParams.get('platformId');
+            const token = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+            pendingTokens.set(token, {
+                platformId,
+                expires: Date.now() + (10 * 60 * 1000)
+            });
+
+            console.log(`Generated token ${token} for XUID ${platformId}`);
+            res.writeHead(200);
+            res.end(JSON.stringify({
+                token,
+                uuid: platformId,
+                // Helpful hint for where to register
+                registrationUrl: `http://localhost:3000?token=${token}`
+            }));
+            return;
+        }
+
+        // 3. Register Redirect / Info (Handled by Web UI, but bridge can provide the link)
+        if (searchParams.get('path') === 'register') {
+            const token = searchParams.get('token');
+            const frontendUrl = `http://localhost:3000?token=${token || ''}`;
+
+            res.writeHead(200);
+            res.end(JSON.stringify({
+                message: "Please visit the BragNFT Manager to complete registration.",
+                url: frontendUrl,
+                registrationUrl: frontendUrl // Compatibility
+            }));
+            return;
+        }
+
+        // 4. Verify SIWE and finalize link (called from Web Frontend)
+        if (pathname === '/verify-link' && req.method === 'POST') {
+            let body = '';
+            for await (const chunk of req) body += chunk;
+            const { token, signature, message, address } = JSON.parse(body);
+
+            const pending = pendingTokens.get(token);
+            if (!pending || pending.expires < Date.now()) {
+                res.writeHead(400);
+                res.end(JSON.stringify({ error: "Invalid or expired token" }));
+                return;
+            }
+
+            // --- SECURE VERIFICATION ---
+            // 1. Verify the signature matches the address and message
+            const isValid = await verifyMessage({
+                address: address,
+                message: message,
+                signature: signature,
+            });
+
+            if (!isValid) {
+                res.writeHead(401);
+                res.end(JSON.stringify({ error: "Invalid cryptographic signature" }));
+                return;
+            }
+
+            // 2. Ensure the message contains the token to prevent replay/substitution attacks
+            if (!message.includes(token)) {
+                res.writeHead(400);
+                res.end(JSON.stringify({ error: "Message does not contain the correct verification token" }));
+                return;
+            }
+
+            // 3. Success - Store the mapping
+            mappings.set(pending.platformId, address);
+            saveMappings();
+            pendingTokens.delete(token);
+
+            console.log(`Successfully linked XUID ${pending.platformId} to ${address}`);
+            res.writeHead(200);
+            res.end(JSON.stringify({ success: true, platformId: pending.platformId, address }));
+            return;
+        }
+
+        // 4. Check Ownership (called from Minecraft using stored mapping or direct address)
         let addressToCheck = null;
 
-        // Support for /nfts/<address>
         if (pathname.startsWith('/nfts/')) {
             addressToCheck = pathname.split('/')[2];
         }
-        // Support for GAS-style routing: ?path=check-ownership&uuid=<address_as_uuid>
         else if (searchParams.get('path') === 'check-ownership') {
-            addressToCheck = searchParams.get('uuid');
-        }
-        // Support for simplified check-platform for registration mock
-        else if (searchParams.get('path') === 'check-platform') {
-            const platformId = searchParams.get('platformId');
-            res.writeHead(200);
-            res.end(JSON.stringify({ linked: true, uuid: platformId })); // Mock linking
-            return;
-        }
-        else if (searchParams.get('path') === 'request-token') {
-             const platformId = searchParams.get('platformId');
-             res.writeHead(200);
-             res.end(JSON.stringify({ token: "mock-token", uuid: platformId }));
-             return;
+            const uuid = searchParams.get('uuid');
+            // Check if uuid is a platformId we have a mapping for, otherwise assume it's an address
+            addressToCheck = mappings.get(uuid) || uuid;
         }
 
         if (!addressToCheck) {
@@ -108,11 +212,18 @@ const server = http.createServer(async (req, res) => {
             args: [addressToCheck]
         });
 
+        // For Minecraft Addon compatibility, we also provide a simulated list of NFTs
+        // In a production environment, you would query an indexer or use 'getPastEvents' to find IDs.
+        const mockNfts = balance > 0n ? [
+            { tokenId: "1", tokenURI: "https://brag.charity/metadata/1.json" }
+        ] : [];
+
         res.writeHead(200);
         res.end(JSON.stringify({
             isHolder: balance > 0n,
             balance: balance.toString(),
-            address: addressToCheck
+            address: addressToCheck,
+            nfts: mockNfts
         }));
 
     } catch (error) {

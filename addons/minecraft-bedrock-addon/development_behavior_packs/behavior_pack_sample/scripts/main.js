@@ -1,14 +1,14 @@
 import { world, DynamicPropertiesDefinition } from "@minecraft/server";
 import { http, HttpRequest, HttpRequestMethod } from "@minecraft/server-net";
 
-// Replace this with your Web App URL from Deploy > Manage Deployments
-const GAS_DEPLOY_URL = "https://script.google.com/macros/s/AKfycbwlfwzG3H0e150GYlSXsRQQR57rdoRYYrR0su_GUAd8eJm0ISTX03sshosnmyjTIr-s/exec";
-const LOCAL_BRIDGE_URL = "http://localhost:9000";
-
-// Set to true to use the local bridge for testing
-const USE_LOCAL_BRIDGE = false;
-
-const BRIDGE_URL = USE_LOCAL_BRIDGE ? LOCAL_BRIDGE_URL : GAS_DEPLOY_URL;
+/**
+ * ARCHITECTURE NOTE:
+ * The project uses a unified Node.js Bridge (scripts/nft-bridge.js) which supports
+ * Sign-In with Ethereum (SIWE) for secure wallet linking.
+ *
+ * Set BRIDGE_URL to your hosted Node.js bridge endpoint.
+ */
+const BRIDGE_URL = "http://localhost:9000"; // Point to scripts/nft-bridge.js
 
 /**
  * Handles checking NFT status when a player spawns.
@@ -108,12 +108,14 @@ async function handleChat(event) {
             const response = await http.request(request);
 
             if (response.status === 200) {
-                const { token, uuid } = JSON.parse(response.body);
+                const data = JSON.parse(response.body);
+                const { token, uuid } = data;
                 
                 // Save the new UUID
                 player.setDynamicProperty("nft_uuid", uuid);
 
-                const registrationUrl = `${BRIDGE_URL}?path=register&token=${token}`;
+                // If using the Node.js bridge, it can provide a direct link to the Web Manager
+                const registrationUrl = data.registrationUrl || `${BRIDGE_URL}?path=register&token=${token}`;
 
                 player.sendMessage("§e====================================§r");
                 player.sendMessage("§aTo link your wallet, visit this URL:§r");
@@ -191,12 +193,13 @@ async function handleChat(event) {
             const response = await http.request(request);
 
             if (response.status === 200) {
-                const { token, uuid: returnedUuid } = JSON.parse(response.body);
+                const data = JSON.parse(response.body);
+                const { token, uuid: returnedUuid } = data;
 
                 // Update saved UUID
                 player.setDynamicProperty("nft_uuid", returnedUuid);
 
-                const registrationUrl = `${BRIDGE_URL}?path=register&token=${token}`;
+                const registrationUrl = data.registrationUrl || `${BRIDGE_URL}?path=register&token=${token}`;
 
                 player.sendMessage("§e====================================§r");
                 player.sendMessage("§aTo link your existing account, visit:§r");

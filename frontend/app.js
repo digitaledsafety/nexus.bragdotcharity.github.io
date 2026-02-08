@@ -456,5 +456,131 @@ async function callExplorerFunction(contractName, funcName, btnElement) {
 // Global exposure for onclick handlers
 window.callExplorerFunction = callExplorerFunction;
 
+// --- Wallet Verification (SIWE) Logic ---
+
+let currentSignature = "";
+let currentNonce = "";
+
+function generateNonce() {
+    return Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+}
+
+function updateSIWEMessage() {
+    currentNonce = generateNonce();
+    const linkToken = document.getElementById('linkToken').value;
+    const messageBox = document.getElementById('siweMessage');
+
+    // Use the link token as part of the message if available to prevent replay attacks
+    const nonceText = linkToken ? `${currentNonce}-${linkToken}` : currentNonce;
+
+    messageBox.value = `Welcome to brag.charity!
+
+Click to sign in and accept the Terms of Service.
+
+Domain: brag.charity
+Statement: Securely verify wallet ownership.
+Nonce: ${nonceText}`;
+}
+
+document.getElementById('btnSignSIWE').addEventListener('click', async () => {
+    if (!signer) {
+        log('Please connect wallet first', 'error');
+        return;
+    }
+
+    try {
+        updateSIWEMessage();
+        const message = document.getElementById('siweMessage').value;
+        log('Requesting signature...');
+
+        currentSignature = await signer.signMessage(message);
+
+        const resultDiv = document.getElementById('siweResult');
+        resultDiv.classList.remove('hidden', 'bg-red-900/20', 'border-red-500', 'text-red-400', 'bg-green-900/20', 'border-green-500', 'text-green-400');
+        resultDiv.classList.add('block', 'bg-blue-900/20', 'border-blue-500', 'text-blue-300');
+        resultDiv.innerText = `Signature generated: ${currentSignature.substring(0, 20)}...`;
+
+        log('Signature generated successfully', 'success');
+    } catch (error) {
+        log(`Signing failed: ${error.message}`, 'error');
+    }
+});
+
+document.getElementById('btnVerifySIWE').addEventListener('click', async () => {
+    if (!currentSignature) {
+        log('No signature found. Please sign the message first.', 'error');
+        return;
+    }
+
+    try {
+        const message = document.getElementById('siweMessage').value;
+        const address = await signer.getAddress();
+        const linkToken = document.getElementById('linkToken').value;
+
+        // Recover the address from the signature
+        const recoveredAddress = ethers.utils.verifyMessage(message, currentSignature);
+
+        const resultDiv = document.getElementById('siweResult');
+        resultDiv.classList.remove('hidden', 'bg-blue-900/20', 'border-blue-500', 'text-blue-300');
+
+        if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
+            let extraMsg = "Match confirmed for your wallet.";
+
+            // If a link token is provided, send to bridge
+            if (linkToken) {
+                log(`Sending link verification for token ${linkToken}...`);
+                try {
+                    const resp = await fetch('http://localhost:9000/verify-link', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            token: linkToken,
+                            signature: currentSignature,
+                            message: message,
+                            address: recoveredAddress
+                        })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        extraMsg += `<br><strong>Linked to Minecraft!</strong> (XUID: ${data.platformId})`;
+                        log(`Successfully linked to Minecraft (XUID: ${data.platformId})`, 'success');
+                    } else {
+                        extraMsg += `<br><strong>Bridge Error:</strong> ${data.error}`;
+                        log(`Bridge linking failed: ${data.error}`, 'error');
+                    }
+                } catch (e) {
+                    log(`Bridge unavailable (is 'npm run bridge' running?)`, 'error');
+                }
+            }
+
+            resultDiv.classList.add('bg-green-900/20', 'border-green-500', 'text-green-400');
+            resultDiv.innerHTML = `<strong>Verification Successful!</strong><br>Recovered: ${recoveredAddress}<br>${extraMsg}`;
+            log('Wallet verification successful!', 'success');
+        } else {
+            resultDiv.classList.add('bg-red-900/20', 'border-red-500', 'text-red-400');
+            resultDiv.innerHTML = `<strong>Verification Failed!</strong><br>Recovered: ${recoveredAddress}<br>Does not match your wallet: ${address}`;
+            log('Wallet verification failed!', 'error');
+        }
+    } catch (error) {
+        log(`Verification error: ${error.message}`, 'error');
+    }
+});
+
 // Initialize when page loads
-window.addEventListener('DOMContentLoaded', initContractExplorer);
+window.addEventListener('DOMContentLoaded', () => {
+    initContractExplorer();
+    updateSIWEMessage();
+
+    // Check for registration token in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+        const tokenInput = document.getElementById('linkToken');
+        if (tokenInput) {
+            tokenInput.value = token;
+            log(`Pre-filled registration token from URL: ${token}`, 'info');
+            updateSIWEMessage(); // Refresh message with token
+        }
+    }
+
+    document.getElementById('linkToken').addEventListener('input', updateSIWEMessage);
+});
