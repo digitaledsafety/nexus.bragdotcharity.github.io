@@ -33,12 +33,20 @@ Deploy the contracts to your local node and export the ABIs/addresses for the fr
 npm run deploy:local
 ```
 
-### 3. Start the NFT Bridge (for Addons)
-If you are testing the Minecraft addon locally, start the NFT bridge:
+### 3. Start the NFT Bridge
+The bridge coordinates between Minecraft and your local blockchain.
 ```shell
 npm run bridge
 ```
-The bridge listens on port 9000 and connects to your local Hardhat node. To use it in Minecraft, ensure you set `USE_LOCAL_BRIDGE = true` in `addons/minecraft-bedrock-addon/development_behavior_packs/behavior_pack_sample/scripts/main.js`.
+The bridge listens on port 9000. It handles the **Verification Handshake** (SIWE) and persists identity mappings in `mappings.json`.
+
+### 4. Serve the Frontend
+To use the SIWE verification features locally, serve the `frontend` directory on port 3000:
+```shell
+# You can use any static server, e.g.:
+npx serve frontend -p 3000
+```
+Then visit `http://localhost:3000` in your browser.
 
 ## Usage
 
