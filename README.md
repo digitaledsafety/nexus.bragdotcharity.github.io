@@ -151,6 +151,13 @@ This project demonstrates the industry-standard method for verifying wallet owne
 -   **Cost-Effective:** Verifying a signature and storing a mapping off-chain is free, whereas storing this relationship on-chain would cost Gas.
 -   **UX:** The user only has to "link" once. Afterward, their perks are available automatically.
 
+### Transition from Google Apps Script (GAS)
+
+The Node.js bridge (`scripts/nft-bridge.js`) is designed to **replace the legacy Google Apps Script** functionality.
+- **Standardized Security:** Moves from simple "address submission" to industry-standard SIWE.
+- **Drop-in Compatibility:** Supports the same routing parameters (`?path=check-platform`, etc.) used in the Minecraft addon.
+- **Unified Infrastructure:** Allows hosting on any Node.js provider, removing dependencies on Google's specific platform limitations.
+
 #### Tracking Deployed Addresses
 
 After a successful manual deployment, you can find the contract addresses by:

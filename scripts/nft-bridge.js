@@ -87,11 +87,29 @@ const server = http.createServer(async (req, res) => {
 
             console.log(`Generated token ${token} for XUID ${platformId}`);
             res.writeHead(200);
-            res.end(JSON.stringify({ token, uuid: platformId }));
+            res.end(JSON.stringify({
+                token,
+                uuid: platformId,
+                // Helpful hint for where to register
+                registrationUrl: `http://localhost:3000?token=${token}`
+            }));
             return;
         }
 
-        // 3. Verify SIWE and finalize link (called from Web Frontend)
+        // 3. Register Redirect / Info (Handled by Web UI, but bridge can provide the link)
+        if (searchParams.get('path') === 'register') {
+            const token = searchParams.get('token');
+            const frontendUrl = `http://localhost:3000?token=${token || ''}`;
+
+            res.writeHead(200);
+            res.end(JSON.stringify({
+                message: "Please visit the BragNFT Manager to complete registration.",
+                url: frontendUrl
+            }));
+            return;
+        }
+
+        // 4. Verify SIWE and finalize link (called from Web Frontend)
         if (pathname === '/verify-link' && req.method === 'POST') {
             let body = '';
             for await (const chunk of req) body += chunk;
@@ -156,11 +174,18 @@ const server = http.createServer(async (req, res) => {
             args: [addressToCheck]
         });
 
+        // For Minecraft Addon compatibility, we also provide a simulated list of NFTs
+        // In a production environment, you would query an indexer or use 'getPastEvents' to find IDs.
+        const mockNfts = balance > 0n ? [
+            { tokenId: "1", tokenURI: "https://brag.charity/metadata/1.json" }
+        ] : [];
+
         res.writeHead(200);
         res.end(JSON.stringify({
             isHolder: balance > 0n,
             balance: balance.toString(),
-            address: addressToCheck
+            address: addressToCheck,
+            nfts: mockNfts
         }));
 
     } catch (error) {

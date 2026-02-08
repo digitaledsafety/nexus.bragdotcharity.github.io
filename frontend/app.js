@@ -564,4 +564,15 @@ document.getElementById('btnVerifySIWE').addEventListener('click', async () => {
 window.addEventListener('DOMContentLoaded', () => {
     initContractExplorer();
     updateSIWEMessage();
+
+    // Check for registration token in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+        const tokenInput = document.getElementById('linkToken');
+        if (tokenInput) {
+            tokenInput.value = token;
+            log(`Pre-filled registration token from URL: ${token}`, 'info');
+        }
+    }
 });
