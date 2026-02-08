@@ -467,14 +467,19 @@ function generateNonce() {
 
 function updateSIWEMessage() {
     currentNonce = generateNonce();
+    const linkToken = document.getElementById('linkToken').value;
     const messageBox = document.getElementById('siweMessage');
+
+    // Use the link token as part of the message if available to prevent replay attacks
+    const nonceText = linkToken ? `${currentNonce}-${linkToken}` : currentNonce;
+
     messageBox.value = `Welcome to brag.charity!
 
 Click to sign in and accept the Terms of Service.
 
 Domain: brag.charity
 Statement: Securely verify wallet ownership.
-Nonce: ${currentNonce}`;
+Nonce: ${nonceText}`;
 }
 
 document.getElementById('btnSignSIWE').addEventListener('click', async () => {
@@ -573,6 +578,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (tokenInput) {
             tokenInput.value = token;
             log(`Pre-filled registration token from URL: ${token}`, 'info');
+            updateSIWEMessage(); // Refresh message with token
         }
     }
+
+    document.getElementById('linkToken').addEventListener('input', updateSIWEMessage);
 });

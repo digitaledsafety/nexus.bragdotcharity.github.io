@@ -21,3 +21,4 @@
 
 # Hardhat coverage reports
 /coverage
+mappings.json

@@ -1,15 +1,30 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { createPublicClient, http as viemHttp, getContract } from 'viem';
+import { createPublicClient, http as viemHttp, getContract, verifyMessage } from 'viem';
 import { mainnet, localhost } from 'viem/chains';
 
 const PORT = 9000;
 const CHAIN_ID = 31337; // Hardhat Localhost
+const MAPPINGS_FILE = path.join(process.cwd(), 'mappings.json');
 
-// Simulated Database
-const mappings = new Map(); // XUID -> ETH Address
+// Simulated Database with Persistence
+let mappings = new Map(); // XUID -> ETH Address
+if (fs.existsSync(MAPPINGS_FILE)) {
+    try {
+        const data = JSON.parse(fs.readFileSync(MAPPINGS_FILE, 'utf8'));
+        mappings = new Map(Object.entries(data));
+        console.log(`Loaded ${mappings.size} mappings from ${MAPPINGS_FILE}`);
+    } catch (e) {
+        console.error("Failed to load mappings:", e);
+    }
+}
+
 const pendingTokens = new Map(); // Token -> { xuid, expires }
+
+function saveMappings() {
+    fs.writeFileSync(MAPPINGS_FILE, JSON.stringify(Object.fromEntries(mappings), null, 2));
+}
 
 // Path to deployment info
 const DEPLOYMENT_PATH = path.join(process.cwd(), 'ignition', 'deployments', `chain-${CHAIN_ID}`, 'deployed_addresses.json');
@@ -43,7 +58,8 @@ const publicClient = createPublicClient({
 const server = http.createServer(async (req, res) => {
     // Basic CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Content-Type', 'application/json');
 
     if (req.method === 'OPTIONS') {
@@ -104,7 +120,8 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(200);
             res.end(JSON.stringify({
                 message: "Please visit the BragNFT Manager to complete registration.",
-                url: frontendUrl
+                url: frontendUrl,
+                registrationUrl: frontendUrl // Compatibility
             }));
             return;
         }
@@ -122,9 +139,30 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            // In a real bridge, we would use a library like 'siwe' or ethers to verify the signature
-            // Here we just log it and store the mapping to demonstrate the relationship storage.
+            // --- SECURE VERIFICATION ---
+            // 1. Verify the signature matches the address and message
+            const isValid = await verifyMessage({
+                address: address,
+                message: message,
+                signature: signature,
+            });
+
+            if (!isValid) {
+                res.writeHead(401);
+                res.end(JSON.stringify({ error: "Invalid cryptographic signature" }));
+                return;
+            }
+
+            // 2. Ensure the message contains the token to prevent replay/substitution attacks
+            if (!message.includes(token)) {
+                res.writeHead(400);
+                res.end(JSON.stringify({ error: "Message does not contain the correct verification token" }));
+                return;
+            }
+
+            // 3. Success - Store the mapping
             mappings.set(pending.platformId, address);
+            saveMappings();
             pendingTokens.delete(token);
 
             console.log(`Successfully linked XUID ${pending.platformId} to ${address}`);

@@ -1,21 +1,14 @@
 import { world, DynamicPropertiesDefinition } from "@minecraft/server";
 import { http, HttpRequest, HttpRequestMethod } from "@minecraft/server-net";
 
-// Replace this with your Web App URL from Deploy > Manage Deployments (or your Node.js Bridge URL)
-const GAS_DEPLOY_URL = "https://script.google.com/macros/s/AKfycbwlfwzG3H0e150GYlSXsRQQR57rdoRYYrR0su_GUAd8eJm0ISTX03sshosnmyjTIr-s/exec";
-const LOCAL_BRIDGE_URL = "http://localhost:9000";
-
 /**
  * ARCHITECTURE NOTE:
- * The project has moved towards a unified Node.js Bridge (scripts/nft-bridge.js) which supports
- * Sign-In with Ethereum (SIWE). This replaces the legacy Google Apps Script (GAS).
+ * The project uses a unified Node.js Bridge (scripts/nft-bridge.js) which supports
+ * Sign-In with Ethereum (SIWE) for secure wallet linking.
  *
- * To switch entirely to the Node.js bridge, set USE_LOCAL_BRIDGE to true or update
- * GAS_DEPLOY_URL to your hosted Node.js bridge endpoint.
+ * Set BRIDGE_URL to your hosted Node.js bridge endpoint.
  */
-const USE_LOCAL_BRIDGE = true; // Defaulting to true as the Node.js bridge is the new standard
-
-const BRIDGE_URL = USE_LOCAL_BRIDGE ? LOCAL_BRIDGE_URL : GAS_DEPLOY_URL;
+const BRIDGE_URL = "http://localhost:9000"; // Point to scripts/nft-bridge.js
 
 /**
  * Handles checking NFT status when a player spawns.
