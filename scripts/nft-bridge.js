@@ -1,7 +1,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { createPublicClient, http as viemHttp, getContract, verifyMessage, parseAbiItem } from 'viem';
+import { createPublicClient, http as viemHttp, getContract, verifyMessage, parseAbiItem, getAddress } from 'viem';
 import { mainnet, localhost, sepolia } from 'viem/chains';
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'node:crypto';
@@ -146,19 +146,27 @@ console.log(`Bridge using RPC_URL: ${RPC_URL} for Chain ID: ${CHAIN_ID}`);
 const publicClient = createPublicClient({
     chain: chain,
     transport: viemHttp(RPC_URL, {
-        retryCount: 5,
+        retryCount: 10,
         retryDelay: 1000,
-    })
+    }),
+    pollingInterval: 500, // Faster polling for events
 });
 
 async function handleStatusChange(address) {
-    if (!address) return;
-    const lowerAddress = address.toLowerCase();
+    if (!address || address === '0x0000000000000000000000000000000000000000') return;
+    let normalizedAddress;
+    try {
+        normalizedAddress = getAddress(address);
+    } catch (e) {
+        return;
+    }
 
     // Find all XUIDs linked to this address
     const xuids = [];
     for (const [xuid, addr] of mappings.entries()) {
-        if (addr.toLowerCase() === lowerAddress) xuids.push(xuid);
+        try {
+            if (getAddress(addr) === normalizedAddress) xuids.push(xuid);
+        } catch (e) {}
     }
 
     for (const xuid of xuids) {
