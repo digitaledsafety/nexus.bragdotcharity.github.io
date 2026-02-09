@@ -142,9 +142,13 @@ const BRAG_ABI = [
 
 const chain = CHAIN_ID === 31337 ? localhost : sepolia;
 const RPC_URL = process.env.RPC_URL || (CHAIN_ID === 31337 ? 'http://127.0.0.1:8545' : undefined);
+console.log(`Bridge using RPC_URL: ${RPC_URL} for Chain ID: ${CHAIN_ID}`);
 const publicClient = createPublicClient({
     chain: chain,
-    transport: viemHttp(RPC_URL)
+    transport: viemHttp(RPC_URL, {
+        retryCount: 5,
+        retryDelay: 1000,
+    })
 });
 
 async function handleStatusChange(address) {
@@ -317,6 +321,18 @@ const server = http.createServer(async (req, res) => {
     }
 });
 
+async function fetchWithRetry(fn, label, maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (e) {
+            if (i === maxRetries - 1) throw e;
+            console.warn(`[Retry] ${label} failed (attempt ${i+1}/${maxRetries}): ${e.message}`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+}
+
 async function fetchCurrentStatus(address) {
     console.log(`Fetching current on-chain status for ${address}...`);
     const bragAddress = getContractAddress('BragNFT');
@@ -325,12 +341,13 @@ async function fetchCurrentStatus(address) {
     // Check Wallet
     if (bragAddress) {
         try {
-            const balance = await publicClient.readContract({
+            const balance = await fetchWithRetry(() => publicClient.readContract({
                 address: bragAddress,
                 abi: BRAG_ABI,
                 functionName: 'balanceOf',
                 args: [address]
-            });
+            }), `balanceOf(${address})`);
+
             if (balance > 0n) {
                 walletNfts.push({ tokenId: "any", location: "Wallet", nftContract: bragAddress });
             }
@@ -348,22 +365,22 @@ async function fetchCurrentStatus(address) {
         try {
             // Check for exhibited BragNFTs in this vault
             // We use getLogs to find tokens the user has exhibited
-            const logs = await publicClient.getLogs({
+            const logs = await fetchWithRetry(() => publicClient.getLogs({
                 address: vaultAddr,
                 event: parseAbiItem('event Exhibited721(address indexed nftContract, uint256 indexed tokenId, address indexed owner, string location, uint256 expiry)'),
                 args: { owner: address },
                 fromBlock: 0n
-            });
+            }), `getLogs(${vaultAddr})`);
 
             // For each token, verify it's still in the vault
             for (const log of logs) {
                 const { nftContract, tokenId } = log.args;
-                const currentOwner = await publicClient.readContract({
+                const currentOwner = await fetchWithRetry(() => publicClient.readContract({
                     address: vaultAddr,
                     abi: [parseAbiItem('function owner721(address, uint256) view returns (address)')],
                     functionName: 'owner721',
                     args: [nftContract, tokenId]
-                });
+                }), `owner721(${vaultAddr}, ${tokenId})`);
 
                 if (currentOwner.toLowerCase() === address.toLowerCase()) {
                     vaults[vaultAddr].push({ tokenId: tokenId.toString(), nftContract, location: config.name });
