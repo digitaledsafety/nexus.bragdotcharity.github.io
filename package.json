@@ -18,6 +18,8 @@
   "type": "module",
   "dependencies": {
     "@openzeppelin/contracts": "^5.4.0",
-    "chai": "^6.2.2"
+    "@types/ws": "^8.18.1",
+    "chai": "^6.2.2",
+    "ws": "^8.19.0"
   }
 }
