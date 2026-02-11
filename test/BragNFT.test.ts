@@ -153,4 +153,55 @@ describe("BragNFT and DonationReceipt", async function () {
     // ERC721URIStorage returns empty string if not set and no baseURI
     assert.equal(await bragNFT.read.tokenURI([tokenId]), "");
   });
+
+  it("Should support on-chain media and metadata", async function () {
+    const { bragNFT, donor } = await deployContracts();
+    const message = "On-chain test";
+    const media = '<svg>on-chain</svg>';
+
+    // Use the 3-argument overload: donate(string, string, bool)
+    // In viem with overloads, we can specify the function name with types if needed
+    // But usually viem handles it based on argument length if possible
+    await bragNFT.write.donate([message, media, true], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const tokenId = 0n;
+    const uri = await bragNFT.read.tokenURI([tokenId]);
+
+    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
+
+    // Decode and check content
+    const base64Content = uri.split(",")[1];
+    const json = JSON.parse(Buffer.from(base64Content, "base64").toString());
+
+    assert.equal(json.name, `BragNFT #${tokenId}`);
+    assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an on-chain SVG data URI");
+  });
+
+  it("Should generate on-chain SVG receipt in DonationReceipt", async function () {
+    const { bragNFT, receipt, donor } = await deployContracts();
+
+    await bragNFT.write.donate(["SVG Receipt Test", "ipfs://some-uri"], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const receiptId = await bragNFT.read.nftToReceipt([0n]);
+    const uri = await receipt.read.tokenURI([receiptId]);
+
+    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
+
+    const base64Content = uri.split(",")[1];
+    const json = JSON.parse(Buffer.from(base64Content, "base64").toString());
+
+    assert.equal(json.name, `Donation Receipt #${receiptId}`);
+    assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an SVG data URI");
+
+    const svgBase64 = json.image.split(",")[1];
+    const svg = Buffer.from(svgBase64, "base64").toString();
+    assert.ok(svg.includes("Donation Receipt"), "SVG should contain title");
+    assert.ok(svg.includes(donor.account.address.toLowerCase()), "SVG should contain donor address");
+  });
 });
