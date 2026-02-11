@@ -127,13 +127,6 @@ contract BragNFT is ERC721URIStorage, Ownable {
             return super.tokenURI(tokenId);
         }
 
-        // If media doesn't look like a URI, assume it's raw SVG and wrap it
-        string memory imageVal = media;
-        bytes memory bMedia = bytes(media);
-        if (bMedia.length > 4 && bMedia[0] == '<' && bMedia[1] == 's' && bMedia[2] == 'v' && bMedia[3] == 'g') {
-            imageVal = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bMedia)));
-        }
-
         string memory json = Base64.encode(
             bytes(
                 string(
@@ -141,7 +134,7 @@ contract BragNFT is ERC721URIStorage, Ownable {
                         '{"name": "BragNFT #',
                         tokenId.toString(),
                         '", "description": "Brag.Charity Donation NFT", "image": "',
-                        imageVal,
+                        media,
                         '"}'
                     )
                 )
