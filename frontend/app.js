@@ -105,14 +105,15 @@ document.getElementById('btnMint').addEventListener('click', async () => {
     const message = document.getElementById('mintMessage').value;
     const recipient = document.getElementById('mintRecipient').value;
     const tokenURI = document.getElementById('mintTokenURI').value;
+    const onChain = document.getElementById('mintOnChain').checked;
 
     const contract = getContract('BragNFT', addr);
     const val = ethers.utils.parseEther(amount);
 
     if (recipient && ethers.utils.isAddress(recipient)) {
-        await txHandler(contract.donateTo(recipient, message, tokenURI, { value: val }), 'NFT Minted to recipient');
+        await txHandler(contract["donateTo(address,string,string,bool)"](recipient, message, tokenURI, onChain, { value: val }), 'NFT Minted to recipient');
     } else {
-        await txHandler(contract.donate(message, tokenURI, { value: val }), 'NFT Minted');
+        await txHandler(contract["donate(string,string,bool)"](message, tokenURI, onChain, { value: val }), 'NFT Minted');
     }
 });
 

@@ -153,4 +153,27 @@ describe("BragNFT and DonationReceipt", async function () {
     // ERC721URIStorage returns empty string if not set and no baseURI
     assert.equal(await bragNFT.read.tokenURI([tokenId]), "");
   });
+
+  it("Should support on-chain media and metadata", async function () {
+    const { bragNFT, donor } = await deployContracts();
+    const message = "On-chain test";
+    const media = 'ipfs://on-chain-stored-uri';
+
+    await bragNFT.write.donate([message, media, true], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const tokenId = 0n;
+    const uri = await bragNFT.read.tokenURI([tokenId]);
+
+    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
+
+    // Decode and check content
+    const base64Content = uri.split(",")[1];
+    const json = JSON.parse(Buffer.from(base64Content, "base64").toString());
+
+    assert.equal(json.name, `BragNFT #${tokenId}`);
+    assert.equal(json.image, media);
+  });
 });
