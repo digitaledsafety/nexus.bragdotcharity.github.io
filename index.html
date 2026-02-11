@@ -117,8 +117,12 @@
                         <input type="text" id="mintRecipient" class="input-field" placeholder="Leave blank for self">
                     </div>
                     <div>
-                        <label class="block text-sm mb-1">Media URI (Optional)</label>
-                        <input type="text" id="mintTokenURI" class="input-field" placeholder="ipfs://... or https://...">
+                        <label class="block text-sm mb-1">Media (URI or Data URI)</label>
+                        <input type="text" id="mintTokenURI" class="input-field mb-2" placeholder="ipfs://... or data:image/...">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="mintOnChain" class="rounded border-slate-700 bg-slate-800 text-purple-600 focus:ring-purple-500">
+                            <span class="text-xs text-slate-400">Store Media On-chain (costs more gas)</span>
+                        </label>
                     </div>
                     <button id="btnMint" class="btn-primary w-full">Donate & Mint</button>
                 </div>
