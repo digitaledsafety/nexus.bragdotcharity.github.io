@@ -118,7 +118,13 @@
                     </div>
                     <div>
                         <label class="block text-sm mb-1">Media (URI or Data URI)</label>
-                        <input type="text" id="mintTokenURI" class="input-field mb-2" placeholder="ipfs://... or data:image/...">
+                        <div class="flex space-x-2 mb-2">
+                            <input type="text" id="mintTokenURI" class="input-field" placeholder="ipfs://... or data:image/...">
+                            <button id="btnUpload" class="btn-secondary px-3" title="Upload File">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                            <input type="file" id="fileInput" class="hidden" accept="image/*">
+                        </div>
                         <label class="flex items-center space-x-2 cursor-pointer">
                             <input type="checkbox" id="mintOnChain" class="rounded border-slate-700 bg-slate-800 text-purple-600 focus:ring-purple-500">
                             <span class="text-xs text-slate-400">Store Media On-chain (costs more gas)</span>
