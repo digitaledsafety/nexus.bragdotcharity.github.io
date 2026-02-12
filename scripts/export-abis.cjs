@@ -41,6 +41,13 @@ if (fs.existsSync(deploymentsDir)) {
         if (nameMatch) {
           if (!addresses[chain]) addresses[chain] = {};
           addresses[chain][nameMatch] = addr;
+
+          // Also provide the non-prefixed version for easier access in some contexts
+          const rawChainId = chain.replace("chain-", "");
+          if (rawChainId !== chain) {
+            if (!addresses[rawChainId]) addresses[rawChainId] = {};
+            addresses[rawChainId][nameMatch] = addr;
+          }
         }
       }
     }
