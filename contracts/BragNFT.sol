@@ -11,6 +11,10 @@ interface IDonationReceipt {
     function mint(address to, uint256 amount, string calldata message) external returns (uint256);
 }
 
+interface IBragToken {
+    function mint(address to, uint256 amount) external;
+}
+
 /**
  * @title BragNFT
  * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
@@ -22,6 +26,7 @@ contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     address public treasury;
     uint256 public minimumDonation;
     IDonationReceipt public receiptContract;
+    IBragToken public bragToken;
 
     // Link between BragNFT tokenId and DonationReceipt tokenId
     mapping(uint256 => uint256) public nftToReceipt;
@@ -32,7 +37,7 @@ contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     event Donated(address indexed donor, uint256 amount, uint256 nftTokenId, uint256 receiptTokenId, string message);
 
     constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
-        ERC721("BragNFT", "BRAG")
+        ERC721("BragNFT", "BNFT")
         Ownable(_initialOwner)
     {
         treasury = _treasury;
@@ -50,6 +55,10 @@ contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
 
     function setReceiptContract(address _receiptContract) external onlyOwner {
         receiptContract = IDonationReceipt(_receiptContract);
+    }
+
+    function setBragToken(address _bragToken) external onlyOwner {
+        bragToken = IBragToken(_bragToken);
     }
 
     /**
@@ -114,7 +123,12 @@ contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
         // 4. Mint the transferable BragNFT to the specified recipient (Interaction - may call onERC721Received)
         _safeMint(recipient, nftTokenId);
 
-        // 5. Transfer to treasury (Interaction)
+        // 5. Mint Brag Tokens (Interaction - if token contract is set)
+        if (address(bragToken) != address(0)) {
+            bragToken.mint(msg.sender, msg.value);
+        }
+
+        // 6. Transfer to treasury (Interaction)
         (bool success, ) = treasury.call{value: msg.value}("");
         require(success, "Transfer to treasury failed");
 

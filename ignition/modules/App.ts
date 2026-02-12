@@ -26,15 +26,22 @@ export default buildModule("AppModule", (m) => {
   // Deploy BragNFT
   const bragNFT = m.contract("BragNFT", [initialOwner, treasury, minimumDonation]);
 
+  // Deploy BragToken
+  const bragToken = m.contract("BragToken", [initialOwner]);
+
   // Deploy NFTMarketplace
   const marketplace = m.contract("NFTMarketplace", [refundPeriod]);
 
   // Setup relationships
   m.call(donationReceipt, "setMinter", [bragNFT, true]);
   m.call(bragNFT, "setReceiptContract", [donationReceipt]);
+  m.call(bragNFT, "setBragToken", [bragToken]);
+
+  // Transfer ownership of BragToken to BragNFT to authorize it to mint rewards
+  m.call(bragToken, "transferOwnership", [bragNFT]);
 
   // We only return the treasury if we deployed it
-  const result: any = { exhibitRegistry, donationReceipt, bragNFT, marketplace };
+  const result: any = { exhibitRegistry, donationReceipt, bragNFT, marketplace, bragToken };
   if (typeof treasury !== "string") {
     result.treasury = treasury;
   }
