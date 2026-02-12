@@ -67,332 +67,148 @@ Private Key: 0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e
 
 WARNING: Funds sent on live network to accounts with publicly known private keys WILL BE LOST.
 
-[32meth_newFilter[0m
-[32meth_newFilter (2)[0m
-[32meth_newFilter (3)[0m
-[32meth_newFilter (4)[0m
-[32meth_newFilter (5)[0m
-[32meth_newFilter (6)[0m
-[32meth_getFilterChanges[0m
-[32meth_getFilterChanges (2)[0m
-[32meth_getFilterChanges (3)[0m
-[32meth_getFilterChanges (4)[0m
-[32meth_getFilterChanges (5)[0m
-[32meth_getFilterChanges (6)[0m
-[32meth_getFilterChanges (7)[0m
-[32meth_getFilterChanges (8)[0m
-[32meth_getFilterChanges (9)[0m
-[32meth_getFilterChanges (10)[0m
-[32meth_getFilterChanges (11)[0m
-[32meth_getFilterChanges (12)[0m
-[32meth_getFilterChanges (13)[0m
-[32meth_getFilterChanges (14)[0m
-[32meth_getFilterChanges (15)[0m
-[32meth_getFilterChanges (16)[0m
-[32meth_getFilterChanges (17)[0m
-[32meth_getFilterChanges (18)[0m
-[32meth_getFilterChanges (19)[0m
-[32meth_getFilterChanges (20)[0m
-[32meth_getFilterChanges (21)[0m
-[32meth_getFilterChanges (22)[0m
-[32meth_getFilterChanges (23)[0m
-[32meth_getFilterChanges (24)[0m
-[32meth_getFilterChanges (25)[0m
-[32meth_getFilterChanges (26)[0m
-[32meth_getFilterChanges (27)[0m
-[32meth_getFilterChanges (28)[0m
-[32meth_getFilterChanges (29)[0m
-[32meth_getFilterChanges (30)[0m
+[32meth_chainId[0m
+[32mhardhat_metadata[0m
 [32meth_accounts[0m
+[32mhardhat_getAutomine[0m
+[32meth_chainId[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getTransactionCount (2)[0m
+[32meth_getTransactionCount (3)[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
 [32meth_call[0m
-  WARNING: Calling an account which is not a contract
-  From: 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:   0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
 
-[32meth_getFilterChanges[0m
-[32meth_getFilterChanges (2)[0m
-[32meth_getFilterChanges (3)[0m
-[32meth_getFilterChanges (4)[0m
-[32meth_getFilterChanges (5)[0m
-[32meth_getFilterChanges (6)[0m
-[32meth_getFilterChanges (7)[0m
-[32meth_getFilterChanges (8)[0m
-[32meth_getFilterChanges (9)[0m
-[32meth_getFilterChanges (10)[0m
-[32meth_getFilterChanges (11)[0m
-[32meth_getFilterChanges (12)[0m
+[32meth_sendTransaction[0m
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Transaction:         0x3c75c31fb8d371e216c7370d6e857c662c03b0fef2d7b4777ad5fe3332675298
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            1419631 of 1419631
+  Block #1:            0x5b2f129385e0961f61c990d83202089119fc32b81187aa2047c17a79b2795c0a
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
 [32meth_call[0m
-  WARNING: Calling an account which is not a contract
-  From: 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:   0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
 
-[32meth_getFilterChanges[0m
-[32meth_getFilterChanges (2)[0m
-[32meth_getFilterChanges (3)[0m
-[32meth_getFilterChanges (4)[0m
-[32meth_getFilterChanges (5)[0m
-[32meth_getFilterChanges (6)[0m
-[32meth_getFilterChanges (7)[0m
-[32meth_getFilterChanges (8)[0m
-[32meth_getFilterChanges (9)[0m
-[32meth_getFilterChanges (10)[0m
-[32meth_getFilterChanges (11)[0m
-[32meth_getFilterChanges (12)[0m
+[32meth_sendTransaction[0m
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Transaction:         0xca23d571715f7765691735e4a617bd8a7739650f1f876f9f0619e9657e1c1c5f
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            763716 of 763716
+  Block #2:            0x03fd84961281f6bb9e465468dc901c338a3b6ef8cb129f92053469177ca460ef
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
 [32meth_call[0m
-  WARNING: Calling an account which is not a contract
-  From: 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:   0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
 
-[32meth_getLogs[0m
-[32meth_getFilterChanges[0m
-[32meth_getFilterChanges (2)[0m
-[32meth_getFilterChanges (3)[0m
-[32meth_getFilterChanges (4)[0m
-[32meth_getFilterChanges (5)[0m
-[32meth_getFilterChanges (6)[0m
-[32meth_getFilterChanges (7)[0m
-[32meth_getFilterChanges (8)[0m
-[32meth_getFilterChanges (9)[0m
-[32meth_getFilterChanges (10)[0m
-[32meth_getFilterChanges (11)[0m
-[32meth_getFilterChanges (12)[0m
-[32meth_getFilterChanges (13)[0m
-[32meth_getFilterChanges (14)[0m
-[32meth_getFilterChanges (15)[0m
-[32meth_getFilterChanges (16)[0m
-[32meth_getFilterChanges (17)[0m
-[32meth_getFilterChanges (18)[0m
-[32meth_getFilterChanges (19)[0m
-[32meth_getFilterChanges (20)[0m
-[32meth_getFilterChanges (21)[0m
-[32meth_getFilterChanges (22)[0m
-[32meth_getFilterChanges (23)[0m
-[32meth_getFilterChanges (24)[0m
-[32meth_getFilterChanges (25)[0m
-[32meth_getFilterChanges (26)[0m
-[32meth_getFilterChanges (27)[0m
-[32meth_getFilterChanges (28)[0m
-[32meth_getFilterChanges (29)[0m
-[32meth_getFilterChanges (30)[0m
-[32meth_getFilterChanges (31)[0m
-[32meth_getFilterChanges (32)[0m
-[32meth_getFilterChanges (33)[0m
-[32meth_getFilterChanges (34)[0m
-[32meth_getFilterChanges (35)[0m
-[32meth_getFilterChanges (36)[0m
-[32meth_getFilterChanges (37)[0m
-[32meth_getFilterChanges (38)[0m
-[32meth_getFilterChanges (39)[0m
-[32meth_getFilterChanges (40)[0m
-[32meth_getFilterChanges (41)[0m
-[32meth_getFilterChanges (42)[0m
-[32meth_getFilterChanges (43)[0m
-[32meth_getFilterChanges (44)[0m
-[32meth_getFilterChanges (45)[0m
-[32meth_getFilterChanges (46)[0m
-[32meth_getFilterChanges (47)[0m
-[32meth_getFilterChanges (48)[0m
-[32meth_getFilterChanges (49)[0m
-[32meth_getFilterChanges (50)[0m
-[32meth_getFilterChanges (51)[0m
-[32meth_getFilterChanges (52)[0m
-[32meth_getFilterChanges (53)[0m
-[32meth_getFilterChanges (54)[0m
-[32meth_getFilterChanges (55)[0m
-[32meth_getFilterChanges (56)[0m
-[32meth_getFilterChanges (57)[0m
-[32meth_getFilterChanges (58)[0m
-[32meth_getFilterChanges (59)[0m
-[32meth_getFilterChanges (60)[0m
-[32meth_getFilterChanges (61)[0m
-[32meth_getFilterChanges (62)[0m
-[32meth_getFilterChanges (63)[0m
-[32meth_getFilterChanges (64)[0m
-[32meth_getFilterChanges (65)[0m
-[32meth_getFilterChanges (66)[0m
-[32meth_getFilterChanges (67)[0m
-[32meth_getFilterChanges (68)[0m
-[32meth_getFilterChanges (69)[0m
-[32meth_getFilterChanges (70)[0m
-[32meth_getFilterChanges (71)[0m
-[32meth_getFilterChanges (72)[0m
-[32meth_getFilterChanges (73)[0m
-[32meth_getFilterChanges (74)[0m
-[32meth_getFilterChanges (75)[0m
-[32meth_getFilterChanges (76)[0m
-[32meth_getFilterChanges (77)[0m
-[32meth_getFilterChanges (78)[0m
-[32meth_getFilterChanges (79)[0m
-[32meth_getFilterChanges (80)[0m
-[32meth_getFilterChanges (81)[0m
-[32meth_getFilterChanges (82)[0m
-[32meth_getFilterChanges (83)[0m
-[32meth_getFilterChanges (84)[0m
-[32meth_getFilterChanges (85)[0m
-[32meth_getFilterChanges (86)[0m
-[32meth_getFilterChanges (87)[0m
-[32meth_getFilterChanges (88)[0m
-[32meth_getFilterChanges (89)[0m
-[32meth_getFilterChanges (90)[0m
-[32meth_getFilterChanges (91)[0m
-[32meth_getFilterChanges (92)[0m
-[32meth_getFilterChanges (93)[0m
-[32meth_getFilterChanges (94)[0m
-[32meth_getFilterChanges (95)[0m
-[32meth_getFilterChanges (96)[0m
-[32meth_getFilterChanges (97)[0m
-[32meth_getFilterChanges (98)[0m
-[32meth_getFilterChanges (99)[0m
-[32meth_getFilterChanges (100)[0m
-[32meth_getFilterChanges (101)[0m
-[32meth_getFilterChanges (102)[0m
-[32meth_getFilterChanges (103)[0m
-[32meth_getFilterChanges (104)[0m
-[32meth_getFilterChanges (105)[0m
-[32meth_getFilterChanges (106)[0m
-[32meth_getFilterChanges (107)[0m
-[32meth_getFilterChanges (108)[0m
-[32meth_getFilterChanges (109)[0m
-[32meth_getFilterChanges (110)[0m
-[32meth_getFilterChanges (111)[0m
-[32meth_getFilterChanges (112)[0m
-[32meth_getFilterChanges (113)[0m
-[32meth_getFilterChanges (114)[0m
-[32meth_getFilterChanges (115)[0m
-[32meth_getFilterChanges (116)[0m
-[32meth_getFilterChanges (117)[0m
-[32meth_getFilterChanges (118)[0m
-[32meth_getFilterChanges (119)[0m
-[32meth_getFilterChanges (120)[0m
-[32meth_getFilterChanges (121)[0m
-[32meth_getFilterChanges (122)[0m
-[32meth_getFilterChanges (123)[0m
-[32meth_getFilterChanges (124)[0m
-[32meth_getFilterChanges (125)[0m
-[32meth_getFilterChanges (126)[0m
-[32meth_getFilterChanges (127)[0m
-[32meth_getFilterChanges (128)[0m
-[32meth_getFilterChanges (129)[0m
-[32meth_getFilterChanges (130)[0m
-[32meth_getFilterChanges (131)[0m
-[32meth_getFilterChanges (132)[0m
-[32meth_getFilterChanges (133)[0m
-[32meth_getFilterChanges (134)[0m
-[32meth_getFilterChanges (135)[0m
-[32meth_getFilterChanges (136)[0m
-[32meth_getFilterChanges (137)[0m
-[32meth_getFilterChanges (138)[0m
-[32meth_getFilterChanges (139)[0m
-[32meth_getFilterChanges (140)[0m
-[32meth_getFilterChanges (141)[0m
-[32meth_getFilterChanges (142)[0m
-[32meth_getFilterChanges (143)[0m
-[32meth_getFilterChanges (144)[0m
-[32meth_getFilterChanges (145)[0m
-[32meth_getFilterChanges (146)[0m
-[32meth_getFilterChanges (147)[0m
-[32meth_getFilterChanges (148)[0m
-[32meth_getFilterChanges (149)[0m
-[32meth_getFilterChanges (150)[0m
-[32meth_getFilterChanges (151)[0m
-[32meth_getFilterChanges (152)[0m
-[32meth_getFilterChanges (153)[0m
-[32meth_getFilterChanges (154)[0m
-[32meth_getFilterChanges (155)[0m
-[32meth_getFilterChanges (156)[0m
-[32meth_getFilterChanges (157)[0m
-[32meth_getFilterChanges (158)[0m
-[32meth_getFilterChanges (159)[0m
-[32meth_getFilterChanges (160)[0m
-[32meth_getFilterChanges (161)[0m
-[32meth_getFilterChanges (162)[0m
-[32meth_getFilterChanges (163)[0m
-[32meth_getFilterChanges (164)[0m
-[32meth_getFilterChanges (165)[0m
-[32meth_getFilterChanges (166)[0m
-[32meth_getFilterChanges (167)[0m
-[32meth_getFilterChanges (168)[0m
-[32meth_getFilterChanges (169)[0m
-[32meth_getFilterChanges (170)[0m
-[32meth_getFilterChanges (171)[0m
-[32meth_getFilterChanges (172)[0m
-[32meth_getFilterChanges (173)[0m
-[32meth_getFilterChanges (174)[0m
-[32meth_getFilterChanges (175)[0m
-[32meth_getFilterChanges (176)[0m
-[32meth_getFilterChanges (177)[0m
-[32meth_getFilterChanges (178)[0m
-[32meth_getFilterChanges (179)[0m
-[32meth_getFilterChanges (180)[0m
-[32meth_getFilterChanges (181)[0m
-[32meth_getFilterChanges (182)[0m
-[32meth_getFilterChanges (183)[0m
-[32meth_getFilterChanges (184)[0m
-[32meth_getFilterChanges (185)[0m
-[32meth_getFilterChanges (186)[0m
-[32meth_getFilterChanges (187)[0m
-[32meth_getFilterChanges (188)[0m
-[32meth_getFilterChanges (189)[0m
-[32meth_getFilterChanges (190)[0m
-[32meth_getFilterChanges (191)[0m
-[32meth_getFilterChanges (192)[0m
-[32meth_getFilterChanges (193)[0m
-[32meth_getFilterChanges (194)[0m
-[32meth_getFilterChanges (195)[0m
-[32meth_getFilterChanges (196)[0m
-[32meth_getFilterChanges (197)[0m
-[32meth_getFilterChanges (198)[0m
-[32meth_getFilterChanges (199)[0m
-[32meth_getFilterChanges (200)[0m
-[32meth_getFilterChanges (201)[0m
-[32meth_getFilterChanges (202)[0m
-[32meth_getFilterChanges (203)[0m
-[32meth_getFilterChanges (204)[0m
-[32meth_getFilterChanges (205)[0m
-[32meth_getFilterChanges (206)[0m
-[32meth_getFilterChanges (207)[0m
-[32meth_getFilterChanges (208)[0m
-[32meth_getFilterChanges (209)[0m
-[32meth_getFilterChanges (210)[0m
-[32meth_getFilterChanges (211)[0m
-[32meth_getFilterChanges (212)[0m
-[32meth_getFilterChanges (213)[0m
-[32meth_getFilterChanges (214)[0m
-[32meth_getFilterChanges (215)[0m
-[32meth_getFilterChanges (216)[0m
-[32meth_getFilterChanges (217)[0m
-[32meth_getFilterChanges (218)[0m
-[32meth_getFilterChanges (219)[0m
-[32meth_getFilterChanges (220)[0m
-[32meth_getFilterChanges (221)[0m
-[32meth_getFilterChanges (222)[0m
-[32meth_getFilterChanges (223)[0m
-[32meth_getFilterChanges (224)[0m
-[32meth_getFilterChanges (225)[0m
-[32meth_getFilterChanges (226)[0m
-[32meth_getFilterChanges (227)[0m
-[32meth_getFilterChanges (228)[0m
-[32meth_getFilterChanges (229)[0m
-[32meth_getFilterChanges (230)[0m
-[32meth_getFilterChanges (231)[0m
-[32meth_getFilterChanges (232)[0m
-[32meth_getFilterChanges (233)[0m
-[32meth_getFilterChanges (234)[0m
-[32meth_getFilterChanges (235)[0m
-[32meth_getFilterChanges (236)[0m
-[32meth_getFilterChanges (237)[0m
-[32meth_getFilterChanges (238)[0m
-[32meth_getFilterChanges (239)[0m
-[32meth_getFilterChanges (240)[0m
-[32meth_getFilterChanges (241)[0m
-[32meth_getFilterChanges (242)[0m
-[32meth_getFilterChanges (243)[0m
-[32meth_getFilterChanges (244)[0m
-[32meth_getFilterChanges (245)[0m
-[32meth_getFilterChanges (246)[0m
-[32meth_getFilterChanges (247)[0m
-[32meth_getFilterChanges (248)[0m
-[32meth_getFilterChanges (249)[0m
-[32meth_getFilterChanges (250)[0m
-[32meth_getFilterChanges (251)[0m
-[32meth_getFilterChanges (252)[0m
+[32meth_sendTransaction[0m
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0
+  Transaction:         0x59d7ad1a5ca6fb2d0023050b20932b5fef43e889e2ac786302f0b287868aeb64
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            693610 of 693610
+  Block #3:            0x79a0dac185046c7f951281caba42007afc4d29b4f3f8a231da59045d0bd619c0
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  Transaction:         0xe9acc7e5643f2304fc556f9abb4cacb179274a97dc1182275b76ee4186214338
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2060799 of 2060799
+  Block #4:            0x838e0f5c41e9256fd8f958a498075af0aebc217ff8bd9c49909ed25380fa465f
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract call:       <UnrecognizedContract>
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+
+[32meth_sendTransaction[0m
+  Contract call:       <UnrecognizedContract>
+  Transaction:         0xda90d55b3457b6498d33bc992b2baf38f81af67a5bebbb5137721d496ec25ae5
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  Value:               0 ETH
+  Gas used:            46177 of 46177
+  Block #5:            0x86b722caf12a64d7047201a13fd2ba028df5141d0ce318d2aed00971343c1cf3
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract call:       <UnrecognizedContract>
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+
+[32meth_sendTransaction[0m
+  Contract call:       <UnrecognizedContract>
+  Transaction:         0x85e219a968353c5210df42dd27c734db23903bf11720c07520e9ce91caceb1ea
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            46370 of 46370
+  Block #6:            0x8c2c7d5cee6c09432561d98d53e31b522207cf971bf452dc534e12ae7f40abeb
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+Terminated

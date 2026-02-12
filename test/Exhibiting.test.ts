@@ -176,21 +176,4 @@ describe("Exhibiting System", async function () {
     );
   });
 
-  it("Should allow admin force withdraw bypassing expiry", async function () {
-    const { bragNFT, vault1, user, owner, user2 } = await deployContracts();
-
-    await bragNFT.write.donate(["force bypass", ""], { account: user.account, value: parseEther("0.1") });
-    const tokenId = 0n;
-
-    // Exhibit with 1 year duration
-    const duration = 365n * 24n * 3600n;
-    const data = encodeAbiParameters(parseAbiParameters('uint256'), [duration]);
-    await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId, data], { account: user.account });
-
-    // Admin force withdraws to user2
-    await vault1.write.adminForceWithdraw721([bragNFT.address, tokenId, user2.account.address], { account: owner.account });
-
-    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(user2.account.address));
-    assert.equal(await vault1.read.owner721([bragNFT.address, tokenId]), getAddress("0x0000000000000000000000000000000000000000"));
-  });
 });

@@ -16,7 +16,7 @@ describe("Treasury Management", async function () {
         treasury.address,
         parseEther("0.1")
     ]);
-    const marketplace = await viem.deployContract("NFTMarketplace", []);
+    const marketplace = await viem.deployContract("NFTMarketplace", [7n * 24n * 3600n]);
 
     // Setup: Authorize BragNFT to mint receipts
     await receipt.write.setMinter([bragNFT.address, true]);
