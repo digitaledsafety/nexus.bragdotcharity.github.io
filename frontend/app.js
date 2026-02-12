@@ -59,11 +59,12 @@ async function connectWallet() {
 
         // Auto-fill from deployments if not already set
         const chainId = network.chainId.toString();
-        if (CONTRACT_DATA.deployments && CONTRACT_DATA.deployments[chainId]) {
-            const deps = CONTRACT_DATA.deployments[chainId];
+        const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
+        if (deps) {
             if (deps.BragNFT && !document.getElementById('addrBragNFT').value) document.getElementById('addrBragNFT').value = deps.BragNFT;
             if (deps.ExhibitRegistry && !document.getElementById('addrExhibitRegistry').value) document.getElementById('addrExhibitRegistry').value = deps.ExhibitRegistry;
-            if (deps.NFTMarketplace && !document.getElementById('addrMarketplace').value) document.getElementById('addrMarketplace').value = deps.NFTMarketplace;
+            const mpAddr = deps.NFTMarketplace || deps.Marketplace;
+            if (mpAddr && !document.getElementById('addrMarketplace').value) document.getElementById('addrMarketplace').value = mpAddr;
         }
 
         window.ethereum.on('accountsChanged', () => window.location.reload());
@@ -99,6 +100,28 @@ async function txHandler(promise, successMsg) {
 }
 
 // Actions
+// File Upload Logic
+document.getElementById('btnUpload').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 24 * 1024) { // 24KB limit for standard on-chain storage to be safe
+        log('Warning: File size is large. Storing on-chain may fail or be extremely expensive.', 'info');
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        document.getElementById('mintTokenURI').value = event.target.result;
+        document.getElementById('mintOnChain').checked = true;
+        log('File loaded as Data URI. "Store Media On-chain" selected.', 'success');
+    };
+    reader.readAsDataURL(file);
+});
+
 document.getElementById('btnMint').addEventListener('click', async () => {
     const addr = document.getElementById('addrBragNFT').value;
     const amount = document.getElementById('mintAmount').value;
@@ -270,13 +293,15 @@ document.getElementById('btnAutofill').addEventListener('click', () => {
         return;
     }
     const chainId = network.chainId.toString();
-    const deps = CONTRACT_DATA.deployments[chainId];
+    const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
     if (deps) {
         Object.entries(deps).forEach(([name, addr]) => {
-            const field = document.getElementById(`addr${name}`);
+            // Handle name mapping for Marketplace
+            const fieldId = name === 'NFTMarketplace' ? 'addrMarketplace' : `addr${name}`;
+            const field = document.getElementById(fieldId);
             if (field) {
                 field.value = addr;
-                localStorage.setItem(`addr${name}`, addr);
+                localStorage.setItem(fieldId, addr);
             }
             const explorerInput = document.getElementById(`explorerAddr_${name}`);
             if (explorerInput) explorerInput.value = addr;
@@ -344,7 +369,8 @@ function renderContractFunctions(name) {
             return;
         }
         const chainId = network.chainId.toString();
-        const addr = CONTRACT_DATA.deployments[chainId]?.[contractName];
+        const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
+        const addr = deps ? deps[contractName] : null;
         if (addr) {
             document.getElementById(`explorerAddr_${contractName}`).value = addr;
         } else {

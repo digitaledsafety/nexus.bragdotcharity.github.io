@@ -6,10 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
-interface IDonationReceipt {
-    function mint(address to, uint256 amount, string calldata message) external returns (uint256);
-}
+import "./IDonationReceipt.sol";
 
 interface IBragToken {
     function mint(address to, uint256 amount) external;
@@ -136,14 +133,36 @@ contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Returns the metadata URI for a given token. Generates on-chain JSON if media is on-chain.
+     * @dev Returns the metadata URI for a given token. Generates on-chain JSON.
+     * Includes message from DonationReceipt and uses SVG fallback if no media provided.
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
 
+        // Get message from linked receipt
+        uint256 receiptId = nftToReceipt[tokenId];
+        string memory message = "";
+        if (address(receiptContract) != address(0)) {
+            try receiptContract.getReceipt(receiptId) returns (IDonationReceipt.Receipt memory receipt) {
+                message = receipt.message;
+            } catch {
+                // Fallback if receipt not found or other error
+            }
+        }
+
+        string memory imageURI;
         string memory media = onChainMedia[tokenId];
-        if (bytes(media).length == 0) {
-            return super.tokenURI(tokenId);
+
+        if (bytes(media).length > 0) {
+            imageURI = media;
+        } else {
+            string memory offChainURI = super.tokenURI(tokenId);
+            if (bytes(offChainURI).length > 0) {
+                imageURI = offChainURI;
+            } else {
+                // SVG Fallback using the message
+                imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, message)))));
+            }
         }
 
         string memory json = Base64.encode(
@@ -152,13 +171,60 @@ contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
                     abi.encodePacked(
                         '{"name": "BragNFT #',
                         tokenId.toString(),
-                        '", "description": "Brag.Charity Donation NFT", "image": "',
-                        media,
-                        '"}'
+                        '", "description": "Brag.Charity Donation NFT',
+                        bytes(message).length > 0 ? string(abi.encodePacked(": ", _escapeJSON(message))) : "",
+                        '", "image": "',
+                        imageURI,
+                        '", "attributes": [{"trait_type": "Message", "value": "',
+                        _escapeJSON(message),
+                        '"}]}'
                     )
                 )
             )
         );
         return string(abi.encodePacked("data:application/json;base64,", json));
+    }
+
+    /**
+     * @dev Generates a simple SVG image with the donation message.
+     */
+    function _generateSVG(uint256 tokenId, string memory message) internal pure returns (string memory) {
+        string memory displayText = bytes(message).length > 0 ? message : string(abi.encodePacked("BragNFT #", tokenId.toString()));
+        // Note: Basic SVG escaping could be added here if needed, but for simplicity we keep it as is.
+        return string(abi.encodePacked(
+            '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
+            '<style>.base { fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold; }</style>',
+            '<rect width="100%" height="100%" fill="#6366f1" />',
+            '<text x="50%" y="50%" class="base" dominant-baseline="middle" text-anchor="middle">',
+            displayText,
+            '</text></svg>'
+        ));
+    }
+
+    /**
+     * @dev Escape double quotes and backslashes for JSON compatibility.
+     */
+    function _escapeJSON(string memory input) internal pure returns (string memory) {
+        bytes memory inputBytes = bytes(input);
+        uint256 length = inputBytes.length;
+        uint256 extraLength = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
+                extraLength++;
+            }
+        }
+
+        if (extraLength == 0) return input;
+
+        bytes memory outputBytes = new bytes(length + extraLength);
+        uint256 j = 0;
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
+                outputBytes[j++] = '\\';
+            }
+            outputBytes[j++] = inputBytes[i];
+        }
+        return string(outputBytes);
     }
 }

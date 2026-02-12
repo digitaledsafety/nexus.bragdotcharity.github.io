@@ -25,9 +25,25 @@ if (fs.existsSync(contractsDir)) {
 }
 
 // Try to find deployment addresses in ignition/deployments
-// This is a bit heuristic since there might be multiple deployments
 const deploymentsDir = path.join(__dirname, "..", "ignition", "deployments");
-const addresses = {};
+let addresses = {};
+
+// Load existing deployments from contracts.js if it exists to avoid wiping them
+const frontendPath = path.join(__dirname, "..", "frontend", "contracts.js");
+if (fs.existsSync(frontendPath)) {
+  const existingContent = fs.readFileSync(frontendPath, "utf8");
+  const match = existingContent.match(/const CONTRACT_DATA = ({[\s\S]*});/);
+  if (match) {
+    try {
+      const existingData = JSON.parse(match[1]);
+      if (existingData.deployments) {
+        addresses = existingData.deployments;
+      }
+    } catch (e) {
+      console.warn("Could not parse existing deployments from contracts.js");
+    }
+  }
+}
 
 if (fs.existsSync(deploymentsDir)) {
   const chains = fs.readdirSync(deploymentsDir);
@@ -35,12 +51,18 @@ if (fs.existsSync(deploymentsDir)) {
     const deployedContractsPath = path.join(deploymentsDir, chain, "deployed_addresses.json");
     if (fs.existsSync(deployedContractsPath)) {
       const deployed = JSON.parse(fs.readFileSync(deployedContractsPath, "utf8"));
-      // We map the instance names (e.g. "AppModule#BragNFT") to the contract names
       for (const [key, addr] of Object.entries(deployed)) {
         const nameMatch = key.split("#")[1];
         if (nameMatch) {
           if (!addresses[chain]) addresses[chain] = {};
           addresses[chain][nameMatch] = addr;
+
+          // Also provide the non-prefixed version for easier access in some contexts
+          const rawChainId = chain.replace("chain-", "");
+          if (rawChainId !== chain) {
+            if (!addresses[rawChainId]) addresses[rawChainId] = {};
+            addresses[rawChainId][nameMatch] = addr;
+          }
         }
       }
     }
@@ -54,6 +76,5 @@ const finalData = {
 
 const content = `const CONTRACT_DATA = ${JSON.stringify(finalData, null, 2)};`;
 
-const frontendPath = path.join(__dirname, "..", "frontend", "contracts.js");
 fs.writeFileSync(frontendPath, content);
 console.log(`Successfully updated ${frontendPath}`);
