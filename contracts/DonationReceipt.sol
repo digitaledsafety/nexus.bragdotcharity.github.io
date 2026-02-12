@@ -3,19 +3,13 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./IDonationReceipt.sol";
 
 /**
  * @title DonationReceipt
  * @dev A Soulbound NFT that serves as a permanent, non-transferable record of a donation.
  */
-contract DonationReceipt is ERC721, Ownable {
-    struct Receipt {
-        address donor;
-        uint256 amount;
-        uint256 timestamp;
-        string message;
-    }
-
+contract DonationReceipt is ERC721, Ownable, IDonationReceipt {
     uint256 private _nextTokenId;
     mapping(uint256 => Receipt) public receipts;
     mapping(address => bool) public minters;

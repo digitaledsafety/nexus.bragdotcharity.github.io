@@ -48,7 +48,12 @@ describe("BragNFT and DonationReceipt", async function () {
     // 1. Check BragNFT
     const nftTokenId = 0n;
     assert.equal(await bragNFT.read.ownerOf([nftTokenId]), getAddress(donor.account.address));
-    assert.equal(await bragNFT.read.tokenURI([nftTokenId]), tokenURI);
+
+    const uri = await bragNFT.read.tokenURI([nftTokenId]);
+    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
+    const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+    assert.equal(json.image, tokenURI);
+    assert.equal(json.attributes[0].value, message);
 
     // 2. Check DonationReceipt
     const receiptTokenId = await bragNFT.read.nftToReceipt([nftTokenId]);
@@ -139,10 +144,11 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.equal(await mock1155.read.balanceOf([donor.account.address, tokenId]), amount);
   });
 
-  it("Should allow minting with an empty tokenURI", async function () {
+  it("Should allow minting with an empty tokenURI and use SVG fallback", async function () {
     const { bragNFT, donor } = await deployContracts();
+    const message = "No URI here";
 
-    await bragNFT.write.donate(["No URI here", ""], {
+    await bragNFT.write.donate([message, ""], {
         account: donor.account,
         value: parseEther("0.1")
     });
@@ -150,11 +156,20 @@ describe("BragNFT and DonationReceipt", async function () {
     const tokenId = 0n;
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
 
-    // ERC721URIStorage returns empty string if not set and no baseURI
-    assert.equal(await bragNFT.read.tokenURI([tokenId]), "");
+    const uri = await bragNFT.read.tokenURI([tokenId]);
+    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
+    const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+
+    assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an SVG data URI");
+    assert.equal(json.attributes[0].value, message);
+
+    // Check SVG content for the message
+    const svgBase64 = json.image.split(",")[1];
+    const svg = Buffer.from(svgBase64, "base64").toString();
+    assert.ok(svg.includes(message), "SVG should include the donation message");
   });
 
-  it("Should support on-chain media and metadata", async function () {
+  it("Should support on-chain media and metadata including message", async function () {
     const { bragNFT, donor } = await deployContracts();
     const message = "On-chain test";
     const media = 'ipfs://on-chain-stored-uri';
@@ -175,5 +190,7 @@ describe("BragNFT and DonationReceipt", async function () {
 
     assert.equal(json.name, `BragNFT #${tokenId}`);
     assert.equal(json.image, media);
+    assert.equal(json.attributes[0].value, message);
+    assert.ok(json.description.includes(message));
   });
 });
