@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface IDonationReceipt {
     function mint(address to, uint256 amount, string calldata message) external returns (uint256);
@@ -14,7 +15,7 @@ interface IDonationReceipt {
  * @title BragNFT
  * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
  */
-contract BragNFT is ERC721URIStorage, Ownable {
+contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     using Strings for uint256;
 
     uint256 private _nextTokenId;
@@ -56,7 +57,7 @@ contract BragNFT is ERC721URIStorage, Ownable {
      * @param message A message to include with the donation receipt.
      * @param tokenURI_ The URI for the NFT media.
      */
-    function donate(string calldata message, string calldata tokenURI_) external payable {
+    function donate(string calldata message, string calldata tokenURI_) external payable nonReentrant {
         _donate(msg.sender, message, tokenURI_, false);
     }
 
@@ -66,7 +67,7 @@ contract BragNFT is ERC721URIStorage, Ownable {
      * @param media The URI or raw media content.
      * @param onChain Whether to store the media directly on-chain.
      */
-    function donate(string calldata message, string calldata media, bool onChain) external payable {
+    function donate(string calldata message, string calldata media, bool onChain) external payable nonReentrant {
         _donate(msg.sender, message, media, onChain);
     }
 
@@ -76,14 +77,14 @@ contract BragNFT is ERC721URIStorage, Ownable {
      * @param message A message to include with the donation receipt.
      * @param tokenURI_ The URI for the NFT media.
      */
-    function donateTo(address recipient, string calldata message, string calldata tokenURI_) external payable {
+    function donateTo(address recipient, string calldata message, string calldata tokenURI_) external payable nonReentrant {
         _donate(recipient, message, tokenURI_, false);
     }
 
     /**
      * @dev Mint a new BragNFT by donating ETH to a recipient with optional on-chain media.
      */
-    function donateTo(address recipient, string calldata message, string calldata media, bool onChain) external payable {
+    function donateTo(address recipient, string calldata message, string calldata media, bool onChain) external payable nonReentrant {
         _donate(recipient, message, media, onChain);
     }
 
@@ -96,20 +97,24 @@ contract BragNFT is ERC721URIStorage, Ownable {
 
         uint256 nftTokenId = _nextTokenId++;
 
-        // Mint the transferable BragNFT to the specified recipient
-        _safeMint(recipient, nftTokenId);
+        // 1. Set metadata state first (CEI)
         if (onChain) {
             onChainMedia[nftTokenId] = media;
         } else if (bytes(media).length > 0) {
             _setTokenURI(nftTokenId, media);
         }
 
-        // Mint the soulbound receipt to the donor (always msg.sender)
+        // 2. Mint the soulbound receipt to the donor (always msg.sender)
+        // Interaction with trusted contract
         uint256 receiptTokenId = receiptContract.mint(msg.sender, msg.value, message);
 
-        // Link them
+        // 3. Link them (Effect)
         nftToReceipt[nftTokenId] = receiptTokenId;
 
+        // 4. Mint the transferable BragNFT to the specified recipient (Interaction - may call onERC721Received)
+        _safeMint(recipient, nftTokenId);
+
+        // 5. Transfer to treasury (Interaction)
         (bool success, ) = treasury.call{value: msg.value}("");
         require(success, "Transfer to treasury failed");
 

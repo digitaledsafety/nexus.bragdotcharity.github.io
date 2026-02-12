@@ -63,7 +63,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
         address from,
         uint256 tokenId,
         bytes memory data
-    ) public override returns (bytes4) {
+    ) public override nonReentrant returns (bytes4) {
         address actualOwner = from;
         uint256 duration = 0;
 
@@ -96,7 +96,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
         uint256 id,
         uint256 value,
         bytes memory data
-    ) public override returns (bytes4) {
+    ) public override nonReentrant returns (bytes4) {
         address actualOwner = from;
         uint256 duration = 0;
 
@@ -126,7 +126,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
         uint256[] memory ids,
         uint256[] memory values,
         bytes memory data
-    ) public override returns (bytes4) {
+    ) public override nonReentrant returns (bytes4) {
         address actualOwner = from;
         uint256 duration = 0;
 
@@ -245,21 +245,4 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, Ownable, ReentrancyGuard {
         emit Moved1155(nftContract, tokenId, msg.sender, amount, destinationVault);
     }
 
-    /**
-     * @dev Emergency force withdraw by admin.
-     */
-    function adminForceWithdraw721(address nftContract, uint256 tokenId, address to) external onlyOwner {
-        owner721[nftContract][tokenId] = address(0);
-        expiry721[nftContract][tokenId] = 0;
-        IERC721(nftContract).safeTransferFrom(address(this), to, tokenId);
-    }
-
-    function adminForceWithdraw1155(address nftContract, uint256 tokenId, uint256 amount, address fromUser, address to) external onlyOwner {
-        require(balances1155[nftContract][tokenId][fromUser] >= amount, "Insufficient balance");
-        balances1155[nftContract][tokenId][fromUser] -= amount;
-        if (balances1155[nftContract][tokenId][fromUser] == 0) {
-            expiry1155[nftContract][tokenId][fromUser] = 0;
-        }
-        IERC1155(nftContract).safeTransferFrom(address(this), to, tokenId, amount, "");
-    }
 }
