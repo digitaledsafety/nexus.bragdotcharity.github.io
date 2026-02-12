@@ -99,6 +99,28 @@ async function txHandler(promise, successMsg) {
 }
 
 // Actions
+// File Upload Logic
+document.getElementById('btnUpload').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 24 * 1024) { // 24KB limit for standard on-chain storage to be safe
+        log('Warning: File size is large. Storing on-chain may fail or be extremely expensive.', 'info');
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        document.getElementById('mintTokenURI').value = event.target.result;
+        document.getElementById('mintOnChain').checked = true;
+        log('File loaded as Data URI. "Store Media On-chain" selected.', 'success');
+    };
+    reader.readAsDataURL(file);
+});
+
 document.getElementById('btnMint').addEventListener('click', async () => {
     const addr = document.getElementById('addrBragNFT').value;
     const amount = document.getElementById('mintAmount').value;
