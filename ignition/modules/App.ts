@@ -4,6 +4,7 @@ export default buildModule("AppModule", (m) => {
   // Parameters with default values for local development
   const initialOwner = m.getParameter("initialOwner", m.getAccount(0));
   const minimumDonation = m.getParameter("minimumDonation", 1n);
+  const refundPeriod = m.getParameter("refundPeriod", 3600n * 24n); // 1 day default
 
   // We check for an environment variable during module definition.
   // This allows us to conditionally deploy the Treasury contract.
@@ -25,12 +26,15 @@ export default buildModule("AppModule", (m) => {
   // Deploy BragNFT
   const bragNFT = m.contract("BragNFT", [initialOwner, treasury, minimumDonation]);
 
+  // Deploy NFTMarketplace
+  const nftMarketplace = m.contract("NFTMarketplace", [refundPeriod]);
+
   // Setup relationships
   m.call(donationReceipt, "setMinter", [bragNFT, true]);
   m.call(bragNFT, "setReceiptContract", [donationReceipt]);
 
   // We only return the treasury if we deployed it
-  const result: any = { exhibitRegistry, donationReceipt, bragNFT };
+  const result: any = { exhibitRegistry, donationReceipt, bragNFT, nftMarketplace };
   if (typeof treasury !== "string") {
     result.treasury = treasury;
   }
