@@ -8,7 +8,8 @@ describe("BatchGrant", function () {
     const [owner, recipient1, recipient2] = await viem.getWalletClients();
 
     const mockUsdc = await viem.deployContract("MockUSDC");
-    const batchGrant = await viem.deployContract("BatchGrant", [mockUsdc.address]);
+    const bragToken = await viem.deployContract("BragToken", [owner.account.address]);
+    const batchGrant = await viem.deployContract("BatchGrant");
 
     return {
       viem,
@@ -17,10 +18,11 @@ describe("BatchGrant", function () {
       recipient2,
       batchGrant,
       mockUsdc,
+      bragToken,
     };
   }
 
-  describe("distributeUSDC", function () {
+  describe("distribute", function () {
     it("should distribute USDC to multiple recipients", async function () {
       const { owner, recipient1, recipient2, batchGrant, mockUsdc } = await setup();
 
@@ -37,7 +39,7 @@ describe("BatchGrant", function () {
       // Distribute the mock USDC
       const recipients = [recipient1Address, recipient2Address];
       const amounts = [100n, 200n];
-      await batchGrant.write.distributeUSDC([recipients, amounts], {
+      await batchGrant.write.distribute([mockUsdc.address, recipients, amounts], {
         account: owner.account,
       });
 
@@ -49,14 +51,42 @@ describe("BatchGrant", function () {
       assert.equal(balance2, 200n);
     });
 
+    it("should distribute BragToken to multiple recipients", async function () {
+      const { owner, recipient1, recipient2, batchGrant, bragToken } = await setup();
+
+      const ownerAddress = owner.account.address;
+      const recipient1Address = recipient1.account.address;
+      const recipient2Address = recipient2.account.address;
+
+      // Mint some Brag Token to the owner
+      await bragToken.write.mint([ownerAddress, 1000n], { account: owner.account });
+
+      // Approve the BatchGrant contract to spend the owner's Brag Token
+      await bragToken.write.approve([batchGrant.address, 1000n], { account: owner.account });
+
+      // Distribute the Brag Token
+      const recipients = [recipient1Address, recipient2Address];
+      const amounts = [150n, 250n];
+      await batchGrant.write.distribute([bragToken.address, recipients, amounts], {
+        account: owner.account,
+      });
+
+      // Check the balances
+      const balance1 = await bragToken.read.balanceOf([recipient1Address]);
+      const balance2 = await bragToken.read.balanceOf([recipient2Address]);
+
+      assert.equal(balance1, 150n);
+      assert.equal(balance2, 250n);
+    });
+
     it("should revert if recipients and amounts arrays have different lengths", async function () {
-      const { owner, recipient1, batchGrant } = await setup();
+      const { owner, recipient1, batchGrant, mockUsdc } = await setup();
       const recipient1Address = recipient1.account.address;
       const recipients = [recipient1Address];
       const amounts = [100n, 200n];
 
       try {
-        await batchGrant.write.distributeUSDC([recipients, amounts], {
+        await batchGrant.write.distribute([mockUsdc.address, recipients, amounts], {
           account: owner.account,
         });
         assert.fail("The transaction should have reverted");
@@ -66,7 +96,7 @@ describe("BatchGrant", function () {
     });
 
     it("should revert if the transfer fails due to insufficient allowance", async function () {
-      const { owner, recipient1, recipient2, batchGrant } = await setup();
+      const { owner, recipient1, recipient2, batchGrant, mockUsdc } = await setup();
       const recipient1Address = recipient1.account.address;
       const recipient2Address = recipient2.account.address;
 
@@ -74,7 +104,7 @@ describe("BatchGrant", function () {
       const recipients = [recipient1Address, recipient2Address];
       const amounts = [100n, 200n];
       try {
-        await batchGrant.write.distributeUSDC([recipients, amounts], {
+        await batchGrant.write.distribute([mockUsdc.address, recipients, amounts], {
           account: owner.account,
         });
         assert.fail("The transaction should have reverted");
@@ -84,4 +114,3 @@ describe("BatchGrant", function () {
     });
   });
 });
-
