@@ -8,7 +8,11 @@ describe("BatchGrant", function () {
     const [owner, recipient1, recipient2] = await viem.getWalletClients();
 
     const mockUsdc = await viem.deployContract("MockUSDC");
-    const bragToken = await viem.deployContract("BragToken", [owner.account.address]);
+    const bragToken = await viem.deployContract("BragToken", [
+      owner.account.address,
+      0n,
+      1000000000000000000000000000n
+    ]);
     const batchGrant = await viem.deployContract("BatchGrant");
 
     return {

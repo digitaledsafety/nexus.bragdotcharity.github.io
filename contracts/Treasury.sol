@@ -5,14 +5,24 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title Treasury
  * @dev A simple vault to hold ETH and NFTs. Implements receiver interfaces for compatibility.
+ * Uses AccessControl for secure administrative control.
  */
-contract Treasury is ERC721Holder, ERC1155Holder, Ownable {
-    constructor(address _initialOwner) Ownable(_initialOwner) {}
+contract Treasury is ERC721Holder, ERC1155Holder, AccessControl {
+    bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
+
+    constructor(address _initialOwner) {
+        _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
+        _grantRole(TREASURY_ROLE, _initialOwner);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155Holder, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
 
     /**
      * @dev Allows the contract to receive ETH.
@@ -20,9 +30,9 @@ contract Treasury is ERC721Holder, ERC1155Holder, Ownable {
     receive() external payable {}
 
     /**
-     * @dev Allows the owner to withdraw ETH.
+     * @dev Allows addresses with TREASURY_ROLE to withdraw ETH.
      */
-    function withdrawETH(address payable to, uint256 amount) external onlyOwner {
+    function withdrawETH(address payable to, uint256 amount) external onlyRole(TREASURY_ROLE) {
         require(amount <= address(this).balance, "Insufficient balance");
         (bool success, ) = to.call{value: amount}("");
         require(success, "Transfer failed");
@@ -31,7 +41,7 @@ contract Treasury is ERC721Holder, ERC1155Holder, Ownable {
     /**
      * @dev Emergency function to withdraw all ETH.
      */
-    function withdrawAllETH(address payable to) external onlyOwner {
+    function withdrawAllETH(address payable to) external onlyRole(TREASURY_ROLE) {
         uint256 balance = address(this).balance;
         require(balance > 0, "No balance to withdraw");
         (bool success, ) = to.call{value: balance}("");
@@ -39,23 +49,23 @@ contract Treasury is ERC721Holder, ERC1155Holder, Ownable {
     }
 
     /**
-     * @dev Allows the owner to withdraw ERC721 tokens.
+     * @dev Allows addresses with TREASURY_ROLE to withdraw ERC721 tokens.
      */
-    function withdrawERC721(address nftContract, uint256 tokenId, address to) external onlyOwner {
+    function withdrawERC721(address nftContract, uint256 tokenId, address to) external onlyRole(TREASURY_ROLE) {
         IERC721(nftContract).safeTransferFrom(address(this), to, tokenId);
     }
 
     /**
-     * @dev Allows the owner to withdraw ERC1155 tokens.
+     * @dev Allows addresses with TREASURY_ROLE to withdraw ERC1155 tokens.
      */
-    function withdrawERC1155(address nftContract, uint256 tokenId, uint256 amount, address to) external onlyOwner {
+    function withdrawERC1155(address nftContract, uint256 tokenId, uint256 amount, address to) external onlyRole(TREASURY_ROLE) {
         IERC1155(nftContract).safeTransferFrom(address(this), to, tokenId, amount, "");
     }
 
     /**
      * @dev Generic execute function to allow the treasury to interact with other contracts.
      */
-    function execute(address target, uint256 value, bytes calldata data) external onlyOwner returns (bytes memory) {
+    function execute(address target, uint256 value, bytes calldata data) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bytes memory) {
         (bool success, bytes memory result) = target.call{value: value}(data);
         require(success, "External call failed");
         return result;

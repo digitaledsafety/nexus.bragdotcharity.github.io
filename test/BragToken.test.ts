@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { parseEther } from "viem";
+import { parseEther, keccak256, toBytes } from "viem";
 
 describe("BragToken Integration", async function () {
   const { viem } = await network.connect();
+  const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
 
-  async function deploySystem() {
+  async function deploySystem(initialSupply = 0n, maxSupply = parseEther("1000000")) {
     const [owner, donor] = await viem.getWalletClients();
 
     // Deploy contracts manually for the test to ensure clean state
@@ -17,7 +18,11 @@ describe("BragToken Integration", async function () {
       treasury.address,
       1n // 1 wei minimum
     ]);
-    const bragToken = await viem.deployContract("BragToken", [owner.account.address]);
+    const bragToken = await viem.deployContract("BragToken", [
+      owner.account.address,
+      initialSupply,
+      maxSupply
+    ]);
 
     // Setup relationships
     await receipt.write.setMinter([bragNFT.address, true]);
@@ -25,10 +30,18 @@ describe("BragToken Integration", async function () {
     await bragNFT.write.setBragToken([bragToken.address]);
 
     // Authorize BragNFT to mint tokens
-    await bragToken.write.transferOwnership([bragNFT.address]);
+    await bragToken.write.grantRole([MINTER_ROLE, bragNFT.address]);
 
     return { owner, donor, bragNFT, bragToken, treasury };
   }
+
+  it("Should pre-mint initial supply to the owner", async function () {
+    const initialSupply = parseEther("100");
+    const { owner, bragToken } = await deploySystem(initialSupply);
+
+    const balance = await bragToken.read.balanceOf([owner.account.address]);
+    assert.equal(balance, initialSupply);
+  });
 
   it("Should mint BRAG tokens when a donation is made", async function () {
     const { donor, bragNFT, bragToken } = await deploySystem();
@@ -42,6 +55,20 @@ describe("BragToken Integration", async function () {
     const balance = await bragToken.read.balanceOf([donor.account.address]);
     // 1:1 reward ratio (in base units/wei)
     assert.equal(balance, donationAmount);
+  });
+
+  it("Should fail to mint beyond maxSupply", async function () {
+    const maxSupply = parseEther("10");
+    const { donor, bragNFT } = await deploySystem(0n, maxSupply);
+
+    // This should fail because it exceeds maxSupply
+    await assert.rejects(
+      bragNFT.write.donate(["too much", ""], {
+        account: donor.account,
+        value: parseEther("11")
+      }),
+      /Exceeds maxSupply/
+    );
   });
 
   it("Should allow voting delegation and track voting power", async function () {
@@ -66,13 +93,27 @@ describe("BragToken Integration", async function () {
   });
 
   it("Should fail if someone else tries to mint tokens directly", async function () {
-    const { owner, bragToken } = await deploySystem();
+    const { bragToken } = await deploySystem();
     const [_, __, attacker] = await viem.getWalletClients();
 
-    // owner is no longer the owner of bragToken, bragNFT is.
+    // attacker doesn't have MINTER_ROLE
     await assert.rejects(
-      bragToken.write.mint([attacker.account.address, 100n], { account: owner.account }),
-      /OwnableUnauthorizedAccount/
+      bragToken.write.mint([attacker.account.address, 100n], { account: attacker.account }),
+      /AccessControlUnauthorizedAccount/
     );
+  });
+
+  it("Should allow owner (admin) to grant MINTER_ROLE to another address", async function () {
+    const { owner, bragToken } = await deploySystem();
+    const [_, __, otherMinter] = await viem.getWalletClients();
+
+    // Grant MINTER_ROLE
+    await bragToken.write.grantRole([MINTER_ROLE, otherMinter.account.address], { account: owner.account });
+
+    // otherMinter can now mint
+    await bragToken.write.mint([otherMinter.account.address, 100n], { account: otherMinter.account });
+
+    const balance = await bragToken.read.balanceOf([otherMinter.account.address]);
+    assert.equal(balance, 100n);
   });
 });
