@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title ExhibitRegistry
  * @dev A central registry for verified "Exhibit Vaults".
  * Each vault represents a location (Game, Gallery, Website, etc.) where an NFT can be "exhibited".
+ * Uses AccessControl for flexible permissions.
  */
-contract ExhibitRegistry is Ownable {
+contract ExhibitRegistry is AccessControl {
+    bytes32 public constant VERIFIER_ROLE = keccak256("VERIFIER_ROLE");
+
     enum LocationType { Game, Physical, Website, Gallery, Other }
 
     struct VaultInfo {
@@ -24,7 +27,10 @@ contract ExhibitRegistry is Ownable {
     event VaultVerified(address indexed vault, LocationType locationType, string name);
     event VaultRemoved(address indexed vault);
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor(address initialOwner) {
+        _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
+        _grantRole(VERIFIER_ROLE, initialOwner);
+    }
 
     /**
      * @dev Register and verify a vault address.
@@ -34,7 +40,7 @@ contract ExhibitRegistry is Ownable {
         LocationType locationType,
         string calldata name,
         string calldata description
-    ) external onlyOwner {
+    ) external onlyRole(VERIFIER_ROLE) {
         require(vault != address(0), "Invalid address");
         if (!vaults[vault].verified) {
             vaultAddresses.push(vault);
@@ -52,12 +58,10 @@ contract ExhibitRegistry is Ownable {
     /**
      * @dev Remove a vault from the verified list.
      */
-    function removeVault(address vault) external onlyOwner {
+    function removeVault(address vault) external onlyRole(VERIFIER_ROLE) {
         require(vaults[vault].verified, "Vault not verified");
         vaults[vault].verified = false;
 
-        // Note: We don't remove from vaultAddresses array to keep indices stable,
-        // but we could if needed. The 'verified' flag is the source of truth.
         emit VaultRemoved(vault);
     }
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, encodeFunctionData } from "viem";
+import { getAddress, parseEther, encodeFunctionData, keccak256, toBytes } from "viem";
 
 describe("Treasury Management", async function () {
   const { viem } = await network.connect();
@@ -19,7 +19,8 @@ describe("Treasury Management", async function () {
     const marketplace = await viem.deployContract("NFTMarketplace", [7n * 24n * 3600n]);
 
     // Setup: Authorize BragNFT to mint receipts
-    await receipt.write.setMinter([bragNFT.address, true]);
+    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
+    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setReceiptContract([receipt.address]);
 
     return { treasury, bragNFT, receipt, marketplace, owner, donor, buyer };
