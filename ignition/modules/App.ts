@@ -26,19 +26,25 @@ export default buildModule("AppModule", (m) => {
   // Deploy BragNFT
   const bragNFT = m.contract("BragNFT", [initialOwner, treasury, minimumDonation]);
 
+  // BragToken Parameters
+  const initialSupply = m.getParameter("initialSupply", 0n);
+  const maxSupply = m.getParameter("maxSupply", 1000000000000000000000000000n); // 1 Billion BRAG (18 decimals)
+
   // Deploy BragToken
-  const bragToken = m.contract("BragToken", [initialOwner]);
+  const bragToken = m.contract("BragToken", [initialOwner, initialSupply, maxSupply]);
 
   // Deploy NFTMarketplace
   const marketplace = m.contract("NFTMarketplace", [refundPeriod]);
 
   // Setup relationships
-  m.call(donationReceipt, "setMinter", [bragNFT, true]);
+  const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
+
+  m.call(donationReceipt, "grantRole", [MINTER_ROLE, bragNFT]);
   m.call(bragNFT, "setReceiptContract", [donationReceipt]);
   m.call(bragNFT, "setBragToken", [bragToken]);
 
-  // Transfer ownership of BragToken to BragNFT to authorize it to mint rewards
-  m.call(bragToken, "transferOwnership", [bragNFT]);
+  // Grant MINTER_ROLE to BragNFT to authorize it to mint rewards
+  m.call(bragToken, "grantRole", [MINTER_ROLE, bragNFT]);
 
   // We only return the treasury if we deployed it
   const result: any = { exhibitRegistry, donationReceipt, bragNFT, marketplace, bragToken };

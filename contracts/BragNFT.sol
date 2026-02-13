@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -15,8 +15,9 @@ interface IBragToken {
 /**
  * @title BragNFT
  * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
+ * Uses AccessControl for flexible permissions.
  */
-contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
+contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     using Strings for uint256;
 
     uint256 private _nextTokenId;
@@ -35,26 +36,30 @@ contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
 
     constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
         ERC721("BragNFT", "BRAGNFT")
-        Ownable(_initialOwner)
     {
+        _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
         minimumDonation = _minimumDonation;
     }
 
-    function setTreasury(address _treasury) external onlyOwner {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721URIStorage, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_treasury != address(0), "Invalid treasury address");
         treasury = _treasury;
     }
 
-    function setMinimumDonation(uint256 _minimumDonation) external onlyOwner {
+    function setMinimumDonation(uint256 _minimumDonation) external onlyRole(DEFAULT_ADMIN_ROLE) {
         minimumDonation = _minimumDonation;
     }
 
-    function setReceiptContract(address _receiptContract) external onlyOwner {
+    function setReceiptContract(address _receiptContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
         receiptContract = IDonationReceipt(_receiptContract);
     }
 
-    function setBragToken(address _bragToken) external onlyOwner {
+    function setBragToken(address _bragToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         bragToken = IBragToken(_bragToken);
     }
 

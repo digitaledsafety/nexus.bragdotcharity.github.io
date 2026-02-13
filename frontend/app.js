@@ -160,11 +160,10 @@ document.getElementById('btnDeployVault').addEventListener('click', async () => 
             CONTRACT_DATA.contracts.ExhibitVault.bytecode,
             signer
         );
-        const owner = await signer.getAddress();
         const registry = document.getElementById('addrExhibitRegistry').value;
 
         log('Deploying ExhibitVault...');
-        const contract = await factory.deploy(owner, registry);
+        const contract = await factory.deploy(registry);
         log(`Vault deployment tx: ${contract.deployTransaction.hash}`);
         await contract.deployed();
         log(`ExhibitVault deployed at: ${contract.address}`, 'success');

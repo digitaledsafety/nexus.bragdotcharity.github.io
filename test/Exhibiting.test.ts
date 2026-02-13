@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, encodeAbiParameters, parseAbiParameters } from "viem";
+import { getAddress, parseEther, encodeAbiParameters, parseAbiParameters, keccak256, toBytes } from "viem";
 
 describe("Exhibiting System", async function () {
   const { viem } = await network.connect();
@@ -12,8 +12,8 @@ describe("Exhibiting System", async function () {
     const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
 
     // Deploy two vaults
-    const vault1 = await viem.deployContract("ExhibitVault", [owner.account.address, registry.address]);
-    const vault2 = await viem.deployContract("ExhibitVault", [owner.account.address, registry.address]);
+    const vault1 = await viem.deployContract("ExhibitVault", [registry.address]);
+    const vault2 = await viem.deployContract("ExhibitVault", [registry.address]);
 
     // Verify vaults in registry
     await registry.write.verifyVault([vault1.address, 0, "Minecraft Vault", "Vault for Minecraft"]);
@@ -26,7 +26,8 @@ describe("Exhibiting System", async function () {
         parseEther("0.1")
     ]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    await receipt.write.setMinter([bragNFT.address, true]);
+    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
+    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setReceiptContract([receipt.address]);
 
     const mock1155 = await viem.deployContract("MockERC1155", []);
