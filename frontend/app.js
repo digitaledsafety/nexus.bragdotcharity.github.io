@@ -2,6 +2,18 @@ let provider;
 let signer;
 let network;
 
+const NETWORK_NAMES = {
+    1: 'mainnet',
+    11155111: 'sepolia',
+    17000: 'holesky',
+    31337: 'hardhat',
+    137: 'polygon',
+    80001: 'mumbai',
+    42161: 'arbitrum',
+    10: 'optimism',
+    8453: 'base'
+};
+
 const logElement = document.getElementById('logs');
 const connectBtn = document.getElementById('connectBtn');
 const networkStatus = document.getElementById('networkStatus');
@@ -52,10 +64,11 @@ async function connectWallet() {
         signer = provider.getSigner();
         const address = await signer.getAddress();
         network = await provider.getNetwork();
+        const networkName = NETWORK_NAMES[network.chainId] || network.name;
 
         connectBtn.innerText = `${address.substring(0, 6)}...${address.substring(38)}`;
-        networkStatus.innerText = `Network: ${network.name} (${network.chainId})`;
-        log(`Connected: ${address} on ${network.name}`, 'success');
+        networkStatus.innerText = `Network: ${networkName} (${network.chainId})`;
+        log(`Connected: ${address} on ${networkName}`, 'success');
 
         // Auto-fill from deployments if not already set
         const chainId = network.chainId.toString();

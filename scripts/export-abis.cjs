@@ -1,6 +1,19 @@
 const fs = require("fs");
 const path = require("path");
 
+const NAME_TO_ID = {
+  'sepolia': '11155111',
+  'holesky': '17000',
+  'mainnet': '1',
+  'hardhat': '31337',
+  'localhost': '31337',
+  'polygon': '137',
+  'mumbai': '80001',
+  'arbitrum': '42161',
+  'optimism': '10',
+  'base': '8453'
+};
+
 const output = {};
 const contractsDir = path.join(__dirname, "..", "artifacts", "contracts");
 
@@ -51,18 +64,31 @@ if (fs.existsSync(deploymentsDir)) {
     const deployedContractsPath = path.join(deploymentsDir, chain, "deployed_addresses.json");
     if (fs.existsSync(deployedContractsPath)) {
       const deployed = JSON.parse(fs.readFileSync(deployedContractsPath, "utf8"));
+
+      // Resolve chain name to ID if possible
+      let chainId = chain;
+      if (NAME_TO_ID[chain.toLowerCase()]) {
+        chainId = NAME_TO_ID[chain.toLowerCase()];
+      } else if (chain.startsWith("chain-")) {
+        chainId = chain.replace("chain-", "");
+      }
+
       for (const [key, addr] of Object.entries(deployed)) {
         const nameMatch = key.split("#")[1];
         if (nameMatch) {
+          // Store under both original name/folder and resolved ID
           if (!addresses[chain]) addresses[chain] = {};
           addresses[chain][nameMatch] = addr;
 
-          // Also provide the non-prefixed version for easier access in some contexts
-          const rawChainId = chain.replace("chain-", "");
-          if (rawChainId !== chain) {
-            if (!addresses[rawChainId]) addresses[rawChainId] = {};
-            addresses[rawChainId][nameMatch] = addr;
+          if (chainId !== chain) {
+            if (!addresses[chainId]) addresses[chainId] = {};
+            addresses[chainId][nameMatch] = addr;
           }
+
+          // Also ensure chain-ID version exists
+          const prefixedId = `chain-${chainId}`;
+          if (!addresses[prefixedId]) addresses[prefixedId] = {};
+          addresses[prefixedId][nameMatch] = addr;
         }
       }
     }
