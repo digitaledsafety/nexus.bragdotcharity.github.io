@@ -50,9 +50,11 @@ jobs:
         run: npx hardhat ignition deploy ignition/modules/App.ts
 
       - name: Export ABIs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: node scripts/export-abis.cjs
 
       - name: Deploy to GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
