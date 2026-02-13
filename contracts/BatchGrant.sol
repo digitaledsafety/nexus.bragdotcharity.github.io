@@ -4,6 +4,10 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+/**
+ * @title BatchGrant
+ * @dev A simple utility to distribute ERC20 tokens to multiple recipients in a single transaction.
+ */
 contract BatchGrant {
     using SafeERC20 for IERC20;
 
