@@ -6,16 +6,17 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract BatchGrant {
     using SafeERC20 for IERC20;
-    IERC20 public immutable USDC;
 
-    constructor(address _usdc) {
-        USDC = IERC20(_usdc);
-    }
-
-    function distributeUSDC(address[] calldata recipients, uint256[] calldata amounts) external {
+    /**
+     * @dev Distributes any ERC20 token to multiple recipients.
+     * @param token The ERC20 token to distribute.
+     * @param recipients Array of recipient addresses.
+     * @param amounts Array of amounts to transfer to each recipient.
+     */
+    function distribute(IERC20 token, address[] calldata recipients, uint256[] calldata amounts) external {
         require(recipients.length == amounts.length, "Mismatched arrays");
         for (uint256 i = 0; i < recipients.length; i++) {
-            USDC.safeTransferFrom(msg.sender, recipients[i], amounts[i]);
+            token.safeTransferFrom(msg.sender, recipients[i], amounts[i]);
         }
     }
 }
