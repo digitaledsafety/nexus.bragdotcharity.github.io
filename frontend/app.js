@@ -130,7 +130,8 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
     reader.onload = (event) => {
         document.getElementById('mintTokenURI').value = event.target.result;
         document.getElementById('mintOnChain').checked = true;
-        log('File loaded as Data URI. "Store Media On-chain" selected.', 'success');
+        const fileType = file.type.startsWith('audio/') ? 'Audio' : 'Image';
+        log(`${fileType} loaded as Data URI. "Store Media On-chain" selected.`, 'success');
     };
     reader.readAsDataURL(file);
 });

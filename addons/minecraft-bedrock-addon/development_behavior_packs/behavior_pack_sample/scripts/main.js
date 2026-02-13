@@ -127,6 +127,43 @@ async function handleChat(event) {
         } catch (error) {
             player.sendMessage("§cBridge server is offline.§r");
         }
+    } else if (message.toLowerCase() === "!my_nfts") {
+        event.cancel = true;
+        const uuid = player.getDynamicProperty("nft_uuid");
+        if (!uuid) {
+            player.sendMessage("§cYou must be registered to view your NFTs.§r");
+            return;
+        }
+
+        player.sendMessage("§bFetching your NFTs...§r");
+
+        try {
+            const url = `${BRIDGE_URL}?path=check-ownership&uuid=${uuid}`;
+            const request = new HttpRequest(url);
+            request.method = HttpRequestMethod.Get;
+            const response = await http.request(request);
+
+            if (response.status === 200) {
+                const data = JSON.parse(response.body);
+                if (data.isHolder && data.nfts && data.nfts.length > 0) {
+                    player.sendMessage("§eYour NFTs:§r");
+                    data.nfts.forEach((nft) => {
+                        player.sendMessage(`§b- ID #${nft.tokenId} (${nft.location})§r`);
+                        if (nft.animation_url) {
+                            player.sendMessage(`  §7Media: §f${nft.animation_url}§r`);
+                        } else if (nft.image) {
+                            player.sendMessage(`  §7Image: §f${nft.image}§r`);
+                        }
+                    });
+                } else {
+                    player.sendMessage("§6No NFTs found in your linked wallet.§r");
+                }
+            } else {
+                player.sendMessage("§cFailed to fetch NFTs.§r");
+            }
+        } catch (error) {
+            player.sendMessage("§cBridge server error.§r");
+        }
     } else if (message.toLowerCase() === "!reconnect") {
         event.cancel = true;
         player.sendMessage("§bAttempting to reconnect to bridge...§r");
