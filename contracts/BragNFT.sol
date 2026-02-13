@@ -34,7 +34,7 @@ contract BragNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     event Donated(address indexed donor, uint256 amount, uint256 nftTokenId, uint256 receiptTokenId, string message);
 
     constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
-        ERC721("BragNFT", "BNFT")
+        ERC721("BragNFT", "BRAGNFT")
         Ownable(_initialOwner)
     {
         treasury = _treasury;

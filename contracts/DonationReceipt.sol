@@ -17,7 +17,7 @@ contract DonationReceipt is ERC721, Ownable, IDonationReceipt {
     event ReceiptMinted(uint256 indexed tokenId, address indexed donor, uint256 amount);
 
     constructor(address _initialOwner)
-        ERC721("DonationReceipt", "RECEIPT")
+        ERC721("DonationReceipt", "BRAGRECEIPT")
         Ownable(_initialOwner)
     {}
 
