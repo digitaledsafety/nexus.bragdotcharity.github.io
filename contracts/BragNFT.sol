@@ -156,18 +156,34 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         }
 
         string memory imageURI;
+        string memory animationURL;
         string memory media = onChainMedia[tokenId];
 
         if (bytes(media).length > 0) {
-            imageURI = media;
+            if (_isAudio(media)) {
+                animationURL = media;
+                imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, message)))));
+            } else {
+                imageURI = media;
+            }
         } else {
             string memory offChainURI = super.tokenURI(tokenId);
             if (bytes(offChainURI).length > 0) {
-                imageURI = offChainURI;
+                if (_isAudio(offChainURI)) {
+                    animationURL = offChainURI;
+                    imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, message)))));
+                } else {
+                    imageURI = offChainURI;
+                }
             } else {
                 // SVG Fallback using the message
                 imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, message)))));
             }
+        }
+
+        string memory animationPart = "";
+        if (bytes(animationURL).length > 0) {
+            animationPart = string(abi.encodePacked('", "animation_url": "', animationURL));
         }
 
         string memory json = Base64.encode(
@@ -180,6 +196,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
                         bytes(message).length > 0 ? string(abi.encodePacked(": ", _escapeJSON(message))) : "",
                         '", "image": "',
                         imageURI,
+                        animationPart,
                         '", "attributes": [{"trait_type": "Message", "value": "',
                         _escapeJSON(message),
                         '"}]}'
@@ -188,6 +205,17 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
             )
         );
         return string(abi.encodePacked("data:application/json;base64,", json));
+    }
+
+    /**
+     * @dev Detect if a media string is an audio data URI.
+     */
+    function _isAudio(string memory _media) internal pure returns (bool) {
+        bytes memory b = bytes(_media);
+        if (b.length < 11) return false;
+        // Check for "data:audio/"
+        return (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
+                b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/');
     }
 
     /**

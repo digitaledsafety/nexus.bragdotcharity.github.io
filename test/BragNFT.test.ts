@@ -203,4 +203,27 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.equal(json.attributes[0].value, message);
     assert.ok(json.description.includes(message));
   });
+
+  it("Should support audio NFTs with animation_url", async function () {
+    const { bragNFT, donor } = await deployContracts();
+    const message = "Audio NFT Test";
+    const audioMedia = 'data:audio/mpeg;base64,SGVsbG8='; // "Hello" in base64
+
+    await bragNFT.write.donate([message, audioMedia, true], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const tokenId = 0n;
+    const uri = await bragNFT.read.tokenURI([tokenId]);
+
+    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
+
+    const base64Content = uri.split(",")[1];
+    const json = JSON.parse(Buffer.from(base64Content, "base64").toString());
+
+    assert.equal(json.animation_url, audioMedia);
+    assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an SVG fallback");
+    assert.equal(json.attributes[0].value, message);
+  });
 });

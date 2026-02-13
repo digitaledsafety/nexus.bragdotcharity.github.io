@@ -391,7 +391,31 @@ async function fetchCurrentStatus(address) {
                 }), `owner721(${vaultAddr}, ${tokenId})`);
 
                 if (currentOwner.toLowerCase() === address.toLowerCase()) {
-                    vaults[vaultAddr].push({ tokenId: tokenId.toString(), nftContract, location: config.name });
+                    let media = { image: null, animation_url: null };
+                    try {
+                        const uri = await fetchWithRetry(() => publicClient.readContract({
+                            address: nftContract,
+                            abi: [parseAbiItem('function tokenURI(uint256) view returns (string)')],
+                            functionName: 'tokenURI',
+                            args: [tokenId]
+                        }), `tokenURI(${nftContract}, ${tokenId})`);
+
+                        if (uri.startsWith('data:application/json;base64,')) {
+                            const json = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString());
+                            media.image = json.image;
+                            media.animation_url = json.animation_url;
+                        }
+                    } catch (e) {
+                        console.error(`Error fetching tokenURI for ${nftContract} #${tokenId}:`, e.message);
+                    }
+
+                    vaults[vaultAddr].push({
+                        tokenId: tokenId.toString(),
+                        nftContract,
+                        location: config.name,
+                        image: media.image,
+                        animation_url: media.animation_url
+                    });
                 }
             }
         } catch (e) {
