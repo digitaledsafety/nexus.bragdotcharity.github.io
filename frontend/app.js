@@ -41,26 +41,35 @@ addressFields.forEach(id => {
     });
 });
 
-async function connectWallet() {
+async function connectWallet(silent = false) {
     if (typeof window.ethereum === 'undefined') {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            log('Wallet not found. Redirecting to MetaMask app...', 'info');
-            // Construct deep link: metamask.app.link/dapp/[url_without_protocol]
-            const dappUrl = window.location.href.replace(/^https?:\/\//, '');
-            const metamaskAppDeepLink = "https://metamask.app.link/dapp/" + dappUrl;
-            setTimeout(() => {
-                window.location.href = metamaskAppDeepLink;
-            }, 1200);
-        } else {
-            log('Web3 Wallet not found! Please install MetaMask or another wallet extension.', 'error');
+        if (!silent) {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                log('Wallet not found. Redirecting to MetaMask app...', 'info');
+                const dappUrl = window.location.href.replace(/^https?:\/\//, '');
+                const metamaskAppDeepLink = "https://metamask.app.link/dapp/" + dappUrl;
+                setTimeout(() => {
+                    window.location.href = metamaskAppDeepLink;
+                }, 1200);
+            } else {
+                log('Web3 Wallet not found! Please install MetaMask or another wallet extension.', 'error');
+            }
         }
         return;
     }
 
     try {
         provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
+
+        // Use eth_accounts to check if we already have permission
+        const accounts = await provider.send("eth_accounts", []);
+
+        if (accounts.length === 0) {
+            if (silent) return; // Stop here if silent
+            await provider.send("eth_requestAccounts", []);
+        }
+
         signer = provider.getSigner();
         const address = await signer.getAddress();
         network = await provider.getNetwork();
@@ -69,6 +78,9 @@ async function connectWallet() {
         connectBtn.innerText = `${address.substring(0, 6)}...${address.substring(38)}`;
         networkStatus.innerText = `Network: ${networkName} (${network.chainId})`;
         log(`Connected: ${address} on ${networkName}`, 'success');
+
+        // Store connection state
+        localStorage.setItem('wallet_connected', 'true');
 
         // Auto-fill from deployments if not already set
         const chainId = network.chainId.toString();
@@ -80,11 +92,16 @@ async function connectWallet() {
             if (mpAddr && !document.getElementById('addrMarketplace').value) document.getElementById('addrMarketplace').value = mpAddr;
         }
 
-        window.ethereum.on('accountsChanged', () => window.location.reload());
+        window.ethereum.on('accountsChanged', (newAccounts) => {
+            if (newAccounts.length === 0) {
+                localStorage.removeItem('wallet_connected');
+            }
+            window.location.reload();
+        });
         window.ethereum.on('chainChanged', () => window.location.reload());
 
     } catch (error) {
-        log(`Connection failed: ${error.message}`, 'error');
+        if (!silent) log(`Connection failed: ${error.message}`, 'error');
     }
 }
 
@@ -609,6 +626,11 @@ document.getElementById('btnVerifySIWE').addEventListener('click', async () => {
 window.addEventListener('DOMContentLoaded', () => {
     initContractExplorer();
     updateSIWEMessage();
+
+    // Auto-reconnect if previously connected
+    if (localStorage.getItem('wallet_connected') === 'true') {
+        connectWallet(true);
+    }
 
     // Check for registration token in URL
     const urlParams = new URLSearchParams(window.location.search);
