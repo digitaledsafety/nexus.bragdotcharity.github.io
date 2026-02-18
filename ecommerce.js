@@ -86,6 +86,88 @@ function parseMetadata(tokenURI) {
     }
 }
 
+// Cart Logic
+let cart = [];
+
+function loadCart() {
+    const saved = localStorage.getItem('brag_cart');
+    if (saved) {
+        try {
+            cart = JSON.parse(saved);
+        } catch (e) {
+            cart = [];
+        }
+    }
+    updateCartUI();
+}
+
+function saveCart() {
+    localStorage.setItem('brag_cart', JSON.stringify(cart));
+    updateCartUI();
+}
+
+function updateCartUI() {
+    const count = document.getElementById('cartCount');
+    if (count) {
+        count.textContent = cart.length;
+        count.classList.toggle('hidden', cart.length === 0);
+    }
+
+    const itemsContainer = document.getElementById('cartItems');
+    if (itemsContainer) {
+        if (cart.length === 0) {
+            itemsContainer.innerHTML = '<p class="text-slate-500 text-center py-8">Your cart is empty</p>';
+            return;
+        }
+
+        itemsContainer.innerHTML = '';
+        cart.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-3 bg-slate-800 p-2 rounded-lg group';
+            div.innerHTML = `
+                <div class="h-12 w-12 bg-slate-700 rounded overflow-hidden flex-shrink-0">
+                    <img src="" class="w-full h-full object-cover cart-img">
+                </div>
+                <div class="flex-grow min-w-0">
+                    <p class="text-sm font-bold truncate item-name"></p>
+                    <p class="text-[10px] text-slate-500 font-mono">ID: ${item.id}</p>
+                </div>
+                <button class="text-slate-600 hover:text-red-500 p-1 remove-item">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+            div.querySelector('.cart-img').src = item.image;
+            div.querySelector('.item-name').textContent = item.name;
+            div.querySelector('.remove-item').onclick = () => {
+                cart.splice(index, 1);
+                saveCart();
+            };
+            itemsContainer.appendChild(div);
+        });
+    }
+}
+
+function initCartUI() {
+    const cartBtn = document.getElementById('cartBtn');
+    const cartSidebar = document.getElementById('cartSidebar');
+    const closeCart = document.getElementById('closeCart');
+    const clearCart = document.getElementById('clearCart');
+
+    if (cartBtn && cartSidebar) {
+        cartBtn.onclick = () => cartSidebar.classList.remove('translate-x-full');
+        closeCart.onclick = () => cartSidebar.classList.add('translate-x-full');
+    }
+
+    if (clearCart) {
+        clearCart.onclick = () => {
+            cart = [];
+            saveCart();
+        };
+    }
+
+    loadCart();
+}
+
 // Discovery Page Logic
 async function initDiscovery() {
     const nftGrid = document.getElementById('nftGrid');
@@ -105,12 +187,40 @@ async function initDiscovery() {
     const bragNFT = getContract('BragNFT', bragNFTAddr);
 
     try {
-        const filter = bragNFT.filters.Donated();
-        const events = await bragNFT.queryFilter(filter, -10000);
+        let events = [];
+        try {
+            const filter = bragNFT.filters.Donated();
+            events = await bragNFT.queryFilter(filter, -10000);
+        } catch (e) {
+            console.warn("Could not fetch real events, showing demo data.");
+        }
 
         if (events.length === 0) {
             nftGrid.innerHTML = '';
-            emptyState.classList.remove('hidden');
+            // Add a demo card
+            const demoCard = document.createElement('div');
+            demoCard.className = 'brag-card rounded-xl overflow-hidden cursor-pointer';
+            demoCard.onclick = () => window.location.href = 'product.html?id=demo';
+            demoCard.innerHTML = `
+                <div class="h-64 bg-slate-800 flex items-center justify-center overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1000" class="w-full h-full object-cover">
+                </div>
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-1">
+                        <h3 class="font-bold text-lg truncate">Eco-Warrior #1337</h3>
+                        <span class="text-[10px] bg-purple-900/50 px-2 py-0.5 rounded text-purple-300">DEMO</span>
+                    </div>
+                    <p class="text-slate-500 text-xs mb-4 truncate">Protecting our forests for future generations.</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-purple-400 font-bold text-sm">View Demo</span>
+                        <i class="fas fa-arrow-right text-slate-600"></i>
+                    </div>
+                </div>
+            `;
+            nftGrid.appendChild(demoCard);
+
+            // Still show empty state text below if truly empty
+            // emptyState.classList.remove('hidden');
             return;
         }
 
@@ -143,28 +253,36 @@ async function renderNFTCard(contract, tokenId) {
 
         const isAudio = metadata.animation_url && metadata.animation_url.includes('audio');
 
-        const mediaHtml = isAudio ?
-            `<div class="text-center"><i class="fas fa-music text-5xl text-purple-500 mb-2 block"></i><span class="text-xs text-slate-500">Audio NFT</span></div>` :
-            `<img src="${metadata.image}" class="w-full h-full object-cover">`;
+        const mediaContainer = document.createElement('div');
+        mediaContainer.className = 'h-64 bg-slate-800 flex items-center justify-center overflow-hidden';
 
-        card.innerHTML = `
-            <div class="h-64 bg-slate-800 flex items-center justify-center overflow-hidden">
-                ${mediaHtml}
+        if (isAudio) {
+            mediaContainer.innerHTML = `<div class="text-center"><i class="fas fa-music text-5xl text-purple-500 mb-2 block"></i><span class="text-xs text-slate-500">Audio NFT</span></div>`;
+        } else {
+            const img = document.createElement('img');
+            img.className = 'w-full h-full object-cover';
+            img.src = metadata.image;
+            mediaContainer.appendChild(img);
+        }
+        card.appendChild(mediaContainer);
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'p-4';
+        infoDiv.innerHTML = `
+            <div class="flex justify-between items-start mb-1">
+                <h3 class="font-bold text-lg truncate card-title"></h3>
+                <span class="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">#${tokenId}</span>
             </div>
-            <div class="p-4">
-                <div class="flex justify-between items-start mb-1">
-                    <h3 class="font-bold text-lg truncate card-title"></h3>
-                    <span class="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">#${tokenId}</span>
-                </div>
-                <p class="text-slate-500 text-xs mb-4 truncate card-desc"></p>
-                <div class="flex justify-between items-center">
-                    <span class="text-purple-400 font-bold text-sm">View Details</span>
-                    <i class="fas fa-arrow-right text-slate-600"></i>
-                </div>
+            <p class="text-slate-500 text-xs mb-4 truncate card-desc"></p>
+            <div class="flex justify-between items-center">
+                <span class="text-purple-400 font-bold text-sm">View Details</span>
+                <i class="fas fa-arrow-right text-slate-600"></i>
             </div>
         `;
-        card.querySelector('.card-title').textContent = metadata.name;
-        card.querySelector('.card-desc').textContent = metadata.description || 'No description';
+        card.appendChild(infoDiv);
+
+        infoDiv.querySelector('.card-title').textContent = metadata.name;
+        infoDiv.querySelector('.card-desc').textContent = metadata.description || 'No description';
 
         nftGrid.appendChild(card);
     } catch (e) {}
@@ -178,6 +296,11 @@ async function initProduct() {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenId = urlParams.get('id');
     const contractAddr = urlParams.get('addr');
+
+    if (tokenId === 'demo' || (!tokenId && !contractAddr)) {
+        renderDemoData();
+        return;
+    }
 
     if (!tokenId || !contractAddr) {
         document.getElementById('productLoading').classList.add('hidden');
@@ -235,14 +358,22 @@ async function initProduct() {
             document.getElementById('nftImage').src = metadata.image;
         }
 
-        // Marketplace Info
+        // Marketplace Info & Price History
         if (marketplace) {
             const offer = await marketplace.offers(contractAddr, tokenId);
             if (offer.buyer !== ethers.constants.AddressZero) {
                 document.getElementById('noOffer').classList.add('hidden');
                 document.getElementById('offerExists').classList.remove('hidden');
-                document.getElementById('highestOfferPrice').textContent = `${ethers.utils.formatEther(offer.price)} ETH`;
+                const priceFormatted = `${ethers.utils.formatEther(offer.price)} ETH`;
+                document.getElementById('highestOfferPrice').textContent = priceFormatted;
                 document.getElementById('highestOfferBuyer').textContent = `by ${offer.buyer.substring(0, 6)}...${offer.buyer.substring(38)}`;
+
+                // Show in history
+                const histItem = document.getElementById('offerHistoryItem');
+                if (histItem) {
+                    histItem.classList.remove('hidden');
+                    document.getElementById('histOfferPrice').textContent = priceFormatted;
+                }
             }
         }
 
@@ -250,7 +381,7 @@ async function initProduct() {
         if (registry) {
             try {
                 const vaultInfo = await registry.vaults(owner);
-                if (vaultInfo && vaultInfo.isVerified) {
+                if (vaultInfo && vaultInfo.verified) {
                     const badge = document.getElementById('vaultBadge');
                     badge.classList.remove('hidden');
                     // name is from contract, but let's be safe
@@ -263,7 +394,7 @@ async function initProduct() {
         document.getElementById('productLoading').classList.add('hidden');
         content.classList.remove('hidden');
 
-        // Action: Make Offer
+        // Actions
         document.getElementById('btnMakeOffer').onclick = async () => {
             const amount = document.getElementById('offerAmount').value;
             if (!amount || parseFloat(amount) <= 0) {
@@ -283,6 +414,25 @@ async function initProduct() {
                 alert('Transaction failed: ' + (e.reason || e.message));
             }
         };
+
+        const btnAddToCart = document.getElementById('btnAddToCart');
+        if (btnAddToCart) {
+            btnAddToCart.onclick = () => {
+                const exists = cart.find(item => item.id === tokenId && item.address === contractAddr);
+                if (exists) {
+                    alert('Item already in cart!');
+                    return;
+                }
+                cart.push({
+                    id: tokenId,
+                    address: contractAddr,
+                    name: metadata.name,
+                    image: metadata.image
+                });
+                saveCart();
+                document.getElementById('cartSidebar').classList.remove('translate-x-full');
+            };
+        }
 
         // Related Items
         loadRelatedItems(bragNFT, tokenId);
@@ -319,21 +469,76 @@ async function renderNFTCardSmall(contract, tokenId, container) {
     card.className = 'brag-card rounded-xl overflow-hidden cursor-pointer text-sm';
     card.onclick = () => window.location.href = `product.html?id=${tokenId}&addr=${contract.address}`;
 
-    card.innerHTML = `
-        <div class="h-40 bg-slate-800 flex items-center justify-center">
-            <img src="${metadata.image}" class="w-full h-full object-cover">
-        </div>
-        <div class="p-3">
-            <h4 class="font-bold truncate card-title"></h4>
-            <p class="text-purple-400 font-bold text-xs mt-1">View</p>
-        </div>
+    const mediaContainer = document.createElement('div');
+    mediaContainer.className = 'h-40 bg-slate-800 flex items-center justify-center';
+    const img = document.createElement('img');
+    img.className = 'w-full h-full object-cover';
+    img.src = metadata.image;
+    mediaContainer.appendChild(img);
+    card.appendChild(mediaContainer);
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'p-3';
+    infoDiv.innerHTML = `
+        <h4 class="font-bold truncate card-title"></h4>
+        <p class="text-purple-400 font-bold text-xs mt-1">View</p>
     `;
-    card.querySelector('.card-title').textContent = metadata.name;
+    card.appendChild(infoDiv);
+    infoDiv.querySelector('.card-title').textContent = metadata.name;
     container.appendChild(card);
+}
+
+function renderDemoData() {
+    const content = document.getElementById('productContent');
+    const metadata = {
+        name: "Eco-Warrior #1337 (Demo)",
+        description: "This is a demonstration NFT. In a live environment, this would represent a verified donation to global reforestation efforts. Ownership is tracked on-chain, and this page provides a seamless interface for trading and verification.",
+        image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1000",
+        attributes: [
+            { trait_type: "Message", value: "Protecting our forests for future generations." }
+        ]
+    };
+
+    document.getElementById('nftName').textContent = metadata.name;
+    document.getElementById('breadcrumbName').textContent = metadata.name;
+    document.getElementById('nftDescription').textContent = metadata.description;
+    document.getElementById('dispOwner').textContent = '0xDemoOwner...1234';
+    document.getElementById('dispContract').textContent = '0xDemoContract...5678';
+    document.getElementById('dispTokenId').textContent = '1337';
+    document.getElementById('dispNetwork').textContent = 'Hardhat (Local)';
+    document.getElementById('dispMessage').textContent = `"${metadata.attributes[0].value}"`;
+    document.getElementById('nftImage').src = metadata.image;
+    document.getElementById('dispReceipt').textContent = '42';
+
+    const badge = document.getElementById('vaultBadge');
+    badge.classList.remove('hidden');
+    badge.innerHTML = `<i class="fas fa-shield-check mr-2"></i>Exhibited in <span id="vaultName">Amazonia Sanctuary</span>`;
+
+    document.getElementById('productLoading').classList.add('hidden');
+    content.classList.remove('hidden');
+
+    document.getElementById('btnMakeOffer').onclick = () => {
+        alert("This is a demo! In production, this would trigger a MetaMask transaction.");
+    };
+
+    const btnAddToCart = document.getElementById('btnAddToCart');
+    if (btnAddToCart) {
+        btnAddToCart.onclick = () => {
+            cart.push({
+                id: '1337',
+                address: '0xDemoContract',
+                name: metadata.name,
+                image: metadata.image
+            });
+            saveCart();
+            document.getElementById('cartSidebar').classList.remove('translate-x-full');
+        };
+    }
 }
 
 // Initializers
 window.addEventListener('DOMContentLoaded', () => {
+    initCartUI();
     const path = window.location.pathname;
     if (path.includes('discover.html')) {
         initDiscovery();

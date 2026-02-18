@@ -76,11 +76,31 @@
                     <a href="index.html" class="hover:text-purple-400 transition-colors">Manager</a>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <button id="cartBtn" class="relative p-2 text-slate-300 hover:text-white transition-colors">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <span id="cartCount" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
+                    </button>
                     <button id="connectBtn" class="btn-primary text-sm py-2 px-4">Connect Wallet</button>
                 </div>
             </div>
         </div>
     </nav>
+
+    <!-- Cart Sidebar -->
+    <div id="cartSidebar" class="fixed inset-y-0 right-0 w-80 bg-slate-900 border-l border-slate-700 shadow-2xl transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
+        <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+            <h3 class="text-lg font-bold">Your Cart</h3>
+            <button id="closeCart" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="cartItems" class="flex-grow overflow-y-auto p-4 space-y-4">
+            <!-- Cart items will be injected here -->
+            <p class="text-slate-500 text-center py-8">Your cart is empty</p>
+        </div>
+        <div class="p-4 border-t border-slate-700 bg-slate-800/50">
+            <button class="btn-primary w-full py-3 mb-2">Checkout All</button>
+            <button id="clearCart" class="w-full text-xs text-slate-500 hover:text-red-400 transition-colors">Clear Cart</button>
+        </div>
+    </div>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow">
         <div id="productLoading" class="text-center py-20">
@@ -189,12 +209,46 @@
                                 <input type="number" id="offerAmount" class="input-field pl-12 text-xl font-bold" placeholder="0.00" step="0.01">
                                 <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">ETH</div>
                             </div>
-                            <button id="btnMakeOffer" class="btn-primary w-full text-lg">
-                                <i class="fas fa-hand-holding-usd mr-3 text-xl"></i>Make an Offer
-                            </button>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button id="btnMakeOffer" class="btn-primary col-span-3 text-lg">
+                                    <i class="fas fa-hand-holding-usd mr-3 text-xl"></i>Make an Offer
+                                </button>
+                                <button id="btnAddToCart" class="brag-card rounded-lg hover:border-purple-500 transition-all flex items-center justify-center">
+                                    <i class="fas fa-cart-plus text-xl text-purple-400"></i>
+                                </button>
+                            </div>
                             <p class="text-center text-xs text-slate-500">
                                 Offers are locked in the marketplace contract until accepted, canceled, or refunded.
                             </p>
+                        </div>
+                    </div>
+
+                    <!-- Price History Section -->
+                    <div class="brag-card rounded-2xl overflow-hidden">
+                        <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                            <h3 class="font-bold flex items-center">
+                                <i class="fas fa-chart-line mr-2 text-purple-400"></i>Price History
+                            </h3>
+                            <span class="text-xs text-slate-500">Last 30 Days</span>
+                        </div>
+                        <div class="p-4 bg-slate-900/50">
+                            <div id="priceHistoryList" class="space-y-3">
+                                <!-- Price history events -->
+                                <div class="flex justify-between items-center text-sm">
+                                    <div class="flex items-center">
+                                        <div class="w-2 h-2 rounded-full bg-green-500 mr-3"></div>
+                                        <span class="text-slate-300">Minted</span>
+                                    </div>
+                                    <span class="font-mono text-slate-500">0.01 ETH</span>
+                                </div>
+                                <div id="offerHistoryItem" class="hidden flex justify-between items-center text-sm">
+                                    <div class="flex items-center">
+                                        <div class="w-2 h-2 rounded-full bg-purple-500 mr-3"></div>
+                                        <span class="text-slate-300">Offer Created</span>
+                                    </div>
+                                    <span id="histOfferPrice" class="font-mono text-slate-500">... ETH</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
