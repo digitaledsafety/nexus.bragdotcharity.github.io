@@ -1,0 +1,4 @@
+127.0.0.1 - - [18/Feb/2026 16:53:21] "GET /product.html?id=demo HTTP/1.1" 200 -
+127.0.0.1 - - [18/Feb/2026 16:53:21] "GET /ecommerce.js HTTP/1.1" 200 -
+127.0.0.1 - - [18/Feb/2026 16:53:21] "GET /contracts.js HTTP/1.1" 200 -
+127.0.0.1 - - [18/Feb/2026 16:53:24] "GET /discover.html HTTP/1.1" 200 -
