@@ -30,21 +30,41 @@ async function connectWallet(silent = false) {
 
     try {
         provider = new ethers.providers.Web3Provider(window.ethereum);
-        if (!silent) await provider.send("eth_requestAccounts", []);
-        signer = provider.getSigner();
-        const address = await signer.getAddress();
-        network = await provider.getNetwork();
-        const networkName = NETWORK_NAMES[network.chainId] || network.name;
 
-        const connectBtn = document.getElementById('connectBtn');
-        if (connectBtn) {
-            connectBtn.innerText = `${address.substring(0, 6)}...${address.substring(38)}`;
+        // Use eth_accounts to check if we already have permission
+        const accounts = await provider.send("eth_accounts", []);
+
+        if (accounts.length === 0 && !silent) {
+            await provider.send("eth_requestAccounts", []);
         }
 
-        window.ethereum.on('accountsChanged', () => window.location.reload());
-        window.ethereum.on('chainChanged', () => window.location.reload());
+        const currentAccounts = await provider.listAccounts();
+        if (currentAccounts.length > 0) {
+            signer = provider.getSigner();
+            const address = await signer.getAddress();
+            network = await provider.getNetwork();
 
-        return { provider, signer, address, network };
+            const connectBtn = document.getElementById('connectBtn');
+            if (connectBtn) {
+                connectBtn.innerText = `${address.substring(0, 6)}...${address.substring(38)}`;
+            }
+
+            localStorage.setItem('wallet_connected', 'true');
+
+            window.ethereum.on('accountsChanged', (newAccounts) => {
+                if (newAccounts.length === 0) {
+                    localStorage.removeItem('wallet_connected');
+                }
+                window.location.reload();
+            });
+            window.ethereum.on('chainChanged', () => window.location.reload());
+
+            return { provider, signer, address, network };
+        } else {
+            // Not connected with accounts, but we still have a provider for read-only
+            network = await provider.getNetwork();
+            return { provider, network };
+        }
     } catch (error) {
         console.error('Connection failed:', error);
     }
@@ -539,6 +559,12 @@ function renderDemoData() {
 // Initializers
 window.addEventListener('DOMContentLoaded', () => {
     initCartUI();
+
+    // Auto-reconnect if previously connected
+    if (localStorage.getItem('wallet_connected') === 'true') {
+        connectWallet(true);
+    }
+
     const path = window.location.pathname;
     // index.html is the new discovery page. Also handle root path.
     if (path.includes('index.html') || path.endsWith('/') || path === '') {
