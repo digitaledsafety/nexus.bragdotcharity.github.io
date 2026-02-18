@@ -540,7 +540,8 @@ function renderDemoData() {
 window.addEventListener('DOMContentLoaded', () => {
     initCartUI();
     const path = window.location.pathname;
-    if (path.includes('discover.html')) {
+    // index.html is the new discovery page. Also handle root path.
+    if (path.includes('index.html') || path.endsWith('/') || path === '') {
         initDiscovery();
     } else if (path.includes('product.html')) {
         initProduct();
