@@ -17,6 +17,17 @@ const NETWORK_NAMES = {
 // Reusable Wallet Connection
 async function connectWallet(silent = false) {
     if (typeof window.ethereum === 'undefined') {
+        // Check if mobile
+        if (!silent) {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                const dappUrl = window.location.href.replace(/^https?:\/\//, '');
+                const metamaskAppDeepLink = "https://metamask.app.link/dapp/" + dappUrl;
+                window.location.href = metamaskAppDeepLink;
+                return;
+            }
+        }
+
         // Fallback to localhost if available (for testing/verification)
         provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
         try {
@@ -30,6 +41,18 @@ async function connectWallet(silent = false) {
 
     try {
         provider = new ethers.providers.Web3Provider(window.ethereum);
+
+        // Set up listeners once if window.ethereum exists
+        if (!window.ethereum._bragListenersSet) {
+            window.ethereum.on('accountsChanged', (newAccounts) => {
+                if (newAccounts.length === 0) {
+                    localStorage.removeItem('wallet_connected');
+                }
+                window.location.reload();
+            });
+            window.ethereum.on('chainChanged', () => window.location.reload());
+            window.ethereum._bragListenersSet = true;
+        }
 
         // Use eth_accounts to check if we already have permission
         const accounts = await provider.send("eth_accounts", []);
@@ -50,14 +73,6 @@ async function connectWallet(silent = false) {
             }
 
             localStorage.setItem('wallet_connected', 'true');
-
-            window.ethereum.on('accountsChanged', (newAccounts) => {
-                if (newAccounts.length === 0) {
-                    localStorage.removeItem('wallet_connected');
-                }
-                window.location.reload();
-            });
-            window.ethereum.on('chainChanged', () => window.location.reload());
 
             return { provider, signer, address, network };
         } else {
@@ -85,6 +100,13 @@ function getContract(name, address) {
 }
 
 function getDeploymentAddress(name) {
+    // Check localStorage first (overrides from Manager)
+    const fieldId = name === 'NFTMarketplace' ? 'addrMarketplace' : `addr${name}`;
+    const saved = localStorage.getItem(fieldId);
+    if (saved && ethers.utils.isAddress(saved)) {
+        return saved;
+    }
+
     if (!network) return null;
     const chainId = network.chainId.toString();
     const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
@@ -195,12 +217,20 @@ async function initDiscovery() {
     if (!nftGrid) return;
 
     const { network: net } = await connectWallet(true) || {};
-    if (!net) return;
+    if (!net) {
+        // If we can't get a network, we can't show anything. Hide loading.
+        const loading = document.getElementById('discoveryLoading') || document.querySelector('.animate-pulse');
+        if (loading) loading.classList.add('hidden');
+        return;
+    }
 
     const bragNFTAddr = getDeploymentAddress('BragNFT');
     if (!bragNFTAddr) {
         nftGrid.innerHTML = '';
         emptyState.classList.remove('hidden');
+        // If there's a separate loading skeleton element, hide it
+        const loading = document.getElementById('discoveryLoading');
+        if (loading) loading.classList.add('hidden');
         return;
     }
 
@@ -217,30 +247,7 @@ async function initDiscovery() {
 
         if (events.length === 0) {
             nftGrid.innerHTML = '';
-            // Add a demo card
-            const demoCard = document.createElement('div');
-            demoCard.className = 'brag-card rounded-xl overflow-hidden cursor-pointer';
-            demoCard.onclick = () => window.location.href = 'product.html?id=demo';
-            demoCard.innerHTML = `
-                <div class="h-64 bg-slate-800 flex items-center justify-center overflow-hidden">
-                    <img src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1000" class="w-full h-full object-cover">
-                </div>
-                <div class="p-4">
-                    <div class="flex justify-between items-start mb-1">
-                        <h3 class="font-bold text-lg truncate">Eco-Warrior #1337</h3>
-                        <span class="text-[10px] bg-purple-900/50 px-2 py-0.5 rounded text-purple-300">DEMO</span>
-                    </div>
-                    <p class="text-slate-500 text-xs mb-4 truncate">Protecting our forests for future generations.</p>
-                    <div class="flex justify-between items-center">
-                        <span class="text-purple-400 font-bold text-sm">View Demo</span>
-                        <i class="fas fa-arrow-right text-slate-600"></i>
-                    </div>
-                </div>
-            `;
-            nftGrid.appendChild(demoCard);
-
-            // Still show empty state text below if truly empty
-            // emptyState.classList.remove('hidden');
+            emptyState.classList.remove('hidden');
             return;
         }
 
@@ -329,7 +336,11 @@ async function initProduct() {
     }
 
     const { network: net, address: userAddress } = await connectWallet(true) || {};
-    if (!net) return;
+    if (!net) {
+        document.getElementById('productLoading').classList.add('hidden');
+        document.getElementById('productError').classList.remove('hidden');
+        return;
+    }
 
     try {
         const bragNFT = getContract('BragNFT', contractAddr);
