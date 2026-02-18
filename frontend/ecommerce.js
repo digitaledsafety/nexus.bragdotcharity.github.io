@@ -187,12 +187,40 @@ async function initDiscovery() {
     const bragNFT = getContract('BragNFT', bragNFTAddr);
 
     try {
-        const filter = bragNFT.filters.Donated();
-        const events = await bragNFT.queryFilter(filter, -10000);
+        let events = [];
+        try {
+            const filter = bragNFT.filters.Donated();
+            events = await bragNFT.queryFilter(filter, -10000);
+        } catch (e) {
+            console.warn("Could not fetch real events, showing demo data.");
+        }
 
         if (events.length === 0) {
             nftGrid.innerHTML = '';
-            emptyState.classList.remove('hidden');
+            // Add a demo card
+            const demoCard = document.createElement('div');
+            demoCard.className = 'brag-card rounded-xl overflow-hidden cursor-pointer';
+            demoCard.onclick = () => window.location.href = 'product.html?id=demo';
+            demoCard.innerHTML = `
+                <div class="h-64 bg-slate-800 flex items-center justify-center overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1000" class="w-full h-full object-cover">
+                </div>
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-1">
+                        <h3 class="font-bold text-lg truncate">Eco-Warrior #1337</h3>
+                        <span class="text-[10px] bg-purple-900/50 px-2 py-0.5 rounded text-purple-300">DEMO</span>
+                    </div>
+                    <p class="text-slate-500 text-xs mb-4 truncate">Protecting our forests for future generations.</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-purple-400 font-bold text-sm">View Demo</span>
+                        <i class="fas fa-arrow-right text-slate-600"></i>
+                    </div>
+                </div>
+            `;
+            nftGrid.appendChild(demoCard);
+
+            // Still show empty state text below if truly empty
+            // emptyState.classList.remove('hidden');
             return;
         }
 

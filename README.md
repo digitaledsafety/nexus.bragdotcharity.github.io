@@ -126,6 +126,26 @@ This project includes a `Treasury.sol` contract. It is a simple, secure vault de
 
 By default, the deployment module will create a new instance of this `Treasury` contract during deployment.
 
+## BragNFT E-commerce Landing Page
+
+This project includes a high-fidelity e-commerce experience for discovering and trading NFTs.
+
+### 1. NFT Discovery Gallery (`discover.html`)
+A dedicated page for browsing all minted NFTs. It listens for blockchain events to populate the grid dynamically.
+
+### 2. Product Detail Page (`product.html`)
+An optimized product landing page for individual NFTs, featuring:
+- **Media Support**: High-resolution display for images and on-chain audio NFTs.
+- **Ownership Verification**: Clearly highlights if you own the item or if it's exhibited in a verified vault.
+- **Marketplace Logic**: Integrated "Make Offer" functionality and price history tracking.
+- **Shopping Cart**: A persistent cart system for tracking items of interest.
+
+### 3. Interactive Demo Mode
+You can explore the full e-commerce UI without a local blockchain by visiting:
+`frontend/product.html?id=demo`
+
+---
+
 ## BragNFT Manager (Web Interface)
 
 This project includes a built-in web-based manager that allows you to interact with all the smart contracts through a user-friendly interface.
