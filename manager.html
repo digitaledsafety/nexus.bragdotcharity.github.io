@@ -221,11 +221,14 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
                         <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Create Offer</h3>
-                        <div class="grid grid-cols-2 gap-2 mb-2">
-                            <input type="text" id="offNFTContract" class="input-field" placeholder="NFT Contract">
+                        <div class="grid grid-cols-3 gap-2 mb-2">
+                            <input type="text" id="offNFTContract" class="input-field col-span-2" placeholder="NFT Contract">
                             <input type="text" id="offTokenId" class="input-field" placeholder="Token ID">
                         </div>
-                        <input type="number" id="offPrice" class="input-field mb-2" placeholder="Price (ETH)" step="0.001">
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="number" id="offPrice" class="input-field" placeholder="Price (ETH)" step="0.001">
+                            <input type="number" id="offAmount" class="input-field" placeholder="Amount" value="1">
+                        </div>
                         <button id="btnCreateOffer" class="btn-primary w-full">Create Offer</button>
                     </div>
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">

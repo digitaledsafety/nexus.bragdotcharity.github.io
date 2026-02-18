@@ -288,9 +288,10 @@ document.getElementById('btnCreateOffer').addEventListener('click', async () => 
     const nft = document.getElementById('offNFTContract').value;
     const id = document.getElementById('offTokenId').value;
     const price = document.getElementById('offPrice').value;
+    const amount = document.getElementById('offAmount')?.value || 1;
 
     const contract = getContract('NFTMarketplace', addr);
-    await txHandler(contract.createOffer(nft, id, { value: ethers.utils.parseEther(price) }), 'Offer Created');
+    await txHandler(contract.createOffer(nft, id, amount, { value: ethers.utils.parseEther(price) }), 'Offer Created');
 });
 
 document.getElementById('btnAcceptOffer').addEventListener('click', async () => {
@@ -298,11 +299,24 @@ document.getElementById('btnAcceptOffer').addEventListener('click', async () => 
     const nft = document.getElementById('accNFTContract').value;
     const id = document.getElementById('accTokenId').value;
 
-    // Approve marketplace
-    const nftContract = new ethers.Contract(nft, ["function approve(address to, uint256 tokenId) public"], signer);
-    log('Approving NFT...');
-    const appTx = await nftContract.approve(addr, id);
-    await appTx.wait();
+    // Detect NFT type for proper approval
+    const genericNFT = new ethers.Contract(nft, ["function supportsInterface(bytes4) view returns (bool)"], signer);
+    let isERC1155 = false;
+    try {
+        isERC1155 = await genericNFT.supportsInterface('0xd9b67a26');
+    } catch (e) {}
+
+    if (isERC1155) {
+        const nftContract = new ethers.Contract(nft, ["function setApprovalForAll(address operator, bool approved) public"], signer);
+        log('Setting Approval For All (ERC1155)...');
+        const appTx = await nftContract.setApprovalForAll(addr, true);
+        await appTx.wait();
+    } else {
+        const nftContract = new ethers.Contract(nft, ["function approve(address to, uint256 tokenId) public"], signer);
+        log('Approving NFT (ERC721)...');
+        const appTx = await nftContract.approve(addr, id);
+        await appTx.wait();
+    }
 
     const contract = getContract('NFTMarketplace', addr);
     await txHandler(contract.acceptOffer(nft, id), 'Offer Accepted');
