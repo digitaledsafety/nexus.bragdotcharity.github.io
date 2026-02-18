@@ -10,7 +10,7 @@ describe("BragNFT and DonationReceipt", async function () {
     const [owner, donor, treasury, recipient] = await viem.getWalletClients();
 
     const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
-    const vault = await viem.deployContract("ExhibitVault", [registry.address, owner.account.address]);
+    const vault = await viem.deployContract("ExhibitVault", [registry.address]);
 
     // Verify vault in registry
     await registry.write.verifyVault([vault.address, 3, "Art Gallery", "Main gallery"]);

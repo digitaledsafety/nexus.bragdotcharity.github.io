@@ -381,7 +381,7 @@ async function initProduct() {
         if (registry) {
             try {
                 const vaultInfo = await registry.vaults(owner);
-                if (vaultInfo && vaultInfo.isVerified) {
+                if (vaultInfo && vaultInfo.verified) {
                     const badge = document.getElementById('vaultBadge');
                     badge.classList.remove('hidden');
                     // name is from contract, but let's be safe
