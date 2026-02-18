@@ -1,6 +1,6 @@
-# BragNFT Manager Frontend
+# BragNFT Frontend
 
-This is a vanilla HTML/JS interface for interacting with the BragNFT smart contracts.
+This is a vanilla HTML/JS interface for interacting with the BragNFT ecosystem.
 
 ## Deployment to GitHub Pages
 
@@ -12,7 +12,7 @@ This project is configured with a GitHub Action (`.github/workflows/deploy-pages
 
 ## Local Development
 
-Simply open `index.html` in your browser. You will need MetaMask installed and connected to a network (Localhost, Sepolia, or Mainnet) where the contracts are deployed.
+Simply open `index.html` (Discovery) or `manager.html` (Admin) in your browser. You will need MetaMask installed and connected to a network (Localhost, Sepolia, or Mainnet) where the contracts are deployed.
 
 ## Contract Addresses
 

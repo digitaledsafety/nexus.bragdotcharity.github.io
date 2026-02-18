@@ -130,7 +130,7 @@ By default, the deployment module will create a new instance of this `Treasury` 
 
 This project includes a high-fidelity e-commerce experience for discovering and trading NFTs.
 
-### 1. NFT Discovery Gallery (`discover.html`)
+### 1. NFT Discovery Gallery (`index.html`)
 A dedicated page for browsing all minted NFTs. It listens for blockchain events to populate the grid dynamically.
 
 ### 2. Product Detail Page (`product.html`)
@@ -151,7 +151,7 @@ You can explore the full e-commerce UI without a local blockchain by visiting:
 This project includes a built-in web-based manager that allows you to interact with all the smart contracts through a user-friendly interface.
 
 - **URL**: Once deployed to GitHub Pages, it is typically available at `https://your-username.github.io/your-repo-name/`.
-- **Local Access**: You can also open `frontend/index.html` directly in your browser.
+- **Local Access**: You can also open `frontend/manager.html` directly in your browser.
 
 ### Key Features:
 - **Minting**: Donate ETH to mint BragNFTs.
