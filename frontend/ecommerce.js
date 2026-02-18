@@ -338,11 +338,34 @@ async function initProduct() {
         const registryAddr = getDeploymentAddress('ExhibitRegistry');
         const registry = getContract('ExhibitRegistry', registryAddr);
 
-        const [tokenURI, owner, receiptId] = await Promise.all([
-            bragNFT.tokenURI(tokenId),
-            bragNFT.ownerOf(tokenId),
-            bragNFT.nftToReceipt(tokenId)
-        ]);
+        let tokenURI, owner, receiptId;
+        let isERC1155 = false;
+
+        try {
+            isERC1155 = await bragNFT.supportsInterface('0xd9b67a26');
+        } catch (e) {
+            console.warn("Interface detection failed, assuming ERC721");
+        }
+
+        if (isERC1155) {
+            const erc1155 = new ethers.Contract(contractAddr, [
+                "function uri(uint256) view returns (string)",
+                "function balanceOf(address, uint256) view returns (uint256)"
+            ], signer || provider);
+            [tokenURI, owner] = await Promise.all([
+                erc1155.uri(tokenId),
+                userAddress ? erc1155.balanceOf(userAddress, tokenId) : Promise.resolve(0)
+            ]);
+            // For 1155 display owner as "You" if balance > 0, otherwise generic
+            owner = (parseInt(owner) > 0) ? userAddress : "Multiple Owners";
+            receiptId = 0;
+        } else {
+            [tokenURI, owner, receiptId] = await Promise.all([
+                bragNFT.tokenURI(tokenId).catch(() => ""),
+                bragNFT.ownerOf(tokenId).catch(() => ethers.constants.AddressZero),
+                bragNFT.nftToReceipt(tokenId).catch(() => 0)
+            ]);
+        }
 
         const metadata = parseMetadata(tokenURI);
         if (!metadata) throw new Error('Invalid metadata');
@@ -416,15 +439,16 @@ async function initProduct() {
 
         // Actions
         document.getElementById('btnMakeOffer').onclick = async () => {
-            const amount = document.getElementById('offerAmount').value;
-            if (!amount || parseFloat(amount) <= 0) {
-                alert('Please enter a valid offer amount.');
+            const price = document.getElementById('offerAmount').value;
+            if (!price || parseFloat(price) <= 0) {
+                alert('Please enter a valid offer price.');
                 return;
             }
 
             try {
-                const tx = await marketplace.createOffer(contractAddr, tokenId, {
-                    value: ethers.utils.parseEther(amount)
+                // Defaulting amount to 1 for now as UI doesn't have an amount field for buying multiple
+                const tx = await marketplace.createOffer(contractAddr, tokenId, 1, {
+                    value: ethers.utils.parseEther(price)
                 });
                 alert('Offer submitted! Awaiting confirmation...');
                 await tx.wait();

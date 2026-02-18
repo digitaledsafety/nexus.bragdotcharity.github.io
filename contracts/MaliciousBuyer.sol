@@ -14,7 +14,7 @@ contract MaliciousBuyer is IERC721Receiver {
     }
 
     function createOffer(uint256 tokenId) external payable {
-        marketplace.createOffer{value: msg.value}(nftContract, tokenId);
+        marketplace.createOffer{value: msg.value}(nftContract, tokenId, 1);
     }
 
     function onERC721Received(

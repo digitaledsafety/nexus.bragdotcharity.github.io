@@ -2,12 +2,15 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract NFTMarketplace is ReentrancyGuard {
     struct Offer {
         address buyer;
         uint256 price;
+        uint256 amount;    // Number of tokens (usually 1 for ERC721)
         uint256 timestamp; // When the offer was created
     }
 
@@ -16,8 +19,8 @@ contract NFTMarketplace is ReentrancyGuard {
 
     uint256 public immutable refundPeriod;
 
-    event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price);
-    event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price);
+    event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
+    event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
     event RefundRequested(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 amount);
 
@@ -29,19 +32,22 @@ contract NFTMarketplace is ReentrancyGuard {
      * @notice Create an offer for an NFT
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token being offered on
+     * @param amount Number of tokens to buy (should be 1 for ERC721)
      */
-    function createOffer(address nftContract, uint256 tokenId) external payable nonReentrant {
+    function createOffer(address nftContract, uint256 tokenId, uint256 amount) external payable nonReentrant {
         require(msg.value > 0, "Offer price must be greater than 0");
+        require(amount > 0, "Amount must be greater than 0");
         require(offers[nftContract][tokenId].buyer == address(0), "Offer already exists");
 
         // Save the offer
         offers[nftContract][tokenId] = Offer({
             buyer: msg.sender,
             price: msg.value,
+            amount: amount,
             timestamp: block.timestamp
         });
 
-        emit OfferCreated(nftContract, tokenId, msg.sender, msg.value);
+        emit OfferCreated(nftContract, tokenId, msg.sender, msg.value, amount);
     }
 
     /**
@@ -53,24 +59,34 @@ contract NFTMarketplace is ReentrancyGuard {
         Offer memory offer = offers[nftContract][tokenId];
         require(offer.buyer != address(0), "No valid offer exists");
 
-        IERC721 nft = IERC721(nftContract);
-        require(nft.ownerOf(tokenId) == msg.sender, "You do not own this NFT");
-        require(
-            nft.isApprovedForAll(msg.sender, address(this)) || nft.getApproved(tokenId) == address(this),
-            "Contract not approved to transfer NFT"
-        );
-
-        // Clear the offer first (CEI)
+        // CEI: Clear the offer first
         delete offers[nftContract][tokenId];
 
-        // Transfer the NFT to the buyer
-        nft.safeTransferFrom(msg.sender, offer.buyer, tokenId);
+        if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
+            require(offer.amount == 1, "ERC721 offer must have amount 1");
+            IERC721 nft = IERC721(nftContract);
+            require(nft.ownerOf(tokenId) == msg.sender, "You do not own this NFT");
+            require(
+                nft.isApprovedForAll(msg.sender, address(this)) || nft.getApproved(tokenId) == address(this),
+                "Contract not approved to transfer NFT"
+            );
+            // Transfer the NFT to the buyer
+            nft.safeTransferFrom(msg.sender, offer.buyer, tokenId);
+        } else if (IERC165(nftContract).supportsInterface(0xd9b67a26)) { // IERC1155
+            IERC1155 nft = IERC1155(nftContract);
+            require(nft.balanceOf(msg.sender, tokenId) >= offer.amount, "Insufficient balance");
+            require(nft.isApprovedForAll(msg.sender, address(this)), "Contract not approved to transfer NFT");
+            // Transfer the NFT to the buyer
+            nft.safeTransferFrom(msg.sender, offer.buyer, tokenId, offer.amount, "");
+        } else {
+            revert("Unsupported NFT type");
+        }
 
         // Pay the seller
         (bool success, ) = payable(msg.sender).call{value: offer.price}("");
         require(success, "Transfer to seller failed");
 
-        emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price);
+        emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
     }
 
     /**
