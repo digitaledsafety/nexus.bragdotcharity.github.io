@@ -37,8 +37,11 @@ async function main() {
         throw new Error("Missing ALCHEMY_API_KEY or ALCHEMY_GAS_POLICY_ID for gasless Sepolia deployment.");
     }
 
-    const privateKey = (isSepolia ? process.env.SEPOLIA_PRIVATE_KEY : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80") as Hex;
-    const account = privateKeyToAccount(privateKey);
+    let privateKey = (isSepolia ? process.env.SEPOLIA_PRIVATE_KEY : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80") as string;
+    if (privateKey && !privateKey.startsWith("0x")) {
+        privateKey = `0x${privateKey}`;
+    }
+    const account = privateKeyToAccount(privateKey as Hex);
     const eoaAddress = account.address;
 
     const publicClient = createPublicClient({
