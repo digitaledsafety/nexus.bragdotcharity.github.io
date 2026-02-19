@@ -2,6 +2,8 @@
   "scripts": {
     "node": "hardhat node",
     "deploy:local": "HARDHAT_IGNITION_CONFIRM_DEPLOYMENT=true hardhat ignition deploy ignition/modules/App.ts --network localhost && node scripts/export-abis.cjs",
+    "seed:local": "hardhat run scripts/seed-data.ts --network localhost",
+    "seed:sepolia": "hardhat run scripts/seed-data.ts --network sepolia",
     "bridge": "node scripts/nft-bridge.js",
     "test": "hardhat test",
     "compile": "hardhat compile"
