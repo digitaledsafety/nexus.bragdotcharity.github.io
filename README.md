@@ -144,6 +144,9 @@ To use the Sepolia deployment workflow, you must configure the following [GitHub
 
 - `SEPOLIA_RPC_URL`: Your Sepolia RPC endpoint (e.g., from Alchemy or Infura).
 - `SEPOLIA_PRIVATE_KEY`: The private key of the account used for deployment and as the initial owner.
+- `SEPOLIA_BUYER_PRIVATE_KEY`: A second private key used by the seeding script to create marketplace offers.
+- `ALCHEMY_API_KEY`: Your Alchemy API Key for Account Abstraction features.
+- `ALCHEMY_GAS_POLICY_ID`: Your Alchemy Gas Manager Policy ID to enable gasless seeding.
 - `TREASURY_ADDRESS`: (Optional) An external ETH address to receive donations. If provided, the deployment of a new `Treasury` contract will be skipped.
 
 ### Treasury Contract

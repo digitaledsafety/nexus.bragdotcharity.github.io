@@ -49,6 +49,9 @@ jobs:
       - name: Verify local deployment
         run: npx hardhat ignition deploy ignition/modules/App.ts
 
+      - name: Verify seeding script (Local)
+        run: npm run seed:local
+
       - name: Export ABIs
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: node scripts/export-abis.cjs
