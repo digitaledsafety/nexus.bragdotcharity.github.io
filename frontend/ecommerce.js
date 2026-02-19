@@ -85,6 +85,13 @@ function getContract(name, address) {
 }
 
 function getDeploymentAddress(name) {
+    // Priority 1: Check localStorage for manual overrides (from Manager page)
+    const override = localStorage.getItem(`addr${name}`);
+    if (override && ethers.utils.isAddress(override)) {
+        return override;
+    }
+
+    // Priority 2: Check hardcoded deployments
     if (!network) return null;
     const chainId = network.chainId.toString();
     const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
@@ -199,21 +206,32 @@ async function initDiscovery() {
 
     const bragNFTAddr = getDeploymentAddress('BragNFT');
     if (!bragNFTAddr) {
+        console.warn("BragNFT address not found.");
         nftGrid.innerHTML = '';
         emptyState.classList.remove('hidden');
         return;
     }
 
     const bragNFT = getContract('BragNFT', bragNFTAddr);
+    console.log("Fetching events for BragNFT at:", bragNFTAddr);
 
     try {
         let events = [];
         try {
             const filter = bragNFT.filters.Donated();
+            // Try last 10000 blocks first
             events = await bragNFT.queryFilter(filter, -10000);
         } catch (e) {
-            console.warn("Could not fetch real events, showing demo data.");
+            console.warn("Could not fetch events from last 10000 blocks, trying from block 0", e);
+            try {
+                const filter = bragNFT.filters.Donated();
+                events = await bragNFT.queryFilter(filter, 0);
+            } catch (e2) {
+                console.error("Failed to fetch events even from block 0", e2);
+            }
         }
+
+        console.log(`Found ${events.length} Donated events.`);
 
         if (events.length === 0) {
             nftGrid.innerHTML = '';
@@ -249,10 +267,12 @@ async function initDiscovery() {
 
         for (const event of sortedEvents) {
             const tokenId = event.args.nftTokenId.toString();
-            renderNFTCard(bragNFT, tokenId);
+            renderNFTCard(bragNFT, tokenId).catch(err => {
+                console.error(`Failed to render NFT card for token ${tokenId}:`, err);
+            });
         }
     } catch (e) {
-        console.error('Error fetching events:', e);
+        console.error('Error in Discovery Gallery:', e);
         nftGrid.innerHTML = '';
         for (let i = 0; i < 8; i++) {
             renderNFTCard(bragNFT, i.toString());
@@ -305,7 +325,9 @@ async function renderNFTCard(contract, tokenId) {
         infoDiv.querySelector('.card-desc').textContent = metadata.description || 'No description';
 
         nftGrid.appendChild(card);
-    } catch (e) {}
+    } catch (e) {
+        console.error(`Error rendering NFT card for token ${tokenId}:`, e);
+    }
 }
 
 // Product Page Logic
