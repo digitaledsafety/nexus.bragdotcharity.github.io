@@ -287,11 +287,41 @@ document.getElementById('btnCreateOffer').addEventListener('click', async () => 
     const addr = document.getElementById('addrMarketplace').value;
     const nft = document.getElementById('offNFTContract').value;
     const id = document.getElementById('offTokenId').value;
-    const price = document.getElementById('offPrice').value;
+    const priceStr = document.getElementById('offPrice').value;
     const amount = document.getElementById('offAmount')?.value || 1;
 
-    const contract = getContract('NFTMarketplace', addr);
-    await txHandler(contract.createOffer(nft, id, amount, { value: ethers.utils.parseEther(price) }), 'Offer Created');
+    if (!priceStr || parseFloat(priceStr) <= 0) {
+        log('Please enter a valid price', 'error');
+        return;
+    }
+
+    const price = ethers.utils.parseEther(priceStr);
+    const marketplace = getContract('NFTMarketplace', addr);
+
+    // Get BragToken address and contract
+    const chainId = network.chainId.toString();
+    const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
+    const bragTokenAddr = deps ? deps.BragToken : null;
+
+    if (!bragTokenAddr) {
+        log('BragToken address not found for this network', 'error');
+        return;
+    }
+
+    const bragToken = getContract('BragToken', bragTokenAddr);
+    const from = await signer.getAddress();
+
+    // Check allowance
+    log('Checking BragToken allowance...');
+    const allowance = await bragToken.allowance(from, addr);
+    if (allowance.lt(price)) {
+        log('Approving BragToken for Marketplace...');
+        const appTx = await bragToken.approve(addr, price);
+        await appTx.wait();
+        log('Approval confirmed', 'success');
+    }
+
+    await txHandler(marketplace.createOffer(nft, id, amount, price), 'Offer Created');
 });
 
 document.getElementById('btnAcceptOffer').addEventListener('click', async () => {
