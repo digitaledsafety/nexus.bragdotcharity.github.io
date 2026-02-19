@@ -48,6 +48,35 @@ npx serve frontend -p 3000
 ```
 Then visit `http://localhost:3000` in your browser.
 
+## Seeding Test Data
+
+You can automate the creation of test data (minting NFTs, creating vaults, making marketplace offers) using the seeding script.
+
+### 1. Seed Local Data
+After starting the local node and deploying contracts, run:
+```shell
+npm run seed:local
+```
+This script will:
+- Mint a BragNFT.
+- Deploy and register 5 Exhibit Vaults (`minecraft-server-1`, etc.).
+- Exhibit, move, and withdraw the NFT to test vault logic.
+- Create and accept a marketplace offer using `BragToken`.
+
+### 2. Seed Sepolia Data
+To seed data on Sepolia using gasless transactions (via Alchemy Paymaster):
+```shell
+# Set required environment variables
+export SEPOLIA_RPC_URL="your-rpc-url"
+export SEPOLIA_PRIVATE_KEY="your-owner-private-key"
+export SEPOLIA_BUYER_PRIVATE_KEY="another-private-key-for-offers"
+export ALCHEMY_API_KEY="your-alchemy-api-key"
+export ALCHEMY_GAS_POLICY_ID="your-gas-manager-policy-id"
+
+npm run seed:sepolia
+```
+*Note: The script uses Alchemy Smart Accounts to cover gas fees on Sepolia.*
+
 ## Usage
 
 ### Running Tests
@@ -115,6 +144,9 @@ To use the Sepolia deployment workflow, you must configure the following [GitHub
 
 - `SEPOLIA_RPC_URL`: Your Sepolia RPC endpoint (e.g., from Alchemy or Infura).
 - `SEPOLIA_PRIVATE_KEY`: The private key of the account used for deployment and as the initial owner.
+- `SEPOLIA_BUYER_PRIVATE_KEY`: A second private key used by the seeding script to create marketplace offers.
+- `ALCHEMY_API_KEY`: Your Alchemy API Key for Account Abstraction features.
+- `ALCHEMY_GAS_POLICY_ID`: Your Alchemy Gas Manager Policy ID to enable gasless seeding.
 - `TREASURY_ADDRESS`: (Optional) An external ETH address to receive donations. If provided, the deployment of a new `Treasury` contract will be skipped.
 
 ### Treasury Contract

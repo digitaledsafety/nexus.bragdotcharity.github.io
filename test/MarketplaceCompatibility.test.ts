@@ -8,7 +8,12 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
   async function deployAll() {
     const [owner, seller, buyer] = await viem.getWalletClients();
-    const marketplace = await viem.deployContract("NFTMarketplace", [7n * 24n * 3600n]);
+
+    // BragToken
+    const initialSupply = parseEther("1000000");
+    const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
+
+    const marketplace = await viem.deployContract("NFTMarketplace", [7n * 24n * 3600n, bragToken.address]);
 
     // ERC721
     const bragNFT = await viem.deployContract("BragNFT", [
@@ -24,11 +29,14 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     // ERC1155
     const mock1155 = await viem.deployContract("MockERC1155");
 
-    return { marketplace, bragNFT, mock1155, owner, seller, buyer };
+    return { marketplace, bragNFT, mock1155, bragToken, owner, seller, buyer };
   }
 
   it("Should handle ERC721 offers and acceptance", async function () {
-    const { marketplace, bragNFT, seller, buyer } = await deployAll();
+    const { marketplace, bragNFT, bragToken, seller, buyer, owner } = await deployAll();
+
+    // Fund buyer with BragToken
+    await bragToken.write.transfer([buyer.account.address, parseEther("10")], { account: owner.account });
 
     // Seller mints an NFT
     await bragNFT.write.donate(["sellable nft", ""], { account: seller.account, value: parseEther("0.1") });
@@ -36,7 +44,8 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     // Buyer makes an offer
     const offerPrice = parseEther("1");
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n], { account: buyer.account, value: offerPrice });
+    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
 
     // Seller approves and accepts
     await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
@@ -44,10 +53,14 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     // Verify results
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
+    assert.equal(await bragToken.read.balanceOf([seller.account.address]), offerPrice);
   });
 
   it("Should handle ERC1155 offers and acceptance", async function () {
-    const { marketplace, mock1155, seller, buyer } = await deployAll();
+    const { marketplace, mock1155, bragToken, seller, buyer, owner } = await deployAll();
+
+    // Fund buyer with BragToken
+    await bragToken.write.transfer([buyer.account.address, parseEther("10")], { account: owner.account });
 
     // Mint 10 units to seller
     const tokenId = 1337n;
@@ -56,7 +69,8 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     // Buyer makes an offer for 5 units
     const offerPrice = parseEther("2");
-    await marketplace.write.createOffer([mock1155.address, tokenId, amount], { account: buyer.account, value: offerPrice });
+    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([mock1155.address, tokenId, amount, offerPrice], { account: buyer.account });
 
     // Seller approves and accepts
     await mock1155.write.setApprovalForAll([marketplace.address, true], { account: seller.account });
@@ -65,14 +79,21 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     // Verify results
     assert.equal(await mock1155.read.balanceOf([buyer.account.address, tokenId]), amount);
     assert.equal(await mock1155.read.balanceOf([seller.account.address, tokenId]), 5n);
+    assert.equal(await bragToken.read.balanceOf([seller.account.address]), offerPrice);
   });
 
   it("Should revert on ERC721 offer if amount != 1", async function () {
-    const { marketplace, bragNFT, seller, buyer } = await deployAll();
+    const { marketplace, bragNFT, bragToken, seller, buyer, owner } = await deployAll();
+
+    // Fund buyer with BragToken
+    await bragToken.write.transfer([buyer.account.address, parseEther("10")], { account: owner.account });
+
     await bragNFT.write.donate(["nft", ""], { account: seller.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 2n], { account: buyer.account, value: parseEther("1") });
+    const offerPrice = parseEther("1");
+    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 2n, offerPrice], { account: buyer.account });
 
     await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
     await assert.rejects(
@@ -82,12 +103,18 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
   });
 
   it("Should revert on ERC1155 offer if balance is insufficient", async function () {
-    const { marketplace, mock1155, seller, buyer } = await deployAll();
+    const { marketplace, mock1155, bragToken, seller, buyer, owner } = await deployAll();
+
+    // Fund buyer with BragToken
+    await bragToken.write.transfer([buyer.account.address, parseEther("10")], { account: owner.account });
+
     const tokenId = 1n;
     await mock1155.write.mint([seller.account.address, tokenId, 10n]);
 
     // Buyer wants 20 units
-    await marketplace.write.createOffer([mock1155.address, tokenId, 20n], { account: buyer.account, value: parseEther("1") });
+    const offerPrice = parseEther("1");
+    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([mock1155.address, tokenId, 20n, offerPrice], { account: buyer.account });
 
     await mock1155.write.setApprovalForAll([marketplace.address, true], { account: seller.account });
     await assert.rejects(

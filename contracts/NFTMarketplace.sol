@@ -3,10 +3,14 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract NFTMarketplace is ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     struct Offer {
         address buyer;
         uint256 price;
@@ -18,14 +22,16 @@ contract NFTMarketplace is ReentrancyGuard {
     mapping(address => mapping(uint256 => Offer)) public offers;
 
     uint256 public immutable refundPeriod;
+    IERC20 public immutable paymentToken;
 
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
     event RefundRequested(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 amount);
 
-    constructor(uint256 _refundPeriod) {
+    constructor(uint256 _refundPeriod, address _paymentToken) {
         refundPeriod = _refundPeriod;
+        paymentToken = IERC20(_paymentToken);
     }
 
     /**
@@ -33,21 +39,25 @@ contract NFTMarketplace is ReentrancyGuard {
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token being offered on
      * @param amount Number of tokens to buy (should be 1 for ERC721)
+     * @param price Total price in payment tokens
      */
-    function createOffer(address nftContract, uint256 tokenId, uint256 amount) external payable nonReentrant {
-        require(msg.value > 0, "Offer price must be greater than 0");
+    function createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price) external nonReentrant {
+        require(price > 0, "Offer price must be greater than 0");
         require(amount > 0, "Amount must be greater than 0");
         require(offers[nftContract][tokenId].buyer == address(0), "Offer already exists");
+
+        // Transfer tokens from buyer to this contract
+        paymentToken.safeTransferFrom(msg.sender, address(this), price);
 
         // Save the offer
         offers[nftContract][tokenId] = Offer({
             buyer: msg.sender,
-            price: msg.value,
+            price: price,
             amount: amount,
             timestamp: block.timestamp
         });
 
-        emit OfferCreated(nftContract, tokenId, msg.sender, msg.value, amount);
+        emit OfferCreated(nftContract, tokenId, msg.sender, price, amount);
     }
 
     /**
@@ -83,8 +93,7 @@ contract NFTMarketplace is ReentrancyGuard {
         }
 
         // Pay the seller
-        (bool success, ) = payable(msg.sender).call{value: offer.price}("");
-        require(success, "Transfer to seller failed");
+        paymentToken.safeTransfer(msg.sender, offer.price);
 
         emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
     }
@@ -102,8 +111,7 @@ contract NFTMarketplace is ReentrancyGuard {
         delete offers[nftContract][tokenId];
 
         // Refund the buyer
-        (bool success, ) = payable(msg.sender).call{value: offer.price}("");
-        require(success, "Refund to buyer failed");
+        paymentToken.safeTransfer(msg.sender, offer.price);
 
         emit OfferCanceled(nftContract, tokenId, msg.sender);
     }
@@ -122,8 +130,7 @@ contract NFTMarketplace is ReentrancyGuard {
         delete offers[nftContract][tokenId];
 
         // Refund the buyer
-        (bool success, ) = payable(msg.sender).call{value: offer.price}("");
-        require(success, "Refund to buyer failed");
+        paymentToken.safeTransfer(msg.sender, offer.price);
 
         emit RefundRequested(nftContract, tokenId, msg.sender, offer.price);
     }

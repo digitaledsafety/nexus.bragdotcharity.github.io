@@ -429,7 +429,7 @@ async function initProduct() {
             if (offer.buyer !== ethers.constants.AddressZero) {
                 document.getElementById('noOffer').classList.add('hidden');
                 document.getElementById('offerExists').classList.remove('hidden');
-                const priceFormatted = `${ethers.utils.formatEther(offer.price)} ETH`;
+                const priceFormatted = `${ethers.utils.formatEther(offer.price)} BRAG`;
                 document.getElementById('highestOfferPrice').textContent = priceFormatted;
                 document.getElementById('highestOfferBuyer').textContent = `by ${offer.buyer.substring(0, 6)}...${offer.buyer.substring(38)}`;
 
@@ -461,17 +461,27 @@ async function initProduct() {
 
         // Actions
         document.getElementById('btnMakeOffer').onclick = async () => {
-            const price = document.getElementById('offerAmount').value;
-            if (!price || parseFloat(price) <= 0) {
+            const priceStr = document.getElementById('offerAmount').value;
+            if (!priceStr || parseFloat(priceStr) <= 0) {
                 alert('Please enter a valid offer price.');
                 return;
             }
 
             try {
+                const bragTokenAddr = getDeploymentAddress('BragToken');
+                const bragToken = getContract('BragToken', bragTokenAddr);
+                const price = ethers.utils.parseEther(priceStr);
+
+                // Check allowance
+                const allowance = await bragToken.allowance(userAddress, marketplaceAddr);
+                if (allowance.lt(price)) {
+                    const approveTx = await bragToken.approve(marketplaceAddr, price);
+                    alert('Approval transaction submitted! Please wait...');
+                    await approveTx.wait();
+                }
+
                 // Defaulting amount to 1 for now as UI doesn't have an amount field for buying multiple
-                const tx = await marketplace.createOffer(contractAddr, tokenId, 1, {
-                    value: ethers.utils.parseEther(price)
-                });
+                const tx = await marketplace.createOffer(contractAddr, tokenId, 1, price);
                 alert('Offer submitted! Awaiting confirmation...');
                 await tx.wait();
                 alert('Offer confirmed!');
