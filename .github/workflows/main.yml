@@ -46,11 +46,20 @@ jobs:
           name: minecraft-addon
           path: minecraft-addon.mcaddon        
 
-      - name: Verify local deployment
-        run: npx hardhat ignition deploy ignition/modules/App.ts
-
-      - name: Verify seeding script (Local)
-        run: npm run seed:local
+      - name: Verify local deployment and seeding
+        run: |
+          npx hardhat node > hardhat.log 2>&1 &
+          # Wait for the node to start (up to 30 seconds)
+          for i in {1..30}; do
+            if grep -q "Started HTTP and WebSocket JSON-RPC server" hardhat.log; then
+              echo "Hardhat node is ready!"
+              break
+            fi
+            echo "Waiting for Hardhat node... ($i)"
+            sleep 1
+          done
+          npx hardhat ignition deploy ignition/modules/App.ts --network localhost
+          npm run seed:local
 
       - name: Export ABIs
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
