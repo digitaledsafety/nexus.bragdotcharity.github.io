@@ -83,7 +83,6 @@ async function main() {
             client0 = await createAlchemySmartAccountClient({
                 transport,
                 chain,
-                apiKey: process.env.ALCHEMY_API_KEY!,
                 rpcUrl: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
                 account: await createMultiOwnerLightAccount({
                     transport,
@@ -98,7 +97,6 @@ async function main() {
             client1 = await createAlchemySmartAccountClient({
                 transport,
                 chain,
-                apiKey: process.env.ALCHEMY_API_KEY!,
                 rpcUrl: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
                 account: await createMultiOwnerLightAccount({
                     transport,
