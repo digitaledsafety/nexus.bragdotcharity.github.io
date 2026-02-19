@@ -17,16 +17,29 @@ To provide a 100% gasless experience (where neither the user nor the non-profit 
 ### Recommendation: Alchemy
 Since you are already using Alchemy, their **Account Kit** is the most seamless path.
 - **Sepolia:** Use their "Verifying Paymaster" for 100% free gas.
-- **Mainnet:** You would fund a "Gas Manager" account with USD/ETH, and Alchemy handles the user's gas.
+- **Mainnet:** You would fund a "Gas Manager" account with USD/ETH, and Alchemy handles the user's gas. Note that Alchemy typically charges an **~8% admin fee** on sponsored mainnet transactions.
 
-## 3. Achieving "100% Free" on Mainnet
+## 3. Cost and Overhead: Paymaster vs. Standard Gas
+On Mainnet, using a Paymaster is **not cheaper** than standard gas fees; in fact, it is slightly more expensive due to:
+1.  **ERC-4337 Overhead:** Smart accounts require an "Entry Point" contract, adding approximately 20,000 to 40,000 extra gas per transaction compared to a standard EOA (MetaMask) transaction.
+2.  **Service Fees:** Providers like Alchemy charge a percentage-based fee (e.g., 8%) for the convenience of sponsoring gas.
+
+However, you can achieve **cost savings** through **Transaction Batching**. ERC-4337 allows you to combine multiple steps (like `approve` and `donate`) into a single transaction, which is cheaper than sending two separate transactions from a standard wallet.
+
+## 4. Why Use a Paymaster on Mainnet?
+If it's more expensive, why use it?
+-   **Seamless Onboarding:** Users can interact with your non-profit without needing to buy ETH first. This removes the single biggest barrier to entry for new donors.
+-   **Pay with Tokens:** You can configure a Paymaster to allow users to pay gas using USDC or your own `BRAG` tokens instead of ETH.
+-   **Sponsored UX:** As a non-profit, you can "absorb" the gas cost for the user to make the donation feel "free" and professional, similar to how traditional websites pay for their own server costs.
+
+## 5. Achieving "100% Free" on Mainnet
 To truly pay $0 in gas for both the user and the non-profit on Mainnet, you should pursue:
 1.  **Gas Grants:** Many chains offer grants specifically for public goods and non-profits.
     -   **Base Build Grants:** High success rate for innovative non-profit apps.
     -   **Optimism RetroPGF:** Large pools of funds for projects that provide value to the ecosystem.
 2.  **L2 Migration:** Moving the primary donation logic to **Base** or **Optimism** reduces costs by 95%+, making sponsorship very affordable even without grants.
 
-## 4. Smart Contract Wallets (Account Abstraction)
+## 6. Smart Contract Wallets (Account Abstraction)
 Smart Contract Wallets (ERC-4337) are the modern standard for gas sponsorship.
 
 ### How it works for your system:
@@ -40,7 +53,7 @@ Smart Contract Wallets (ERC-4337) are the modern standard for gas sponsorship.
 2.  Configure a **Gas Manager Policy** in your Alchemy Dashboard.
 3.  Update the frontend to use `LightAccountClient` for sponsored transactions.
 
-## 5. Implementation Example
+## 7. Implementation Example
 A Proof-of-Concept integration script has been created at `frontend/paymaster-poc.js`.
 
 ---
