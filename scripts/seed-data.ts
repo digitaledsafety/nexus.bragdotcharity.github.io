@@ -14,7 +14,8 @@ import {
     parseAbiParameters,
     encodePacked,
     defineChain,
-    decodeEventLog
+    decodeEventLog,
+    walletActions
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { localhost, sepolia } from "viem/chains";
@@ -108,6 +109,8 @@ async function main() {
                 },
             });
             console.log("Smart Accounts ready:", client0.account.address, client1.account.address);
+            client0 = client0.extend(walletActions);
+            client1 = client1.extend(walletActions);
         } catch (e) {
             console.error("Failed to setup Alchemy Smart Accounts:", e);
             console.log("Falling back to EOA...");

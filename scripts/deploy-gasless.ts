@@ -7,7 +7,9 @@ import {
     getAddress,
     encodeFunctionData,
     Hex,
-    defineChain
+    defineChain,
+    walletActions,
+    encodeDeployData
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { localhost, sepolia } from "viem/chains";
@@ -77,20 +79,47 @@ async function main() {
     const scaAddress = smartAccountClient.account.address;
     console.log(`Smart Contract Account Address: ${scaAddress}`);
 
+    // Extend with wallet actions to get deployContract
+    const client = smartAccountClient.extend(walletActions);
+
     // Helper to deploy contract
     async function deploy(name: string, args: any[]) {
         console.log(`Deploying ${name}...`);
         const artifactPath = path.join(process.cwd(), `artifacts/contracts/${name}.sol/${name}.json`);
         const { abi, bytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
-        const hash = await smartAccountClient.deployContract({
-            abi,
-            bytecode,
-            args
-        });
-        const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        console.log(`${name} deployed at ${receipt.contractAddress}`);
-        return { address: receipt.contractAddress!, abi };
+        try {
+            // Try deploying via SCA
+            const hash = await client.deployContract({
+                abi,
+                bytecode,
+                args
+            });
+            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            console.log(`${name} deployed at ${receipt.contractAddress}`);
+            return { address: receipt.contractAddress!, abi };
+        } catch (e: any) {
+            console.warn(`Gasless deployment failed for ${name}: ${e.message}`);
+
+            // If SCA deployment fails, it's likely because the account doesn't support contract creation.
+            // In a production environment, we'd use a factory.
+            // For now, if it fails, we'll try to provide a more helpful error.
+            if (isSepolia) {
+                throw new Error(`Gasless deployment of ${name} failed. Ensure your SCA supports contract creation or use a factory.`);
+            } else {
+                // For local development, fallback to EOA (Account #0)
+                console.log("Falling back to EOA for local deployment...");
+                const eoaClient = createPublicClient({ chain, transport: http(rpcUrl) }).extend(walletActions);
+                const hash = await eoaClient.deployContract({
+                    abi,
+                    bytecode,
+                    args,
+                    account: viemAccount
+                });
+                const receipt = await publicClient.waitForTransactionReceipt({ hash });
+                return { address: receipt.contractAddress!, abi };
+            }
+        }
     }
 
     // Replication of ignition/modules/App.ts
