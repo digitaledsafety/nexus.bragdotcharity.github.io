@@ -9,6 +9,10 @@ describe("Treasury Management", async function () {
   async function deployContracts() {
     const [owner, donor, buyer] = await viem.getWalletClients();
 
+    // BragToken
+    const initialSupply = parseEther("1000000");
+    const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
+
     const treasury = await viem.deployContract("Treasury", [owner.account.address]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const bragNFT = await viem.deployContract("BragNFT", [
@@ -16,14 +20,14 @@ describe("Treasury Management", async function () {
         treasury.address,
         parseEther("0.1")
     ]);
-    const marketplace = await viem.deployContract("NFTMarketplace", [7n * 24n * 3600n]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [7n * 24n * 3600n, bragToken.address]);
 
     // Setup: Authorize BragNFT to mint receipts
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
     await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setReceiptContract([receipt.address]);
 
-    return { treasury, bragNFT, receipt, marketplace, owner, donor, buyer };
+    return { treasury, bragNFT, receipt, marketplace, bragToken, owner, donor, buyer };
   }
 
   it("Should allow donating to treasury and then withdrawing by owner", async function () {
@@ -43,8 +47,10 @@ describe("Treasury Management", async function () {
   });
 
   it("Should allow buying from treasury via marketplace and treasury.execute", async function () {
-    const { bragNFT, treasury, marketplace, donor, buyer, owner } = await deployContracts();
-    const publicClient = await viem.getPublicClient();
+    const { bragNFT, treasury, marketplace, bragToken, donor, buyer, owner } = await deployContracts();
+
+    // Fund buyer with BragToken
+    await bragToken.write.transfer([buyer.account.address, parseEther("100")], { account: owner.account });
 
     // 1. Mint to treasury
     await bragNFT.write.donateTo([treasury.address, "To be sold", ""], {
@@ -55,9 +61,9 @@ describe("Treasury Management", async function () {
 
     // 2. Buyer creates an offer on marketplace
     const offerPrice = parseEther("1.0");
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n], {
-        account: buyer.account,
-        value: offerPrice
+    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], {
+        account: buyer.account
     });
 
     // 3. Treasury owner approves marketplace to handle the NFT via treasury.execute
@@ -87,14 +93,14 @@ describe("Treasury Management", async function () {
         args: [bragNFT.address, tokenId]
     });
 
-    const initialTreasuryBalance = await publicClient.getBalance({ address: treasury.address });
+    const initialTreasuryBalance = await bragToken.read.balanceOf([treasury.address]);
 
     await treasury.write.execute([marketplace.address, 0n, acceptOfferData], { account: owner.account });
 
     // 5. Verify results
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
 
-    const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.address });
+    const finalTreasuryBalance = await bragToken.read.balanceOf([treasury.address]);
     assert.equal(finalTreasuryBalance, initialTreasuryBalance + offerPrice);
   });
 });

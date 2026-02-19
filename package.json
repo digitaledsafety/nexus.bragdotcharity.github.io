@@ -9,15 +9,18 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.0",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
+    "@playwright/test": "^1.58.2",
     "@types/node": "^22.17.2",
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.0.0",
-    "@playwright/test": "^1.58.2",
     "playwright": "^1.58.2",
     "typescript": "~5.8.0"
   },
   "type": "module",
   "dependencies": {
+    "@alchemy/aa-accounts": "^3.19.0",
+    "@alchemy/aa-alchemy": "^3.19.0",
+    "@alchemy/aa-core": "^3.19.0",
     "@openzeppelin/contracts": "^5.4.0",
     "@types/ws": "^8.18.1",
     "chai": "^6.2.2",
