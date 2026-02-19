@@ -28,6 +28,8 @@ const hardhatLocal = defineChain({
 import { createLightAccountClient, createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
 import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
+// @ts-ignore
+import { LocalAccountSigner } from "@alchemy/aa-core";
 
 async function main() {
     const networkName = process.env.HARDHAT_NETWORK || "localhost";
@@ -50,6 +52,8 @@ async function main() {
 
     const account0 = privateKeyToAccount(privateKey0 as Hex);
     const account1 = privateKeyToAccount(privateKey1 as Hex);
+    const signer0 = LocalAccountSigner.privateKeyToAccountSigner(privateKey0 as Hex);
+    const signer1 = LocalAccountSigner.privateKeyToAccountSigner(privateKey1 as Hex);
 
     const publicClient = createPublicClient({
         chain,
@@ -82,7 +86,7 @@ async function main() {
                 account: await createMultiOwnerLightAccount({
                     transport,
                     chain,
-                    signer: account0,
+                    signer: signer0,
                 }),
                 gasManagerConfig: {
                     policyId: process.env.ALCHEMY_GAS_POLICY_ID!,
@@ -95,7 +99,7 @@ async function main() {
                 account: await createMultiOwnerLightAccount({
                     transport,
                     chain,
-                    signer: account1,
+                    signer: signer1,
                 }),
                 gasManagerConfig: {
                     policyId: process.env.ALCHEMY_GAS_POLICY_ID!,

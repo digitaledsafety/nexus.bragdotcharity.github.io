@@ -16,6 +16,8 @@ import { localhost, sepolia } from "viem/chains";
 import { createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
 import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
+// @ts-ignore
+import { LocalAccountSigner } from "@alchemy/aa-core";
 
 const hardhatLocal = defineChain({
     ...localhost,
@@ -41,8 +43,9 @@ async function main() {
     if (privateKey && !privateKey.startsWith("0x")) {
         privateKey = `0x${privateKey}`;
     }
-    const account = privateKeyToAccount(privateKey as Hex);
-    const eoaAddress = account.address;
+    const viemAccount = privateKeyToAccount(privateKey as Hex);
+    const eoaAddress = viemAccount.address;
+    const signer = LocalAccountSigner.privateKeyToAccountSigner(privateKey as Hex);
 
     const publicClient = createPublicClient({
         chain,
@@ -61,7 +64,7 @@ async function main() {
         account: await createMultiOwnerLightAccount({
             transport,
             chain,
-            signer: account,
+            signer,
         }),
         ...(isSepolia ? {
             gasManagerConfig: {
