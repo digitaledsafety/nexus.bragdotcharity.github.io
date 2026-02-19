@@ -31,7 +31,7 @@ async function main() {
     const networkName = process.env.HARDHAT_NETWORK || "localhost";
     const isSepolia = networkName === "sepolia";
     const chain = isSepolia ? sepolia : hardhatLocal;
-    const rpcUrl = isSepolia ? process.env.SEPOLIA_RPC_URL : "http://127.0.0.1:8545";
+    const rpcUrl = process.env.RPC_URL || (isSepolia ? process.env.SEPOLIA_RPC_URL : "http://127.0.0.1:8545");
 
     if (isSepolia && (!process.env.ALCHEMY_API_KEY || !process.env.ALCHEMY_GAS_POLICY_ID)) {
         throw new Error("Missing ALCHEMY_API_KEY or ALCHEMY_GAS_POLICY_ID for gasless Sepolia deployment.");
