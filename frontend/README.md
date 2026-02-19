@@ -21,3 +21,18 @@ You can find the deployed contract addresses in your Hardhat ignition deployment
 npx hardhat ignition deploy ./ignition/modules/App.ts --network <network>
 ```
 Once you have the addresses, paste them into the **Contract Settings** section in the web interface. They will be saved to your browser's local storage for future use.
+
+## Viewing NFTs
+
+The product page identifies NFTs using URL parameters.
+
+**URL Template:**
+`product.html?id=<TOKEN_ID>&addr=<CONTRACT_ADDRESS>`
+
+**Example:**
+`product.html?id=0&addr=0x5FC8d32690cc91D4c39d9d3abcBD16989F875707`
+
+The **Discovery Gallery** (`index.html`) automatically switches from demo data to real blockchain data once it detects `Donated` events from the BragNFT contract.
+
+### Compatibility Note
+Currently, the frontend only parses `tokenURI` data that is provided as a **Base64 Data URI** (on-chain metadata). Standard NFTs using external IPFS or HTTP links will require a frontend update to fetch external content.
