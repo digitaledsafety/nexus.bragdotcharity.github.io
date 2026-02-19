@@ -1,6 +1,6 @@
 import { createLightAccountClient } from "@alchemy/aa-accounts";
 import { LocalAccountSigner } from "@alchemy/aa-core";
-import { sepolia } from "viem/chains";
+import { sepolia, mainnet } from "viem/chains";
 import { http } from "viem";
 
 /**
@@ -16,20 +16,26 @@ const ALCHEMY_API_KEY = "YOUR_ALCHEMY_API_KEY";
 const GAS_MANAGER_POLICY_ID = "YOUR_POLICY_ID";
 const PRIVATE_KEY = "0x..."; // The signer (e.g., from an EOA or Social Login)
 
-async function sendSponsoredDonation(message) {
+async function sendSponsoredDonation(message, networkId) {
     console.log("Donation message:", message);
+
     // 1. Initialize the Signer
     const signer = LocalAccountSigner.privateKeyToAccountSigner(PRIVATE_KEY);
 
-    // 2. Initialize the Alchemy Client
+    // 2. Define conditional sponsorship
+    // Only apply policyId if we are on Sepolia (11155111)
+    const gasManagerConfig = (networkId === 11155111)
+        ? { policyId: GAS_MANAGER_POLICY_ID }
+        : undefined;
+
+    // 3. Initialize the Alchemy Client
     const client = createLightAccountClient({
-        transport: http(`https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
-        chain: sepolia,
+        transport: http(networkId === 11155111
+            ? `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
+            : `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
+        chain: networkId === 11155111 ? sepolia : mainnet,
         signer,
-        // The magic happens here: Gas Manager configuration
-        gasManagerConfig: {
-            policyId: GAS_MANAGER_POLICY_ID,
-        },
+        gasManagerConfig
     });
 
     console.log("Smart Account Address:", client.getAddress());

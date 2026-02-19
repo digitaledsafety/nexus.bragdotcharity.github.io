@@ -53,8 +53,19 @@ Smart Contract Wallets (ERC-4337) are the modern standard for gas sponsorship.
 2.  Configure a **Gas Manager Policy** in your Alchemy Dashboard.
 3.  Update the frontend to use `LightAccountClient` for sponsored transactions.
 
-## 7. Implementation Example
-A Proof-of-Concept integration script has been created at `frontend/paymaster-poc.js`.
+## 7. Implementation Example: Conditional Sponsorship
+A common strategy is to sponsor transactions on **Sepolia** (where it's free for you) but let users pay their own gas on **Mainnet**.
+
+### How to implement:
+In your frontend logic, you check the current `chainId`. If it matches Sepolia, you initialize the Alchemy client with a `policyId`. If it's Mainnet, you initialize it without one, or use a standard provider.
+
+```javascript
+const gasManagerConfig = (chainId === 11155111)
+    ? { policyId: SEPOLIA_POLICY_ID }
+    : undefined; // No sponsorship on Mainnet
+```
+
+A Proof-of-Concept integration script showing this conditional logic has been created at `frontend/paymaster-poc.js`.
 
 ---
 *Prepared by Jules, Software Engineer*
