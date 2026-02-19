@@ -21,3 +21,27 @@ You can find the deployed contract addresses in your Hardhat ignition deployment
 npx hardhat ignition deploy ./ignition/modules/App.ts --network <network>
 ```
 Once you have the addresses, paste them into the **Contract Settings** section in the web interface. They will be saved to your browser's local storage for future use.
+
+## Viewing NFTs
+
+The product page identifies NFTs using URL parameters.
+
+**URL Template:**
+`product.html?id=<TOKEN_ID>&addr=<CONTRACT_ADDRESS>`
+
+**Example:**
+`product.html?id=0&addr=0x5FC8d32690cc91D4c39d9d3abcBD16989F875707`
+
+The **Discovery Gallery** (`index.html`) automatically switches from demo data to real blockchain data once it detects `Donated` events from the BragNFT contract.
+
+### Triggering Live Data
+To see real data in the gallery and product page, you must fire a `Donated` event:
+1.  Open **`manager.html`** and connect your wallet.
+2.  Use the **Mint BragNFT** section.
+3.  Fill in the donation amount, a message, and upload an image (this generates a Data URI).
+4.  Check **"Store Media On-chain"** (ensures immediate compatibility with the current frontend).
+5.  Click **"Donate & Mint"**.
+Once the transaction confirms, refresh the Discovery page to see your live NFT.
+
+### Compatibility Note
+Currently, the frontend only parses `tokenURI` data that is provided as a **Base64 Data URI** (on-chain metadata). Standard NFTs using external IPFS or HTTP links will require a frontend update to fetch external content.
