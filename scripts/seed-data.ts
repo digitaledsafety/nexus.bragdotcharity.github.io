@@ -39,11 +39,17 @@ async function main() {
         console.warn("Missing ALCHEMY_API_KEY or ALCHEMY_GAS_POLICY_ID for Sepolia. Transactions might fail if not funded.");
     }
 
-    const privateKey0 = (isSepolia ? process.env.SEPOLIA_PRIVATE_KEY : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80") as Hex;
-    const privateKey1 = (isSepolia ? process.env.SEPOLIA_BUYER_PRIVATE_KEY : "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d") as Hex;
+    let privateKey0 = (isSepolia ? process.env.SEPOLIA_PRIVATE_KEY : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80") as string;
+    if (privateKey0 && !privateKey0.startsWith("0x")) {
+        privateKey0 = `0x${privateKey0}`;
+    }
+    let privateKey1 = (isSepolia ? process.env.SEPOLIA_BUYER_PRIVATE_KEY : "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d") as string;
+    if (privateKey1 && !privateKey1.startsWith("0x")) {
+        privateKey1 = `0x${privateKey1}`;
+    }
 
-    const account0 = privateKeyToAccount(privateKey0);
-    const account1 = privateKeyToAccount(privateKey1);
+    const account0 = privateKeyToAccount(privateKey0 as Hex);
+    const account1 = privateKeyToAccount(privateKey1 as Hex);
 
     const publicClient = createPublicClient({
         chain,
