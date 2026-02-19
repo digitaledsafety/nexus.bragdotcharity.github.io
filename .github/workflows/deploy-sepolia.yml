@@ -18,14 +18,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Deploy to Sepolia
+      - name: Deploy to Sepolia (Gasless)
         env:
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
           SEPOLIA_PRIVATE_KEY: ${{ secrets.SEPOLIA_PRIVATE_KEY }}
           TREASURY_ADDRESS: ${{ secrets.TREASURY_ADDRESS }}
-          HARDHAT_IGNITION_CONFIRM_DEPLOYMENT: 'true'
-          HARDHAT_IGNITION_CONFIRM_RESET: 'true'
-        run: npx hardhat ignition deploy ignition/modules/App.ts --network sepolia --reset
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          ALCHEMY_GAS_POLICY_ID: ${{ secrets.ALCHEMY_GAS_POLICY_ID }}
+        run: npm run deploy:sepolia:gasless
 
       - name: Seed Data on Sepolia (Gasless)
         env:
