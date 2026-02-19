@@ -67,10 +67,13 @@ async function main() {
             signer,
         }),
         ...(isSepolia ? {
+            apiKey: process.env.ALCHEMY_API_KEY!,
             gasManagerConfig: {
                 policyId: process.env.ALCHEMY_GAS_POLICY_ID!,
             }
-        } : {}),
+        } : {
+            rpcUrl: rpcUrl
+        }),
     });
 
     const scaAddress = smartAccountClient.account.address;
