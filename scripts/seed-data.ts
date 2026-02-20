@@ -81,10 +81,12 @@ async function main() {
     // If Sepolia, use Alchemy Smart Accounts
     if (isSepolia) {
         console.log("Setting up Alchemy Smart Accounts for Sepolia...");
-        // This is a simplified setup. In a real scenario, you'd use the Alchemy SDK more extensively.
-        // For the sake of this script, we'll try to use the Smart Account Clients if possible.
         try {
             const transport = http(`https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`);
+
+            // For Sepolia, the factory address is known by the SDK, but we'll be explicit if needed.
+            // On Sepolia (ID 11155111), LightAccount factory is at 0x00000089Ca2376162281774704ed9e9ea0a44a99
+            const lightAccountFactoryAddress = "0x00000089Ca2376162281774704ed9e9ea0a44a99";
 
             client0 = await createAlchemySmartAccountClient({
                 transport,
@@ -94,6 +96,7 @@ async function main() {
                     transport,
                     chain,
                     signer: signer0,
+                    factoryAddress: lightAccountFactoryAddress
                 }),
                 gasManagerConfig: {
                     policyId: process.env.ALCHEMY_GAS_POLICY_ID!,
@@ -108,6 +111,7 @@ async function main() {
                     transport,
                     chain,
                     signer: signer1,
+                    factoryAddress: lightAccountFactoryAddress
                 }),
                 gasManagerConfig: {
                     policyId: process.env.ALCHEMY_GAS_POLICY_ID!,
@@ -119,6 +123,7 @@ async function main() {
         } catch (e) {
             console.error("Failed to setup Alchemy Smart Accounts:", e);
             console.log("Falling back to EOA...");
+            isSepolia = false; // Force sequential txs if SCA setup fails
         }
     }
 
@@ -135,16 +140,24 @@ async function main() {
     const marketplaceAddr = deployment["AppModule#NFTMarketplace"];
 
     console.log("Contracts:", { bragNFTAddr, bragTokenAddr, registryAddr, marketplaceAddr });
+    console.log("Accounts:", {
+        userA: client0.account.address,
+        userB: client1.account.address,
+        adminEOA: account0.address
+    });
 
     // Helper to send multiple transactions (batched if supported)
     async function sendTransactions(client: any, requests: any[]) {
         if (isSepolia) {
+            console.log(`Sending batch of ${requests.length} UserOperations...`);
             const userOpHash = await client.sendTransactions({ requests });
             const { hash } = await client.waitForUserOperationTransaction(userOpHash);
             return await publicClient.waitForTransactionReceipt({ hash });
         } else {
             let lastReceipt;
+            let i = 1;
             for (const request of requests) {
+                console.log(`Sending sequential tx ${i++}/${requests.length} to ${request.to}...`);
                 const hash = await client.sendTransaction(request);
                 lastReceipt = await publicClient.waitForTransactionReceipt({ hash });
             }
@@ -179,7 +192,7 @@ async function main() {
             ],
             args: ["Seeding data!", "https://picsum.photos/400"]
         }),
-        value: parseEther("0.001") // Using small amount
+        value: 1n // Minimum donation (1 wei) for fidelity
     });
     const donateReceipt = await waitForTx(donateTxHash);
 
