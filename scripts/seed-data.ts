@@ -15,7 +15,12 @@ import {
     encodePacked,
     defineChain,
     decodeEventLog,
-    walletActions
+    walletActions,
+    encodeDeployData,
+    concat,
+    getContractAddress,
+    keccak256,
+    toHex
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { localhost, sepolia } from "viem/chains";
@@ -195,17 +200,29 @@ async function main() {
         // but Alchemy's client usually handles it or we use EOA for deployment if needed.
         // For simplicity and since vaults are "community" assets, we might use EOA to deploy if SCA fails.
         let vaultAddr: string;
-        try {
-            const hash = await client0.deployContract({
-                abi: vaultAbi,
-                bytecode: vaultBytecode,
-                args: [registryAddr]
+        const vaultDeployData = encodeDeployData({ abi: vaultAbi, args: [registryAddr], bytecode: vaultBytecode });
+
+        if (isSepolia) {
+            console.log(`Deploying ${name} via factory (Gasless)...`);
+            const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
+            const salt = keccak256(toHex(`${name}-${Date.now()}`));
+            const data = concat([salt, vaultDeployData]);
+
+            const hash = await client0.sendTransaction({
+                to: factoryAddress,
+                data
             });
-            const receipt = await waitForTx(hash);
-            vaultAddr = receipt.contractAddress!;
-        } catch (e) {
-            console.warn(`SCA deployment failed for ${name}, trying EOA...`);
-            const eoaClient = createWalletClient({ account: account0, chain, transport: http(rpcUrl) });
+            await waitForTx(hash);
+
+            vaultAddr = getContractAddress({
+                bytecode: vaultDeployData,
+                from: factoryAddress,
+                opcode: "CREATE2",
+                salt
+            });
+        } else {
+            console.log(`Deploying ${name} via EOA (Local)...`);
+            const eoaClient = createWalletClient({ account: account0, chain, transport: http(rpcUrl) }).extend(walletActions);
             const hash = await eoaClient.deployContract({
                 abi: vaultAbi,
                 bytecode: vaultBytecode,
