@@ -161,50 +161,47 @@ async function main() {
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
     const marketplace = await deploy("NFTMarketplace", [refundPeriod, bragToken.address]);
 
-    console.log("Setting up relationships...");
+    console.log("Batching setup and ownership transfer...");
+    const setupTxs: any[] = [
+        // 1. donationReceipt.grantRole(MINTER_ROLE, bragNFT.address)
+        {
+            to: donationReceipt.address,
+            data: encodeFunctionData({
+                abi: donationReceipt.abi,
+                functionName: "grantRole",
+                args: [MINTER_ROLE, bragNFT.address]
+            })
+        },
+        // 2. bragNFT.setReceiptContract(donationReceipt.address)
+        {
+            to: bragNFT.address,
+            data: encodeFunctionData({
+                abi: bragNFT.abi,
+                functionName: "setReceiptContract",
+                args: [donationReceipt.address]
+            })
+        },
+        // 3. bragNFT.setBragToken(bragToken.address)
+        {
+            to: bragNFT.address,
+            data: encodeFunctionData({
+                abi: bragNFT.abi,
+                functionName: "setBragToken",
+                args: [bragToken.address]
+            })
+        },
+        // 4. bragToken.grantRole(MINTER_ROLE, bragNFT.address)
+        {
+            to: bragToken.address,
+            data: encodeFunctionData({
+                abi: bragToken.abi,
+                functionName: "grantRole",
+                args: [MINTER_ROLE, bragNFT.address]
+            })
+        }
+    ];
 
-    // 1. donationReceipt.grantRole(MINTER_ROLE, bragNFT.address)
-    await smartAccountClient.sendTransaction({
-        to: donationReceipt.address,
-        data: encodeFunctionData({
-            abi: donationReceipt.abi,
-            functionName: "grantRole",
-            args: [MINTER_ROLE, bragNFT.address]
-        })
-    });
-
-    // 2. bragNFT.setReceiptContract(donationReceipt.address)
-    await smartAccountClient.sendTransaction({
-        to: bragNFT.address,
-        data: encodeFunctionData({
-            abi: bragNFT.abi,
-            functionName: "setReceiptContract",
-            args: [donationReceipt.address]
-        })
-    });
-
-    // 3. bragNFT.setBragToken(bragToken.address)
-    await smartAccountClient.sendTransaction({
-        to: bragNFT.address,
-        data: encodeFunctionData({
-            abi: bragNFT.abi,
-            functionName: "setBragToken",
-            args: [bragToken.address]
-        })
-    });
-
-    // 4. bragToken.grantRole(MINTER_ROLE, bragNFT.address)
-    await smartAccountClient.sendTransaction({
-        to: bragToken.address,
-        data: encodeFunctionData({
-            abi: bragToken.abi,
-            functionName: "grantRole",
-            args: [MINTER_ROLE, bragNFT.address]
-        })
-    });
-
-    console.log("Transferring ownership to EOA...");
-
+    // Ownership transfers
     const contractsToTransfer = [
         { name: "DonationReceipt", contract: donationReceipt },
         { name: "BragNFT", contract: bragNFT },
@@ -212,8 +209,7 @@ async function main() {
     ];
 
     for (const item of contractsToTransfer) {
-        console.log(`Transferring admin role for ${item.name} to EOA...`);
-        await smartAccountClient.sendTransaction({
+        setupTxs.push({
             to: item.contract.address,
             data: encodeFunctionData({
                 abi: item.contract.abi,
@@ -221,8 +217,7 @@ async function main() {
                 args: [DEFAULT_ADMIN_ROLE, eoaAddress]
             })
         });
-        console.log(`Revoking SCA admin role for ${item.name}...`);
-        await smartAccountClient.sendTransaction({
+        setupTxs.push({
             to: item.contract.address,
             data: encodeFunctionData({
                 abi: item.contract.abi,
@@ -233,9 +228,8 @@ async function main() {
     }
 
     if (!externalTreasury) {
-        console.log("Transferring roles for Treasury to EOA...");
         const treasuryAbi = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8")).abi;
-        await smartAccountClient.sendTransaction({
+        setupTxs.push({
             to: treasury.address,
             data: encodeFunctionData({
                 abi: treasuryAbi,
@@ -243,7 +237,7 @@ async function main() {
                 args: [DEFAULT_ADMIN_ROLE, eoaAddress]
             })
         });
-        await smartAccountClient.sendTransaction({
+        setupTxs.push({
             to: treasury.address,
             data: encodeFunctionData({
                 abi: treasuryAbi,
@@ -251,7 +245,7 @@ async function main() {
                 args: [TREASURY_ROLE, eoaAddress]
             })
         });
-        await smartAccountClient.sendTransaction({
+        setupTxs.push({
             to: treasury.address,
             data: encodeFunctionData({
                 abi: treasuryAbi,
@@ -259,7 +253,7 @@ async function main() {
                 args: [TREASURY_ROLE, scaAddress]
             })
         });
-        await smartAccountClient.sendTransaction({
+        setupTxs.push({
             to: treasury.address,
             data: encodeFunctionData({
                 abi: treasuryAbi,
@@ -269,8 +263,7 @@ async function main() {
         });
     }
 
-    console.log("Transferring roles for ExhibitRegistry to EOA...");
-    await smartAccountClient.sendTransaction({
+    setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
             abi: exhibitRegistry.abi,
@@ -278,7 +271,7 @@ async function main() {
             args: [DEFAULT_ADMIN_ROLE, eoaAddress]
         })
     });
-    await smartAccountClient.sendTransaction({
+    setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
             abi: exhibitRegistry.abi,
@@ -286,7 +279,7 @@ async function main() {
             args: [VERIFIER_ROLE, eoaAddress]
         })
     });
-    await smartAccountClient.sendTransaction({
+    setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
             abi: exhibitRegistry.abi,
@@ -294,7 +287,7 @@ async function main() {
             args: [VERIFIER_ROLE, scaAddress]
         })
     });
-    await smartAccountClient.sendTransaction({
+    setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
             abi: exhibitRegistry.abi,
@@ -302,6 +295,13 @@ async function main() {
             args: [DEFAULT_ADMIN_ROLE, scaAddress]
         })
     });
+
+    console.log(`Sending batch of ${setupTxs.length} transactions...`);
+    const batchHash = await smartAccountClient.sendTransactions({
+        requests: setupTxs
+    });
+    await publicClient.waitForTransactionReceipt({ hash: batchHash });
+    console.log("Batch setup complete!");
 
     // Save artifacts
     const chainId = await publicClient.getChainId();
