@@ -424,21 +424,26 @@ async function initProduct() {
         }
 
         // Marketplace Info & Price History
-        if (marketplace) {
-            const offer = await marketplace.offers(contractAddr, tokenId);
-            if (offer.buyer !== ethers.constants.AddressZero) {
-                document.getElementById('noOffer').classList.add('hidden');
-                document.getElementById('offerExists').classList.remove('hidden');
-                const priceFormatted = `${ethers.utils.formatEther(offer.price)} BRAG`;
-                document.getElementById('highestOfferPrice').textContent = priceFormatted;
-                document.getElementById('highestOfferBuyer').textContent = `by ${offer.buyer.substring(0, 6)}...${offer.buyer.substring(38)}`;
+        if (marketplace && userAddress) {
+            try {
+                // Check if the current user has an offer
+                const offer = await marketplace.offers(contractAddr, tokenId, userAddress);
+                if (offer.buyer !== ethers.constants.AddressZero) {
+                    document.getElementById('noOffer').classList.add('hidden');
+                    document.getElementById('offerExists').classList.remove('hidden');
+                    const priceFormatted = `${ethers.utils.formatEther(offer.price)} BRAG`;
+                    document.getElementById('highestOfferPrice').textContent = priceFormatted;
+                    document.getElementById('highestOfferBuyer').textContent = `by You`;
 
-                // Show in history
-                const histItem = document.getElementById('offerHistoryItem');
-                if (histItem) {
-                    histItem.classList.remove('hidden');
-                    document.getElementById('histOfferPrice').textContent = priceFormatted;
+                    // Show in history
+                    const histItem = document.getElementById('offerHistoryItem');
+                    if (histItem) {
+                        histItem.classList.remove('hidden');
+                        document.getElementById('histOfferPrice').textContent = priceFormatted;
+                    }
                 }
+            } catch (e) {
+                console.warn("Could not fetch offer:", e);
             }
         }
 
