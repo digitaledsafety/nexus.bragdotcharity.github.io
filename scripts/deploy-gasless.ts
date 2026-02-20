@@ -9,7 +9,11 @@ import {
     Hex,
     defineChain,
     walletActions,
-    encodeDeployData
+    encodeDeployData,
+    concat,
+    getContractAddress,
+    keccak256,
+    toHex
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { localhost, sepolia } from "viem/chains";
@@ -88,9 +92,42 @@ async function main() {
         const artifactPath = path.join(process.cwd(), `artifacts/contracts/${name}.sol/${name}.json`);
         const { abi, bytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
-        try {
-            // Try deploying via SCA
-            const hash = await client.deployContract({
+        const deployData = encodeDeployData({ abi, args, bytecode });
+
+        if (isSepolia) {
+            // Use Arachnid Deterministic Deployment Proxy (Nick's Factory)
+            // This is pre-deployed at 0x4e59b44847b379578588920cA78FbF26c0B4956C on many networks
+            const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
+            // Create a unique salt for each contract in this run to avoid collisions
+            const salt = keccak256(toHex(`${name}-${Date.now()}`));
+            const data = concat([salt, deployData]);
+
+            console.log(`Deploying ${name} via factory...`);
+            try {
+                const hash = await smartAccountClient.sendTransaction({
+                    to: factoryAddress,
+                    data
+                });
+                await publicClient.waitForTransactionReceipt({ hash });
+
+                const deployedAddress = getContractAddress({
+                    bytecode: deployData,
+                    from: factoryAddress,
+                    opcode: "CREATE2",
+                    salt
+                });
+
+                console.log(`${name} deployed at ${deployedAddress}`);
+                return { address: deployedAddress, abi };
+            } catch (e: any) {
+                console.error(`Factory deployment failed for ${name}: ${e.message}`);
+                throw e;
+            }
+        } else {
+            // Local fallback to EOA
+            console.log(`Deploying ${name} via EOA (Local)...`);
+            const eoaClient = createWalletClient({ account: viemAccount, chain, transport: http(rpcUrl) }).extend(walletActions);
+            const hash = await eoaClient.deployContract({
                 abi,
                 bytecode,
                 args
@@ -98,27 +135,6 @@ async function main() {
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
             console.log(`${name} deployed at ${receipt.contractAddress}`);
             return { address: receipt.contractAddress!, abi };
-        } catch (e: any) {
-            console.warn(`Gasless deployment failed for ${name}: ${e.message}`);
-
-            // If SCA deployment fails, it's likely because the account doesn't support contract creation.
-            // In a production environment, we'd use a factory.
-            // For now, if it fails, we'll try to provide a more helpful error.
-            if (isSepolia) {
-                throw new Error(`Gasless deployment of ${name} failed. Ensure your SCA supports contract creation or use a factory.`);
-            } else {
-                // For local development, fallback to EOA (Account #0)
-                console.log("Falling back to EOA for local deployment...");
-                const eoaClient = createPublicClient({ chain, transport: http(rpcUrl) }).extend(walletActions);
-                const hash = await eoaClient.deployContract({
-                    abi,
-                    bytecode,
-                    args,
-                    account: viemAccount
-                });
-                const receipt = await publicClient.waitForTransactionReceipt({ hash });
-                return { address: receipt.contractAddress!, abi };
-            }
         }
     }
 
