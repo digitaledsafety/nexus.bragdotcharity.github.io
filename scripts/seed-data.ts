@@ -136,6 +136,20 @@ async function main() {
 
     console.log("Contracts:", { bragNFTAddr, bragTokenAddr, registryAddr, marketplaceAddr });
 
+    // Robust tx handler with retries
+    async function sendWithRetry(client: any, params: any, retries = 3) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const hash = await client.sendTransaction(params);
+                return await publicClient.waitForTransactionReceipt({ hash });
+            } catch (e: any) {
+                console.warn(`Transaction failed (attempt ${i + 1}/${retries}): ${e.message}`);
+                if (i === retries - 1) throw e;
+                await new Promise(r => setTimeout(r, 5000)); // Wait 5s before retry
+            }
+        }
+    }
+
     // Helper to wait for tx
     async function waitForTx(tx: any) {
         const hash = typeof tx === 'string' ? tx : (tx.hash || tx.transactionHash);
@@ -144,7 +158,7 @@ async function main() {
 
     // 1. User A: Mint BragNFT by donating
     console.log("User A: Minting BragNFT...");
-    const donateTx = await client0.sendTransaction({
+    const donateReceipt = await sendWithRetry(client0, {
         to: bragNFTAddr,
         data: encodeFunctionData({
             abi: [
@@ -160,8 +174,6 @@ async function main() {
         }),
         value: parseEther("0.001") // Using small amount
     });
-    console.log("Minted NFT, tx:", donateTx);
-    const donateReceipt = await waitForTx(donateTx);
 
     // Get tokenId from logs
     // We'll look for the Donated event in BragNFT
@@ -208,11 +220,10 @@ async function main() {
             const salt = keccak256(toHex(`${name}-${Date.now()}`));
             const data = concat([salt, vaultDeployData]);
 
-            const hash = await client0.sendTransaction({
+            await sendWithRetry(client0, {
                 to: factoryAddress,
                 data
             });
-            await waitForTx(hash);
 
             vaultAddr = getContractAddress({
                 bytecode: vaultDeployData,
@@ -236,7 +247,7 @@ async function main() {
 
         // Register vault
         console.log(`Registering ${name}...`);
-        const regTx = await client0.sendTransaction({
+        await sendWithRetry(client0, {
             to: registryAddr,
             data: encodeFunctionData({
                 abi: [
@@ -255,13 +266,12 @@ async function main() {
                 args: [vaultAddr, 0, name, `Seeded vault for ${name}`]
             })
         });
-        await waitForTx(regTx);
     }
 
     // 3. User A: Exhibit the BragNFT in minecraft-server-1
     console.log("Exhibiting NFT in minecraft-server-1...");
     const vault1 = vaultAddresses[0];
-    const exhibitTx = await client0.sendTransaction({
+    await sendWithRetry(client0, {
         to: bragNFTAddr,
         data: encodeFunctionData({
             abi: [
@@ -280,12 +290,11 @@ async function main() {
             args: [client0.account.address, vault1, tokenId, "0x"]
         })
     });
-    await waitForTx(exhibitTx);
 
     // 4. User A: Move the BragNFT from minecraft-server-1 to minecraft-server-2
     console.log("Moving NFT from minecraft-server-1 to minecraft-server-2...");
     const vault2 = vaultAddresses[1];
-    const moveTx = await client0.sendTransaction({
+    await sendWithRetry(client0, {
         to: vault1,
         data: encodeFunctionData({
             abi: [
@@ -303,11 +312,10 @@ async function main() {
             args: [bragNFTAddr, tokenId, vault2]
         })
     });
-    await waitForTx(moveTx);
 
     // 5. User A: Withdraw the BragNFT from minecraft-server-2
     console.log("Withdrawing NFT from minecraft-server-2...");
-    const withdrawTx = await client0.sendTransaction({
+    await sendWithRetry(client0, {
         to: vault2,
         data: encodeFunctionData({
             abi: [
@@ -324,7 +332,6 @@ async function main() {
             args: [bragNFTAddr, tokenId]
         })
     });
-    await waitForTx(withdrawTx);
 
     // 6. User B: Create an offer for the BragNFT in the NFTMarketplace using BragToken
     console.log("User B: Creating offer on Marketplace...");
@@ -343,28 +350,26 @@ async function main() {
 
     if (!hasRole) {
         console.log("Granting MINTER_ROLE to Account #0...");
-        const grantTx = await client0.sendTransaction({
+        await sendWithRetry(client0, {
             to: bragTokenAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'grantRole', type: 'function', inputs: [{ name: 'role', type: 'bytes32' }, { name: 'account', type: 'address' }], outputs: [] }],
                 args: [MINTER_ROLE, account0.address]
             })
         });
-        await waitForTx(grantTx);
     }
 
     console.log("Minting BragTokens to User B...");
-    const mintTx = await client0.sendTransaction({
+    await sendWithRetry(client0, {
         to: bragTokenAddr,
         data: encodeFunctionData({
             abi: [{ name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] }],
             args: [client1.account.address, offerPrice * 2n]
         })
     });
-    await waitForTx(mintTx);
 
     console.log("User B: Approving Marketplace...");
-    const approveTokenTx = await client1.sendTransaction({
+    await sendWithRetry(client1, {
         to: bragTokenAddr,
         data: encodeFunctionData({
             abi: [
@@ -378,10 +383,9 @@ async function main() {
             args: [marketplaceAddr, offerPrice]
         })
     });
-    await waitForTx(approveTokenTx);
 
     console.log("User B: Creating offer...");
-    const createOfferTx = await client1.sendTransaction({
+    await sendWithRetry(client1, {
         to: marketplaceAddr,
         data: encodeFunctionData({
             abi: [
@@ -400,12 +404,11 @@ async function main() {
             args: [bragNFTAddr, tokenId, 1n, offerPrice]
         })
     });
-    await waitForTx(createOfferTx);
 
     // 7. User A: Accept the offer
     console.log("User A: Accepting offer...");
     console.log("User A: Approving NFT for Marketplace...");
-    const approveNftTx = await client0.sendTransaction({
+    await sendWithRetry(client0, {
         to: bragNFTAddr,
         data: encodeFunctionData({
             abi: [
@@ -419,9 +422,8 @@ async function main() {
             args: [marketplaceAddr, tokenId]
         })
     });
-    await waitForTx(approveNftTx);
 
-    const acceptOfferTx = await client0.sendTransaction({
+    await sendWithRetry(client0, {
         to: marketplaceAddr,
         data: encodeFunctionData({
             abi: [
@@ -435,7 +437,6 @@ async function main() {
             args: [bragNFTAddr, tokenId]
         })
     });
-    await waitForTx(acceptOfferTx);
 
     console.log("Offer accepted! NFT should now be owned by User B.");
 
