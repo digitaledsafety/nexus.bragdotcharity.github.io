@@ -114,12 +114,26 @@ async function main() {
                 },
             });
             console.log("Smart Accounts ready:", client0.account.address, client1.account.address);
+
+            // Ensure User A SCA has a tiny bit of ETH for donations (1 wei min)
+            const eoaBalance = await publicClient.getBalance({ address: account0.address });
+            const scaBalance = await publicClient.getBalance({ address: client0.account.address });
+
+            if (scaBalance < 100000000000000n && eoaBalance > 200000000000000n) {
+                console.log("Funding User A SCA with dust for donations...");
+                const eoaClient = createWalletClient({ account: account0, chain, transport: http(rpcUrl) });
+                const hash = await eoaClient.sendTransaction({
+                    to: client0.account.address,
+                    value: 100000000000000n // 0.0001 ETH
+                });
+                await publicClient.waitForTransactionReceipt({ hash });
+            }
+
             client0 = client0.extend(walletActions);
             client1 = client1.extend(walletActions);
         } catch (e) {
             console.error("Failed to setup Alchemy Smart Accounts:", e);
-            console.log("Falling back to EOA...");
-            isSepolia = false; // Force sequential txs if SCA setup fails
+            throw e; // Don't fall back to EOA on Sepolia as it will likely fail due to lack of ETH
         }
     }
 
@@ -144,7 +158,7 @@ async function main() {
 
     // Helper to send multiple transactions (batched if supported)
     async function sendTransactions(client: any, requests: any[]) {
-        if (isSepolia) {
+        if (isSepolia && client.sendTransactions) {
             console.log(`Sending batch of ${requests.length} UserOperations...`);
             const userOpHash = await client.sendTransactions({ requests });
             const { hash } = await client.waitForUserOperationTransaction(userOpHash);
@@ -161,20 +175,9 @@ async function main() {
         }
     }
 
-    // Helper to wait for tx
-    async function waitForTx(tx: any) {
-        if (isSepolia) {
-            const { hash } = await (client0 as any).waitForUserOperationTransaction(tx);
-            return await publicClient.waitForTransactionReceipt({ hash });
-        } else {
-            const hash = typeof tx === 'string' ? tx : (tx.hash || tx.transactionHash);
-            return await publicClient.waitForTransactionReceipt({ hash });
-        }
-    }
-
     // 1. User A: Mint BragNFT by donating
     console.log("User A: Minting BragNFT...");
-    const donateTxHash = await client0.sendTransaction({
+    const donateReceipt = await sendTransactions(client0, [{
         to: bragNFTAddr,
         data: encodeFunctionData({
             abi: [
@@ -189,8 +192,7 @@ async function main() {
             args: ["Seeding data!", "https://picsum.photos/400"]
         }),
         value: 1n // Minimum donation (1 wei) for fidelity
-    });
-    const donateReceipt = await waitForTx(donateTxHash);
+    }]);
 
     // Get tokenId from logs
     // We'll look for the Donated event in BragNFT
@@ -263,14 +265,13 @@ async function main() {
             console.log(`Deployed ${name} at ${deployedAddr}`);
             vaultAddresses.push(deployedAddr);
 
-            const regTx = await client0.sendTransaction({
+            await sendTransactions(client0, [{
                 to: registryAddr,
                 data: encodeFunctionData({
                     abi: [{ name: 'verifyVault', type: 'function', inputs: [{ name: 'vault', type: 'address' }, { name: 'locationType', type: 'uint8' }, { name: 'name', type: 'string' }, { name: 'description', type: 'string' }], outputs: [] }],
                     args: [deployedAddr, 0, name, `Seeded vault for ${name}`]
                 })
-            });
-            await waitForTx(regTx);
+            }]);
         }
     }
 
@@ -333,7 +334,7 @@ async function main() {
             to: bragTokenAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'grantRole', type: 'function', inputs: [{ name: 'role', type: 'bytes32' }, { name: 'account', type: 'address' }], outputs: [] }],
-                args: [MINTER_ROLE, account0.address]
+                args: [MINTER_ROLE, client0.account.address]
             })
         },
         {

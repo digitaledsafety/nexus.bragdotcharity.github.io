@@ -113,7 +113,9 @@ async function main() {
     // Helper to send multiple transactions (batched if SCA, sequential if EOA)
     async function sendTransactions(requests: any[]) {
         if (isSepolia && smartAccountClient) {
-            const hash = await smartAccountClient.sendTransactions({ requests });
+            console.log(`Sending batch of ${requests.length} UserOperations...`);
+            const userOpHash = await smartAccountClient.sendTransactions({ requests });
+            const { hash } = await smartAccountClient.waitForUserOperationTransaction(userOpHash);
             return await publicClient.waitForTransactionReceipt({ hash });
         } else {
             let lastReceipt;
@@ -143,10 +145,11 @@ async function main() {
 
             console.log(`Deploying ${name} via factory...`);
             try {
-                const hash = await smartAccountClient.sendTransaction({
+                const userOpHash = await smartAccountClient.sendTransaction({
                     to: factoryAddress,
                     data
                 });
+                const { hash } = await smartAccountClient.waitForUserOperationTransaction(userOpHash);
                 await publicClient.waitForTransactionReceipt({ hash });
 
                 const deployedAddress = getContractAddress({
