@@ -86,20 +86,6 @@ async function main() {
     // Extend with wallet actions to get deployContract
     const client = smartAccountClient.extend(walletActions);
 
-    // Robust tx handler with retries
-    async function sendWithRetry(params: any, retries = 3) {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const hash = await smartAccountClient.sendTransaction(params);
-                return await publicClient.waitForTransactionReceipt({ hash });
-            } catch (e: any) {
-                console.warn(`Transaction failed (attempt ${i + 1}/${retries}): ${e.message}`);
-                if (i === retries - 1) throw e;
-                await new Promise(r => setTimeout(r, 5000)); // Wait 5s before retry
-            }
-        }
-    }
-
     // Helper to deploy contract
     async function deploy(name: string, args: any[]) {
         console.log(`Deploying ${name}...`);
@@ -118,10 +104,11 @@ async function main() {
 
             console.log(`Deploying ${name} via factory...`);
             try {
-                await sendWithRetry({
+                const hash = await smartAccountClient.sendTransaction({
                     to: factoryAddress,
                     data
                 });
+                await publicClient.waitForTransactionReceipt({ hash });
 
                 const deployedAddress = getContractAddress({
                     bytecode: deployData,
@@ -174,50 +161,47 @@ async function main() {
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
     const marketplace = await deploy("NFTMarketplace", [refundPeriod, bragToken.address]);
 
-    console.log("Setting up relationships...");
+    console.log("Batching setup and ownership transfer...");
+    const setupTxs: any[] = [
+        // 1. donationReceipt.grantRole(MINTER_ROLE, bragNFT.address)
+        {
+            to: donationReceipt.address,
+            data: encodeFunctionData({
+                abi: donationReceipt.abi,
+                functionName: "grantRole",
+                args: [MINTER_ROLE, bragNFT.address]
+            })
+        },
+        // 2. bragNFT.setReceiptContract(donationReceipt.address)
+        {
+            to: bragNFT.address,
+            data: encodeFunctionData({
+                abi: bragNFT.abi,
+                functionName: "setReceiptContract",
+                args: [donationReceipt.address]
+            })
+        },
+        // 3. bragNFT.setBragToken(bragToken.address)
+        {
+            to: bragNFT.address,
+            data: encodeFunctionData({
+                abi: bragNFT.abi,
+                functionName: "setBragToken",
+                args: [bragToken.address]
+            })
+        },
+        // 4. bragToken.grantRole(MINTER_ROLE, bragNFT.address)
+        {
+            to: bragToken.address,
+            data: encodeFunctionData({
+                abi: bragToken.abi,
+                functionName: "grantRole",
+                args: [MINTER_ROLE, bragNFT.address]
+            })
+        }
+    ];
 
-    // 1. donationReceipt.grantRole(MINTER_ROLE, bragNFT.address)
-    await sendWithRetry({
-        to: donationReceipt.address,
-        data: encodeFunctionData({
-            abi: donationReceipt.abi,
-            functionName: "grantRole",
-            args: [MINTER_ROLE, bragNFT.address]
-        })
-    });
-
-    // 2. bragNFT.setReceiptContract(donationReceipt.address)
-    await sendWithRetry({
-        to: bragNFT.address,
-        data: encodeFunctionData({
-            abi: bragNFT.abi,
-            functionName: "setReceiptContract",
-            args: [donationReceipt.address]
-        })
-    });
-
-    // 3. bragNFT.setBragToken(bragToken.address)
-    await sendWithRetry({
-        to: bragNFT.address,
-        data: encodeFunctionData({
-            abi: bragNFT.abi,
-            functionName: "setBragToken",
-            args: [bragToken.address]
-        })
-    });
-
-    // 4. bragToken.grantRole(MINTER_ROLE, bragNFT.address)
-    await sendWithRetry({
-        to: bragToken.address,
-        data: encodeFunctionData({
-            abi: bragToken.abi,
-            functionName: "grantRole",
-            args: [MINTER_ROLE, bragNFT.address]
-        })
-    });
-
-    console.log("Transferring ownership to EOA...");
-
+    // Ownership transfers
     const contractsToTransfer = [
         { name: "DonationReceipt", contract: donationReceipt },
         { name: "BragNFT", contract: bragNFT },
@@ -225,8 +209,7 @@ async function main() {
     ];
 
     for (const item of contractsToTransfer) {
-        console.log(`Transferring admin role for ${item.name} to EOA...`);
-        await sendWithRetry({
+        setupTxs.push({
             to: item.contract.address,
             data: encodeFunctionData({
                 abi: item.contract.abi,
@@ -234,8 +217,7 @@ async function main() {
                 args: [DEFAULT_ADMIN_ROLE, eoaAddress]
             })
         });
-        console.log(`Revoking SCA admin role for ${item.name}...`);
-        await sendWithRetry({
+        setupTxs.push({
             to: item.contract.address,
             data: encodeFunctionData({
                 abi: item.contract.abi,
@@ -246,9 +228,8 @@ async function main() {
     }
 
     if (!externalTreasury) {
-        console.log("Transferring roles for Treasury to EOA...");
         const treasuryAbi = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8")).abi;
-        await sendWithRetry({
+        setupTxs.push({
             to: treasury.address,
             data: encodeFunctionData({
                 abi: treasuryAbi,
@@ -256,7 +237,7 @@ async function main() {
                 args: [DEFAULT_ADMIN_ROLE, eoaAddress]
             })
         });
-        await sendWithRetry({
+        setupTxs.push({
             to: treasury.address,
             data: encodeFunctionData({
                 abi: treasuryAbi,
@@ -264,7 +245,7 @@ async function main() {
                 args: [TREASURY_ROLE, eoaAddress]
             })
         });
-        await sendWithRetry({
+        setupTxs.push({
             to: treasury.address,
             data: encodeFunctionData({
                 abi: treasuryAbi,
@@ -272,7 +253,7 @@ async function main() {
                 args: [TREASURY_ROLE, scaAddress]
             })
         });
-        await sendWithRetry({
+        setupTxs.push({
             to: treasury.address,
             data: encodeFunctionData({
                 abi: treasuryAbi,
@@ -282,8 +263,7 @@ async function main() {
         });
     }
 
-    console.log("Transferring roles for ExhibitRegistry to EOA...");
-    await sendWithRetry({
+    setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
             abi: exhibitRegistry.abi,
@@ -291,7 +271,7 @@ async function main() {
             args: [DEFAULT_ADMIN_ROLE, eoaAddress]
         })
     });
-    await sendWithRetry({
+    setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
             abi: exhibitRegistry.abi,
@@ -299,7 +279,7 @@ async function main() {
             args: [VERIFIER_ROLE, eoaAddress]
         })
     });
-    await sendWithRetry({
+    setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
             abi: exhibitRegistry.abi,
@@ -307,7 +287,7 @@ async function main() {
             args: [VERIFIER_ROLE, scaAddress]
         })
     });
-    await sendWithRetry({
+    setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
             abi: exhibitRegistry.abi,
@@ -315,6 +295,13 @@ async function main() {
             args: [DEFAULT_ADMIN_ROLE, scaAddress]
         })
     });
+
+    console.log(`Sending batch of ${setupTxs.length} transactions...`);
+    const batchHash = await smartAccountClient.sendTransactions({
+        requests: setupTxs
+    });
+    await publicClient.waitForTransactionReceipt({ hash: batchHash });
+    console.log("Batch setup complete!");
 
     // Save artifacts
     const chainId = await publicClient.getChainId();
