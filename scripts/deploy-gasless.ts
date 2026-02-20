@@ -20,7 +20,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { localhost, sepolia } from "viem/chains";
 
 // @ts-ignore
-import { createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
+import { createLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
 import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
 // @ts-ignore
@@ -70,16 +70,15 @@ async function main() {
     let smartAccountClient: any;
 
     if (isSepolia) {
-        console.log("Setting up Alchemy Smart Account for Sepolia...");
-        const lightAccountFactoryAddress = "0x00000089Ca2376162281774704ed9e9ea0a44a99";
+        console.log("Setting up Alchemy Smart Account for Sepolia (v1.1.0 - EP v0.6)...");
         smartAccountClient = await createAlchemySmartAccountClient({
             transport,
             chain,
-            account: await createMultiOwnerLightAccount({
+            account: await createLightAccount({
                 transport,
                 chain,
                 signer,
-                factoryAddress: lightAccountFactoryAddress
+                version: "v1.1.0"
             }),
             rpcUrl: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
             gasManagerConfig: {
@@ -114,7 +113,9 @@ async function main() {
     // Helper to send multiple transactions (batched if SCA, sequential if EOA)
     async function sendTransactions(requests: any[]) {
         if (isSepolia && smartAccountClient) {
-            const hash = await smartAccountClient.sendTransactions({ requests });
+            console.log(`Sending batch of ${requests.length} UserOperations...`);
+            const userOpHash = await smartAccountClient.sendTransactions({ requests });
+            const { hash } = await smartAccountClient.waitForUserOperationTransaction(userOpHash);
             return await publicClient.waitForTransactionReceipt({ hash });
         } else {
             let lastReceipt;
@@ -144,10 +145,11 @@ async function main() {
 
             console.log(`Deploying ${name} via factory...`);
             try {
-                const hash = await smartAccountClient.sendTransaction({
+                const userOpHash = await smartAccountClient.sendTransaction({
                     to: factoryAddress,
                     data
                 });
+                const { hash } = await smartAccountClient.waitForUserOperationTransaction(userOpHash);
                 await publicClient.waitForTransactionReceipt({ hash });
 
                 const deployedAddress = getContractAddress({
