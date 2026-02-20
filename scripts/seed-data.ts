@@ -31,7 +31,7 @@ const hardhatLocal = defineChain({
 });
 
 // @ts-ignore
-import { createLightAccountClient, createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
+import { createLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
 import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
 // @ts-ignore
@@ -80,23 +80,19 @@ async function main() {
 
     // If Sepolia, use Alchemy Smart Accounts
     if (isSepolia) {
-        console.log("Setting up Alchemy Smart Accounts for Sepolia...");
+        console.log("Setting up Alchemy Smart Accounts for Sepolia (v1.1.0 - EP v0.6)...");
         try {
             const transport = http(`https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`);
-
-            // For Sepolia, the factory address is known by the SDK, but we'll be explicit if needed.
-            // On Sepolia (ID 11155111), LightAccount factory is at 0x00000089Ca2376162281774704ed9e9ea0a44a99
-            const lightAccountFactoryAddress = "0x00000089Ca2376162281774704ed9e9ea0a44a99";
 
             client0 = await createAlchemySmartAccountClient({
                 transport,
                 chain,
                 rpcUrl: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-                account: await createMultiOwnerLightAccount({
+                account: await createLightAccount({
                     transport,
                     chain,
                     signer: signer0,
-                    factoryAddress: lightAccountFactoryAddress
+                    version: "v1.1.0"
                 }),
                 gasManagerConfig: {
                     policyId: process.env.ALCHEMY_GAS_POLICY_ID!,
@@ -107,11 +103,11 @@ async function main() {
                 transport,
                 chain,
                 rpcUrl: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-                account: await createMultiOwnerLightAccount({
+                account: await createLightAccount({
                     transport,
                     chain,
                     signer: signer1,
-                    factoryAddress: lightAccountFactoryAddress
+                    version: "v1.1.0"
                 }),
                 gasManagerConfig: {
                     policyId: process.env.ALCHEMY_GAS_POLICY_ID!,
