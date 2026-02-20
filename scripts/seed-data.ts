@@ -115,20 +115,6 @@ async function main() {
             });
             console.log("Smart Accounts ready:", client0.account.address, client1.account.address);
 
-            // Ensure User A SCA has a tiny bit of ETH for donations (1 wei min)
-            const eoaBalance = await publicClient.getBalance({ address: account0.address });
-            const scaBalance = await publicClient.getBalance({ address: client0.account.address });
-
-            if (scaBalance < 100000000000000n && eoaBalance > 200000000000000n) {
-                console.log("Funding User A SCA with dust for donations...");
-                const eoaClient = createWalletClient({ account: account0, chain, transport: http(rpcUrl) });
-                const hash = await eoaClient.sendTransaction({
-                    to: client0.account.address,
-                    value: 100000000000000n // 0.0001 ETH
-                });
-                await publicClient.waitForTransactionReceipt({ hash });
-            }
-
             client0 = client0.extend(walletActions);
             client1 = client1.extend(walletActions);
         } catch (e) {
@@ -161,7 +147,7 @@ async function main() {
         if (isSepolia && client.sendTransactions) {
             console.log(`Sending batch of ${requests.length} UserOperations...`);
             const userOpHash = await client.sendTransactions({ requests });
-            const { hash } = await client.waitForUserOperationTransaction(userOpHash);
+            const { hash } = await (client0 as any).waitForUserOperationTransaction(userOpHash);
             return await publicClient.waitForTransactionReceipt({ hash });
         } else {
             let lastReceipt;
@@ -177,6 +163,22 @@ async function main() {
 
     // 1. User A: Mint BragNFT by donating
     console.log("User A: Minting BragNFT...");
+
+    // To satisfy gasless/balanceless automation while keeping fidelity, we:
+    // 1. Temporarily set minimumDonation to 0
+    // 2. Donate 0 ETH
+    // 3. Restore minimumDonation to 1 wei
+    console.log("Temporarily setting minimum donation to 0 for seeding...");
+    await sendTransactions(client0, [
+        {
+            to: bragNFTAddr,
+            data: encodeFunctionData({
+                abi: [{ name: 'setMinimumDonation', type: 'function', inputs: [{ name: '_minimumDonation', type: 'uint256' }], outputs: [] }],
+                args: [0n]
+            })
+        }
+    ]);
+
     const donateReceipt = await sendTransactions(client0, [{
         to: bragNFTAddr,
         data: encodeFunctionData({
@@ -191,8 +193,19 @@ async function main() {
             ],
             args: ["Seeding data!", "https://picsum.photos/400"]
         }),
-        value: 1n // Minimum donation (1 wei) for fidelity
+        value: 0n
     }]);
+
+    console.log("Restoring minimum donation to 1 wei...");
+    await sendTransactions(client0, [
+        {
+            to: bragNFTAddr,
+            data: encodeFunctionData({
+                abi: [{ name: 'setMinimumDonation', type: 'function', inputs: [{ name: '_minimumDonation', type: 'uint256' }], outputs: [] }],
+                args: [1n]
+            })
+        }
+    ]);
 
     // Get tokenId from logs
     // We'll look for the Donated event in BragNFT
