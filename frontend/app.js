@@ -348,8 +348,14 @@ document.getElementById('btnAcceptOffer').addEventListener('click', async () => 
         await appTx.wait();
     }
 
+    const buyer = document.getElementById('accBuyer').value;
+    if (!ethers.utils.isAddress(buyer)) {
+        log('Please enter a valid buyer address', 'error');
+        return;
+    }
+
     const contract = getContract('NFTMarketplace', addr);
-    await txHandler(contract.acceptOffer(nft, id), 'Offer Accepted');
+    await txHandler(contract.acceptOffer(nft, id, buyer), 'Offer Accepted');
 });
 
 document.getElementById('btnCancelOffer').addEventListener('click', async () => {

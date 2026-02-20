@@ -20,7 +20,7 @@ describe("Treasury Management", async function () {
         treasury.address,
         parseEther("0.1")
     ]);
-    const marketplace = await viem.deployContract("NFTMarketplace", [7n * 24n * 3600n, bragToken.address]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [bragToken.address]);
 
     // Setup: Authorize BragNFT to mint receipts
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
@@ -86,11 +86,15 @@ describe("Treasury Management", async function () {
             {
                 name: 'acceptOffer',
                 type: 'function',
-                inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }],
+                inputs: [
+                    { name: 'nftContract', type: 'address' },
+                    { name: 'tokenId', type: 'uint256' },
+                    { name: 'buyer', type: 'address' }
+                ],
                 outputs: [],
             }
         ],
-        args: [bragNFT.address, tokenId]
+        args: [bragNFT.address, tokenId, buyer.account.address]
     });
 
     const initialTreasuryBalance = await bragToken.read.balanceOf([treasury.address]);
