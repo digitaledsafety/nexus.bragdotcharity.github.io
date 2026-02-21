@@ -169,9 +169,17 @@ async function main() {
     // Helper to send multiple transactions (batched if supported)
     async function sendTransactions(client: any, requests: any[]) {
         if (isSepolia) {
-            const userOpHash = await client.sendTransactions({ requests });
-            const { hash } = await client.waitForUserOperationTransaction(userOpHash);
-            return await publicClient.waitForTransactionReceipt({ hash });
+            // Split into smaller batches to avoid "Request too large" errors with Paymasters
+            const chunkSize = 2;
+            let lastReceipt;
+            for (let i = 0; i < requests.length; i += chunkSize) {
+                const chunk = requests.slice(i, i + chunkSize);
+                console.log(`Sending batch of ${chunk.length} transactions (chunk ${Math.floor(i / chunkSize) + 1} / ${Math.ceil(requests.length / chunkSize)})...`);
+                const userOpHash = await client.sendTransactions({ requests: chunk });
+                const { hash } = await client.waitForUserOperationTransaction(userOpHash);
+                lastReceipt = await publicClient.waitForTransactionReceipt({ hash });
+            }
+            return lastReceipt;
         } else {
             let lastReceipt;
             for (const request of requests) {
