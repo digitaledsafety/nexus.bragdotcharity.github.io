@@ -311,7 +311,7 @@ async function main() {
         if (isSepolia) {
             const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
             const data = concat([salt, vaultDeployData]);
-            vaultBatch.push({ target: factoryAddress, data: data });
+            vaultBatch.push({ target: factoryAddress, data });
 
             // Register call
             vaultBatch.push({
