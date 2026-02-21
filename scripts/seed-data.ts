@@ -182,16 +182,30 @@ async function main() {
         }
     }
 
-    // Helper to wait for tx
-    async function waitForTx(tx: any) {
-        if (isSepolia) {
-            const { hash } = await (client0 as any).waitForUserOperationTransaction(tx);
-            return await publicClient.waitForTransactionReceipt({ hash });
-        } else {
-            const hash = typeof tx === 'string' ? tx : (tx.hash || tx.transactionHash);
-            return await publicClient.waitForTransactionReceipt({ hash });
-        }
-    }
+async function waitForTx(uoResponse: any) {
+    // Check if this is an Alchemy UserOperation response
+    if (uoResponse && typeof uoResponse === 'object' && 'hash' in uoResponse) {
+        console.log("Waiting for UserOp to be bundled...", uoResponse.hash);
+        
+        // 1. Wait for the Bundler to turn the UserOp into a real Transaction
+        // This returns the standard Ethereum Tx Hash
+        const txHash = await client0.waitForUserOperationTransaction({
+            hash: uoResponse.hash
+        });
+
+        console.log("UserOp bundled! Tx Hash:", txHash);
+
+        // 2. Wait for the actual block confirmation
+        return await publicClient.waitForTransactionReceipt({ hash: txHash });
+    } 
+
+    // Fallback for standard EOA string hashes
+    const hash = typeof uoResponse === 'string' ? uoResponse : uoResponse?.hash;
+    return await publicClient.waitForTransactionReceipt({ hash });
+}
+
+
+
 
     // 1. User A: Mint BragNFT by donating
     console.log("User A: Minting BragNFT...");
