@@ -223,14 +223,7 @@ async function main() {
                 args: [DEFAULT_ADMIN_ROLE, eoaAddress]
             })
         });
-        setupTxs.push({
-            to: item.contract.address,
-            data: encodeFunctionData({
-                abi: item.contract.abi,
-                functionName: "renounceRole",
-                args: [DEFAULT_ADMIN_ROLE, scaAddress]
-            })
-        });
+        // We do NOT renounce the SCA roles here to allow the Smart Account to perform seeding operations
     }
 
     if (!externalTreasury) {
@@ -251,22 +244,7 @@ async function main() {
                 args: [TREASURY_ROLE, eoaAddress]
             })
         });
-        setupTxs.push({
-            to: treasury.address,
-            data: encodeFunctionData({
-                abi: treasuryAbi,
-                functionName: "renounceRole",
-                args: [TREASURY_ROLE, scaAddress]
-            })
-        });
-        setupTxs.push({
-            to: treasury.address,
-            data: encodeFunctionData({
-                abi: treasuryAbi,
-                functionName: "renounceRole",
-                args: [DEFAULT_ADMIN_ROLE, scaAddress]
-            })
-        });
+        // We do NOT renounce the SCA roles here to allow the Smart Account to perform seeding operations
     }
 
     setupTxs.push({
@@ -285,22 +263,7 @@ async function main() {
             args: [VERIFIER_ROLE, eoaAddress]
         })
     });
-    setupTxs.push({
-        to: exhibitRegistry.address,
-        data: encodeFunctionData({
-            abi: exhibitRegistry.abi,
-            functionName: "renounceRole",
-            args: [VERIFIER_ROLE, scaAddress]
-        })
-    });
-    setupTxs.push({
-        to: exhibitRegistry.address,
-        data: encodeFunctionData({
-            abi: exhibitRegistry.abi,
-            functionName: "renounceRole",
-            args: [DEFAULT_ADMIN_ROLE, scaAddress]
-        })
-    });
+    // We do NOT renounce the SCA roles here to allow the Smart Account to perform seeding operations
 
     console.log(`Sending batch of ${setupTxs.length} transactions...`);
     const uoResponse = await smartAccountClient.sendUserOperation({
