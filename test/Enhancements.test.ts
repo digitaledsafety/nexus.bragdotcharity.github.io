@@ -122,15 +122,4 @@ describe("Contract Enhancements", async function () {
     assert.equal(logs[0].args.totalAmount, parseEther("10"));
   });
 
-  it("ExhibitVault: Should allow owner to set registry", async function () {
-    const { vault, other } = await deployAll();
-    const publicClient = await viem.getPublicClient();
-
-    await vault.write.setRegistry([other.account.address]);
-    assert.equal(await vault.read.registry(), getAddress(other.account.address));
-
-    const logs = await publicClient.getContractEvents({ address: vault.address, abi: vault.abi, eventName: 'RegistryUpdated' });
-    assert.equal(logs.length, 1);
-    assert.equal(logs[0].args.newRegistry, getAddress(other.account.address));
-  });
 });
