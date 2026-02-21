@@ -195,22 +195,28 @@ async function main() {
 
     // 1. User A: Mint BragNFT by donating
     console.log("User A: Minting BragNFT...");
-    const donateTxHash = await client0.sendTransaction({
-        to: bragNFTAddr,
+
+    // Using sendUserOperation instead of sendTransaction
+const donateTxHash = await client0.sendUserOperation({
+    uo: {
+        target: bragNFTAddr,
         data: encodeFunctionData({
-            abi: [
-                {
-                    name: 'donate',
-                    type: 'function',
-                    inputs: [{ name: 'message', type: 'string' }, { name: 'media', type: 'string' }],
-                    outputs: [],
-                    stateMutability: 'payable'
-                }
-            ],
+            abi: [{
+                name: 'donate',
+                type: 'function',
+                inputs: [
+                    { name: 'message', type: 'string' }, 
+                    { name: 'media', type: 'string' }
+                ],
+                outputs: [],
+                stateMutability: 'payable'
+            }],
             args: ["Seeding data!", "https://picsum.photos/400"]
         }),
         value: donationAmount
-    });
+    }
+});
+    
     const donateReceipt = await waitForTx(donateTxHash);
 
     // Get tokenId from logs
