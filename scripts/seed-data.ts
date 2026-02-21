@@ -140,7 +140,7 @@ async function main() {
     console.log("Contracts:", { bragNFTAddr, bragTokenAddr, registryAddr, marketplaceAddr });
 
     // Use dust ETH for Sepolia donation as requested
-    const donationAmount = isSepolia ? parseEther("0.0001") : parseEther("0.001");
+    const donationAmount = isSepolia ? parseEther("0.00000001") : parseEther("0.001");
 
     async function ensureFunding(smartAccountClient: any, eoaAccount: any, label: string) {
         if (!isSepolia) return;
