@@ -198,9 +198,7 @@ async function main() {
 
             // 1. Wait for the Bundler to turn the UserOp into a real Transaction
             // This returns the standard Ethereum Tx Hash
-            const txHash = await client.waitForUserOperationTransaction({
-                hash: uoResponse.hash
-            });
+            const txHash = await client.waitForUserOperationTransaction(uoResponse);
 
             console.log("UserOp bundled! Tx Hash:", txHash);
 
@@ -287,7 +285,7 @@ async function main() {
     console.log(`Using Token ID: ${tokenId}`);
 
     // 2. User A: Deploy 5 ExhibitVault instances
-    const vaultNames = ["server-1", "server-2", "gallery-1", "custom-1"];
+    const vaultNames = ["server-1", "server-2", "gallery-1", "custom-1", "gallery-2"];
     const vaultAddresses: string[] = [];
 
     // We need the ExhibitVault bytecode. We'll read it from artifacts.
