@@ -295,10 +295,11 @@ async function main() {
     const { abi: vaultAbi, bytecode: vaultBytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
     console.log("Deploying and registering 5 vaults...");
-    const vaultBatch: any[] = [];
+    
     const timestamp = Date.now();
 
     for (const name of vaultNames) {
+        const vaultBatch: any[] = [];
         const salt = keccak256(toHex(`${name}-${timestamp}`));
         const vaultDeployData = encodeDeployData({ abi: vaultAbi, args: [registryAddr], bytecode: vaultBytecode });
         const vaultAddr = getContractAddress({
@@ -322,6 +323,8 @@ async function main() {
                 })
             });
             vaultAddresses.push(vaultAddr);
+            console.log(`Sending batch/sequence of ${vaultBatch.length} deployment/registration transactions...`);
+            await sendTransactions(client0, vaultBatch);
         } else {
             console.log(`Deploying ${name} via EOA (Local)...`);
             const eoaClient = createWalletClient({ account: account0, chain, transport: http(rpcUrl) }).extend(walletActions);
@@ -344,12 +347,6 @@ async function main() {
             });
             await waitForTx(client0, regTx);
         }
-    }
-
-    if (vaultBatch.length > 0) {
-        console.log(`Sending batch/sequence of ${vaultBatch.length} deployment/registration transactions...`);
-        await sendTransactions(client0, vaultBatch);
-        console.log("Vault batch complete!");
     }
 
     // 3-5. User A actions: Exhibit, Move, Withdraw
