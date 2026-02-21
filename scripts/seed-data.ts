@@ -347,20 +347,8 @@ async function main() {
     }
 
     if (vaultBatch.length > 0) {
-        //console.log(`Sending batch/sequence of ${vaultBatch.length} deployment/registration transactions...`);
-
-
-// Instead of batching 2 calls per vault, try batching ALL deployments first
-// then ALL registrations second.
-const vaultDeployments = vaultBatch.filter(v => v.target === "0x4e59b44847b379578588920cA78FbF26c0B4956C");
-const vaultRegistrations = vaultBatch.filter(v => v.target === registryAddr);
-
-console.log("Deploying all vaults...");
-await sendTransactions(client0, vaultDeployments);
-
-console.log("Registering all vaults...");
-await sendTransactions(client0, vaultRegistrations);
-        //await sendTransactions(client0, vaultBatch);
+        console.log(`Sending batch/sequence of ${vaultBatch.length} deployment/registration transactions...`);
+        await sendTransactions(client0, vaultBatch);
         console.log("Vault batch complete!");
     }
 
