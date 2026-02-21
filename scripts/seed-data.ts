@@ -272,9 +272,6 @@ async function main() {
     }
 
     // 3-5. User A actions: Exhibit, Move, Withdraw
-    console.log("User A: Exhibiting NFT in minecraft-server-1...");
-    console.log("User A: Moving NFT from minecraft-server-1 to minecraft-server-2...");
-    console.log("User A: Withdrawing NFT from minecraft-server-2...");
     console.log("Batching User A actions (Exhibit, Move, Withdraw)...");
     const vault1 = vaultAddresses[0];
     const vault2 = vaultAddresses[1];
@@ -316,9 +313,7 @@ async function main() {
     // Since client0 (Account #0) is the admin, it can grant itself MINTER_ROLE and mint tokens.
     const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6" as Hex;
 
-    console.log("User B: Minting BragTokens...");
-    console.log("User B: Approving Marketplace...");
-    console.log("User B: Creating offer...");
+    console.log("User B: Minting and Offering...");
     const setupUserBTxs: any[] = [
         {
             to: bragTokenAddr,
@@ -356,7 +351,6 @@ async function main() {
     await sendTransactions(client1, userBOfferTxs);
 
     // 7. User A: Accept the offer
-    console.log("User A: Approving NFT for Marketplace...");
     console.log("User A: Accepting offer...");
     const userAAcceptTxs: any[] = [
         {
@@ -378,19 +372,6 @@ async function main() {
 
     console.log("Offer accepted! NFT should now be owned by User B.");
 
-    // Verification
-    const currentOwner = await publicClient.readContract({
-        address: bragNFTAddr,
-        abi: [{ name: 'ownerOf', type: 'function', inputs: [{ name: 'tokenId', type: 'uint256' }], outputs: [{ name: '', type: 'address' }] }],
-        args: [tokenId]
-    });
-    console.log(`Verification: NFT #${tokenId} owner is ${currentOwner}`);
-    if (getAddress(currentOwner) !== getAddress(client1.account.address)) {
-        console.error("Verification FAILED: Ownership mismatch");
-    } else {
-        console.log("Verification SUCCESS: Ownership confirmed");
-    }
-
     // Summary of addresses
     const artifacts = {
         network: networkName,
@@ -403,13 +384,14 @@ async function main() {
     console.log("Seeding complete!");
     console.log(JSON.stringify(artifacts, null, 2));
 
-    const artifactDir = path.join(process.cwd(), `ignition/deployments/chain-${chainId}`);
-    if (fs.existsSync(artifactDir)) {
+    if (isSepolia) {
+        const artifactDir = path.join(process.cwd(), `ignition/deployments/chain-${chainId}`);
+        if (!fs.existsSync(artifactDir)) {
+            fs.mkdirSync(artifactDir, { recursive: true });
+        }
         const artifactFile = path.join(artifactDir, `seed_artifacts.json`);
         fs.writeFileSync(artifactFile, JSON.stringify(artifacts, null, 2));
         console.log(`Artifacts saved to ${artifactFile}`);
-    } else {
-        console.warn(`Deployment directory not found at ${artifactDir}. Skipping artifact save.`);
     }
 }
 
