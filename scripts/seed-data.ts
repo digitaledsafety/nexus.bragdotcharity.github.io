@@ -139,6 +139,33 @@ async function main() {
 
     console.log("Contracts:", { bragNFTAddr, bragTokenAddr, registryAddr, marketplaceAddr });
 
+    // Use dust ETH for Sepolia donation as requested
+    const donationAmount = isSepolia ? parseEther("0.0001") : parseEther("0.001");
+
+    async function ensureFunding(smartAccountClient: any, eoaAccount: any, label: string) {
+        if (!isSepolia) return;
+        const balance = await publicClient.getBalance({ address: smartAccountClient.account.address });
+        if (balance < donationAmount) {
+            console.log(`${label} balance (${formatEther(balance)} ETH) is less than required (${formatEther(donationAmount)} ETH). Funding from EOA...`);
+            const eoaClient = createWalletClient({
+                account: eoaAccount,
+                chain,
+                transport: http(rpcUrl)
+            });
+            const hash = await eoaClient.sendTransaction({
+                to: smartAccountClient.account.address,
+                value: parseEther("0.001"), // Transfer some dust
+            });
+            await publicClient.waitForTransactionReceipt({ hash });
+            console.log(`Transferred 0.001 ETH from EOA to ${label}`);
+        }
+    }
+
+    if (isSepolia) {
+        await ensureFunding(client0, account0, "Smart Account 0");
+        await ensureFunding(client1, account1, "Smart Account 1");
+    }
+
     // Helper to send multiple transactions (batched if supported)
     async function sendTransactions(client: any, requests: any[]) {
         if (isSepolia) {
@@ -182,7 +209,7 @@ async function main() {
             ],
             args: ["Seeding data!", "https://picsum.photos/400"]
         }),
-        value: parseEther("0.001") // Using small amount
+        value: donationAmount
     });
     const donateReceipt = await waitForTx(donateTxHash);
 
