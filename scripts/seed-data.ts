@@ -169,9 +169,15 @@ async function main() {
     // Helper to send multiple transactions (batched if supported)
     async function sendTransactions(client: any, requests: any[]) {
         if (isSepolia) {
-            const userOpHash = await client.sendTransactions({ requests });
-            const { hash } = await client.waitForUserOperationTransaction(userOpHash);
-            return await publicClient.waitForTransactionReceipt({ hash });
+            const uoResponse = await client.sendUserOperation({
+                uo: requests.map(r => ({
+                    target: r.to,
+                    data: r.data,
+                    value: r.value
+                }))
+            });
+            const txHash = await client.waitForUserOperationTransaction(uoResponse);
+            return await publicClient.waitForTransactionReceipt({ hash: txHash });
         } else {
             let lastReceipt;
             for (const request of requests) {
