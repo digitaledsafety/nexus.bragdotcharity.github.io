@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IExhibitRegistry {
     struct VaultInfo {
@@ -24,8 +25,10 @@ interface IExhibitRegistry {
  * It tracks the original owner and allows them to withdraw or move the NFT,
  * with optional time-gating (duration).
  */
-contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
+contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard, Ownable {
     IExhibitRegistry public registry;
+
+    event RegistryUpdated(address indexed newRegistry);
 
     // Track original owner of ERC721 tokens
     // nftContract => tokenId => owner
@@ -46,8 +49,17 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
     event Moved721(address indexed nftContract, uint256 indexed tokenId, address indexed owner, address destinationVault);
     event Moved1155(address indexed nftContract, uint256 indexed tokenId, address indexed owner, uint256 amount, address destinationVault);
 
-    constructor(address _registry) {
+    constructor(address _registry) Ownable(msg.sender) {
         registry = IExhibitRegistry(_registry);
+    }
+
+    /**
+     * @dev Allows the owner to update the ExhibitRegistry address.
+     */
+    function setRegistry(address _registry) external onlyOwner {
+        require(_registry != address(0), "Invalid registry address");
+        registry = IExhibitRegistry(_registry);
+        emit RegistryUpdated(_registry);
     }
 
     /**

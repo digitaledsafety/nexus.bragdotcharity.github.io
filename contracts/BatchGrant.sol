@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 contract BatchGrant {
     using SafeERC20 for IERC20;
 
+    event Distributed(address indexed token, uint256 recipientCount, uint256 totalAmount);
+
     /**
      * @dev Distributes any ERC20 token to multiple recipients.
      * @param token The ERC20 token to distribute.
@@ -19,8 +21,11 @@ contract BatchGrant {
      */
     function distribute(IERC20 token, address[] calldata recipients, uint256[] calldata amounts) external {
         require(recipients.length == amounts.length, "Mismatched arrays");
+        uint256 totalAmount = 0;
         for (uint256 i = 0; i < recipients.length; i++) {
             token.safeTransferFrom(msg.sender, recipients[i], amounts[i]);
+            totalAmount += amounts[i];
         }
+        emit Distributed(address(token), recipients.length, totalAmount);
     }
 }
