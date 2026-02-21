@@ -171,7 +171,7 @@ async function main() {
         if (isSepolia) {
             const uoResponse = await client.sendUserOperation({
                 uo: requests.map(r => ({
-                    target: r.to,
+                    target: r.target,
                     data: r.data,
                     value: r.value
                 }))
@@ -181,34 +181,37 @@ async function main() {
         } else {
             let lastReceipt;
             for (const request of requests) {
-                const hash = await client.sendTransaction(request);
+                const hash = await client.sendTransaction({
+                    ...request,
+                    to: request.target
+                });
                 lastReceipt = await publicClient.waitForTransactionReceipt({ hash });
             }
             return lastReceipt;
         }
     }
 
-async function waitForTx(uoResponse: any) {
-    // Check if this is an Alchemy UserOperation response
-    if (uoResponse && typeof uoResponse === 'object' && 'hash' in uoResponse) {
-        console.log("Waiting for UserOp to be bundled...", uoResponse.hash);
-        
-        // 1. Wait for the Bundler to turn the UserOp into a real Transaction
-        // This returns the standard Ethereum Tx Hash
-        const txHash = await client0.waitForUserOperationTransaction({
-            hash: uoResponse.hash
-        });
+    async function waitForTx(client: any, uoResponse: any) {
+        // Check if this is an Alchemy UserOperation response
+        if (uoResponse && typeof uoResponse === 'object' && 'hash' in uoResponse) {
+            console.log("Waiting for UserOp to be bundled...", uoResponse.hash);
 
-        console.log("UserOp bundled! Tx Hash:", txHash);
+            // 1. Wait for the Bundler to turn the UserOp into a real Transaction
+            // This returns the standard Ethereum Tx Hash
+            const txHash = await client.waitForUserOperationTransaction({
+                hash: uoResponse.hash
+            });
 
-        // 2. Wait for the actual block confirmation
-        return await publicClient.waitForTransactionReceipt({ hash: txHash });
-    } 
+            console.log("UserOp bundled! Tx Hash:", txHash);
 
-    // Fallback for standard EOA string hashes
-    const hash = typeof uoResponse === 'string' ? uoResponse : uoResponse?.hash;
-    return await publicClient.waitForTransactionReceipt({ hash });
-}
+            // 2. Wait for the actual block confirmation
+            return await publicClient.waitForTransactionReceipt({ hash: txHash });
+        }
+
+        // Fallback for standard EOA string hashes
+        const hash = typeof uoResponse === 'string' ? uoResponse : uoResponse?.hash;
+        return await publicClient.waitForTransactionReceipt({ hash });
+    }
 
 
 
@@ -216,28 +219,50 @@ async function waitForTx(uoResponse: any) {
     // 1. User A: Mint BragNFT by donating
     console.log("User A: Minting BragNFT...");
 
-    // Using sendUserOperation instead of sendTransaction
-const donateTxHash = await client0.sendUserOperation({
-    uo: {
-        target: bragNFTAddr,
-        data: encodeFunctionData({
-            abi: [{
-                name: 'donate',
-                type: 'function',
-                inputs: [
-                    { name: 'message', type: 'string' }, 
-                    { name: 'media', type: 'string' }
-                ],
-                outputs: [],
-                stateMutability: 'payable'
-            }],
-            args: ["Seeding data!", "https://picsum.photos/400"]
-        }),
-        value: donationAmount
+    let donateTxHash;
+    if (isSepolia) {
+        // Using sendUserOperation instead of sendTransaction for Gasless/AA
+        donateTxHash = await client0.sendUserOperation({
+            uo: {
+                target: bragNFTAddr,
+                data: encodeFunctionData({
+                    abi: [{
+                        name: 'donate',
+                        type: 'function',
+                        inputs: [
+                            { name: 'message', type: 'string' },
+                            { name: 'media', type: 'string' }
+                        ],
+                        outputs: [],
+                        stateMutability: 'payable'
+                    }],
+                    args: ["Seeding data!", "https://picsum.photos/400"]
+                }),
+                value: donationAmount
+            }
+        });
+    } else {
+        // Standard EOA transaction for local
+        donateTxHash = await client0.sendTransaction({
+            to: bragNFTAddr,
+            data: encodeFunctionData({
+                abi: [{
+                    name: 'donate',
+                    type: 'function',
+                    inputs: [
+                        { name: 'message', type: 'string' },
+                        { name: 'media', type: 'string' }
+                    ],
+                    outputs: [],
+                    stateMutability: 'payable'
+                }],
+                args: ["Seeding data!", "https://picsum.photos/400"]
+            }),
+            value: donationAmount
+        });
     }
-});
-    
-    const donateReceipt = await waitForTx(donateTxHash);
+
+    const donateReceipt = await waitForTx(client0, donateTxHash);
 
     // Get tokenId from logs
     // We'll look for the Donated event in BragNFT
@@ -286,11 +311,11 @@ const donateTxHash = await client0.sendUserOperation({
         if (isSepolia) {
             const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
             const data = concat([salt, vaultDeployData]);
-            vaultBatch.push({ to: factoryAddress, data });
+            vaultBatch.push({ target: factoryAddress, data });
 
             // Register call
             vaultBatch.push({
-                to: registryAddr,
+                target: registryAddr,
                 data: encodeFunctionData({
                     abi: [{ name: 'verifyVault', type: 'function', inputs: [{ name: 'vault', type: 'address' }, { name: 'locationType', type: 'uint8' }, { name: 'name', type: 'string' }, { name: 'description', type: 'string' }], outputs: [] }],
                     args: [vaultAddr, 0, name, `Seeded vault for ${name}`]
@@ -317,7 +342,7 @@ const donateTxHash = await client0.sendUserOperation({
                     args: [deployedAddr, 0, name, `Seeded vault for ${name}`]
                 })
             });
-            await waitForTx(regTx);
+            await waitForTx(client0, regTx);
         }
     }
 
@@ -335,7 +360,7 @@ const donateTxHash = await client0.sendUserOperation({
     const userAActions: any[] = [
         // Exhibit
         {
-            to: bragNFTAddr,
+            target: bragNFTAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'safeTransferFrom', type: 'function', inputs: [{ name: 'from', type: 'address' }, { name: 'to', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'data', type: 'bytes' }], outputs: [] }],
                 args: [client0.account.address, vault1, tokenId, "0x"]
@@ -343,7 +368,7 @@ const donateTxHash = await client0.sendUserOperation({
         },
         // Move
         {
-            to: vault1,
+            target: vault1,
             data: encodeFunctionData({
                 abi: [{ name: 'move721', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'destinationVault', type: 'address' }], outputs: [] }],
                 args: [bragNFTAddr, tokenId, vault2]
@@ -351,7 +376,7 @@ const donateTxHash = await client0.sendUserOperation({
         },
         // Withdraw
         {
-            to: vault2,
+            target: vault2,
             data: encodeFunctionData({
                 abi: [{ name: 'withdraw721', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }], outputs: [] }],
                 args: [bragNFTAddr, tokenId]
@@ -372,14 +397,14 @@ const donateTxHash = await client0.sendUserOperation({
     console.log("User B: Minting and Offering...");
     const setupUserBTxs: any[] = [
         {
-            to: bragTokenAddr,
+            target: bragTokenAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'grantRole', type: 'function', inputs: [{ name: 'role', type: 'bytes32' }, { name: 'account', type: 'address' }], outputs: [] }],
                 args: [MINTER_ROLE, account0.address]
             })
         },
         {
-            to: bragTokenAddr,
+            target: bragTokenAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] }],
                 args: [client1.account.address, offerPrice * 2n]
@@ -390,14 +415,14 @@ const donateTxHash = await client0.sendUserOperation({
 
     const userBOfferTxs: any[] = [
         {
-            to: bragTokenAddr,
+            target: bragTokenAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'approve', type: 'function', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }],
                 args: [marketplaceAddr, offerPrice]
             })
         },
         {
-            to: marketplaceAddr,
+            target: marketplaceAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'createOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'amount', type: 'uint256' }, { name: 'price', type: 'uint256' }], outputs: [] }],
                 args: [bragNFTAddr, tokenId, 1n, offerPrice]
@@ -410,14 +435,14 @@ const donateTxHash = await client0.sendUserOperation({
     console.log("User A: Accepting offer...");
     const userAAcceptTxs: any[] = [
         {
-            to: bragNFTAddr,
+            target: bragNFTAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'approve', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'tokenId', type: 'uint256' }], outputs: [] }],
                 args: [marketplaceAddr, tokenId]
             })
         },
         {
-            to: marketplaceAddr,
+            target: marketplaceAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'acceptOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }], outputs: [] }],
                 args: [bragNFTAddr, tokenId]
