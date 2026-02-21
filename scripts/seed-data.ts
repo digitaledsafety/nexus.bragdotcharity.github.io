@@ -256,7 +256,7 @@ const donateTxHash = await client0.sendUserOperation({
     console.log(`Using Token ID: ${tokenId}`);
 
     // 2. User A: Deploy 5 ExhibitVault instances
-    const vaultNames = ["minecraft-server-1", "minecraft-server-2", "gallery-1", "roblox-1", "custom-1"];
+    const vaultNames = ["server-1", "server-2", "gallery-1", "custom-1"];
     const vaultAddresses: string[] = [];
 
     // We need the ExhibitVault bytecode. We'll read it from artifacts.
