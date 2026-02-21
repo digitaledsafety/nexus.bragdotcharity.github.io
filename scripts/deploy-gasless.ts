@@ -107,11 +107,14 @@ async function main() {
 
             console.log(`Deploying ${name} via factory...`);
             try {
-                const hash = await smartAccountClient.sendTransaction({
-                    to: factoryAddress,
-                    data
+                const uoResponse = await smartAccountClient.sendUserOperation({
+                    uo: {
+                        target: factoryAddress,
+                        data
+                    }
                 });
-                await publicClient.waitForTransactionReceipt({ hash });
+                const txHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
+                await publicClient.waitForTransactionReceipt({ hash: txHash });
 
                 const deployedAddress = getContractAddress({
                     bytecode: deployData,
@@ -300,10 +303,15 @@ async function main() {
     });
 
     console.log(`Sending batch of ${setupTxs.length} transactions...`);
-    const batchHash = await smartAccountClient.sendTransactions({
-        requests: setupTxs
+    const uoResponse = await smartAccountClient.sendUserOperation({
+        uo: setupTxs.map(tx => ({
+            target: tx.to,
+            data: tx.data,
+            value: tx.value
+        }))
     });
-    await publicClient.waitForTransactionReceipt({ hash: batchHash });
+    const batchTxHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
+    await publicClient.waitForTransactionReceipt({ hash: batchTxHash });
     console.log("Batch setup complete!");
 
     // Save artifacts
