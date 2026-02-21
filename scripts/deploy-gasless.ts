@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import {
     createPublicClient,
-    createWalletClient,
     http,
     parseEther,
     getAddress,
@@ -33,7 +32,7 @@ const hardhatLocal = defineChain({
 
 const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex;
 const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6" as Hex;
-const TREASURY_ROLE = "0xe1dcbdb91df27212a29bc27177c840cf2f819ecf2187432e1fac86c2dd5dfca9" as Hex; // keccak256("TREASURY_ROLE")
+const TREASURY_ROLE = "0x3563722e0e0a544b91425d15adf6020ad7b9d4c5307691425d15adf6020ad7b9d" as Hex; // keccak256("TREASURY_ROLE")
 const VERIFIER_ROLE = "0x0ce23c3e399818cfee81a7ab0880f714e53d7672b08df0fa62f2843416e1ea09" as Hex; // keccak256("VERIFIER_ROLE")
 
 async function main() {
@@ -64,67 +63,28 @@ async function main() {
 
     const transport = http(isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}` : rpcUrl);
 
-    // For Sepolia, use Alchemy Smart Account. For local, use standard EOA.
-    let scaAddress: any;
-    let client: any;
-    let smartAccountClient: any;
-
-    if (isSepolia) {
-        console.log("Setting up Alchemy Smart Account for Sepolia...");
-        const lightAccountFactoryAddress = "0x00000089Ca2376162281774704ed9e9ea0a44a99";
-        smartAccountClient = await createAlchemySmartAccountClient({
+    // Create Smart Account Client
+    const smartAccountClient = await createAlchemySmartAccountClient({
+        transport,
+        chain,
+        account: await createMultiOwnerLightAccount({
             transport,
             chain,
-            account: await createMultiOwnerLightAccount({
-                transport,
-                chain,
-                signer,
-                factoryAddress: lightAccountFactoryAddress
-            }),
-            rpcUrl: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+            signer,
+        }),
+        rpcUrl: isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}` : rpcUrl,
+        ...(isSepolia ? {
             gasManagerConfig: {
                 policyId: process.env.ALCHEMY_GAS_POLICY_ID!,
-            },
-        });
-        scaAddress = smartAccountClient.account.address;
-        client = smartAccountClient.extend(walletActions);
-        console.log(`Smart Contract Account Address: ${scaAddress}`);
-
-        // Ensure SCA has a tiny bit of ETH for donations (1 wei min)
-        // We'll send 0.0001 ETH from EOA to SCA.
-        // Note: This requires the EOA to have some ETH on Sepolia.
-        const eoaBalance = await publicClient.getBalance({ address: eoaAddress });
-        const scaBalance = await publicClient.getBalance({ address: scaAddress });
-
-        if (scaBalance < 100000000000000n && eoaBalance > 200000000000000n) {
-            console.log("Funding SCA with dust for donations...");
-            const eoaClient = createWalletClient({ account: viemAccount, chain, transport: http(rpcUrl) });
-            const hash = await eoaClient.sendTransaction({
-                to: scaAddress,
-                value: 100000000000000n // 0.0001 ETH
-            });
-            await publicClient.waitForTransactionReceipt({ hash });
-        }
-    } else {
-        console.log("Using EOA for local deployment...");
-        scaAddress = eoaAddress;
-        client = createWalletClient({ account: viemAccount, chain, transport: http(rpcUrl) }).extend(walletActions);
-    }
-
-    // Helper to send multiple transactions (batched if SCA, sequential if EOA)
-    async function sendTransactions(requests: any[]) {
-        if (isSepolia && smartAccountClient) {
-            const hash = await smartAccountClient.sendTransactions({ requests });
-            return await publicClient.waitForTransactionReceipt({ hash });
-        } else {
-            let lastReceipt;
-            for (const request of requests) {
-                const hash = await client.sendTransaction(request);
-                lastReceipt = await publicClient.waitForTransactionReceipt({ hash });
             }
-            return lastReceipt;
-        }
-    }
+        } : {}),
+    });
+
+    const scaAddress = smartAccountClient.account.address;
+    console.log(`Smart Contract Account Address: ${scaAddress}`);
+
+    // Extend with wallet actions to get deployContract
+    const client = smartAccountClient.extend(walletActions);
 
     // Helper to deploy contract
     async function deploy(name: string, args: any[]) {
@@ -257,6 +217,14 @@ async function main() {
                 args: [DEFAULT_ADMIN_ROLE, eoaAddress]
             })
         });
+        setupTxs.push({
+            to: item.contract.address,
+            data: encodeFunctionData({
+                abi: item.contract.abi,
+                functionName: "renounceRole",
+                args: [DEFAULT_ADMIN_ROLE, scaAddress]
+            })
+        });
     }
 
     if (!externalTreasury) {
@@ -277,6 +245,22 @@ async function main() {
                 args: [TREASURY_ROLE, eoaAddress]
             })
         });
+        setupTxs.push({
+            to: treasury.address,
+            data: encodeFunctionData({
+                abi: treasuryAbi,
+                functionName: "renounceRole",
+                args: [TREASURY_ROLE, scaAddress]
+            })
+        });
+        setupTxs.push({
+            to: treasury.address,
+            data: encodeFunctionData({
+                abi: treasuryAbi,
+                functionName: "renounceRole",
+                args: [DEFAULT_ADMIN_ROLE, scaAddress]
+            })
+        });
     }
 
     setupTxs.push({
@@ -295,9 +279,28 @@ async function main() {
             args: [VERIFIER_ROLE, eoaAddress]
         })
     });
+    setupTxs.push({
+        to: exhibitRegistry.address,
+        data: encodeFunctionData({
+            abi: exhibitRegistry.abi,
+            functionName: "renounceRole",
+            args: [VERIFIER_ROLE, scaAddress]
+        })
+    });
+    setupTxs.push({
+        to: exhibitRegistry.address,
+        data: encodeFunctionData({
+            abi: exhibitRegistry.abi,
+            functionName: "renounceRole",
+            args: [DEFAULT_ADMIN_ROLE, scaAddress]
+        })
+    });
 
     console.log(`Sending batch of ${setupTxs.length} transactions...`);
-    await sendTransactions(setupTxs);
+    const batchHash = await smartAccountClient.sendTransactions({
+        requests: setupTxs
+    });
+    await publicClient.waitForTransactionReceipt({ hash: batchHash });
     console.log("Batch setup complete!");
 
     // Save artifacts
