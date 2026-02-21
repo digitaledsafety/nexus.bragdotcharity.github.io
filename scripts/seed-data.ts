@@ -154,10 +154,10 @@ async function main() {
             });
             const hash = await eoaClient.sendTransaction({
                 to: smartAccountClient.account.address,
-                value: parseEther("0.001"), // Transfer some dust
+                value: parseEther("0.000000001"), // Transfer some dust
             });
             await publicClient.waitForTransactionReceipt({ hash });
-            console.log(`Transferred 0.001 ETH from EOA to ${label}`);
+            console.log(`Transferred 0.000000001 ETH from EOA to ${label}`);
         }
     }
 
@@ -337,7 +337,7 @@ async function main() {
 
     // 6. User B: Create an offer for the BragNFT in the NFTMarketplace using BragToken
     console.log("User B: Creating offer on Marketplace...");
-    const offerPrice = parseEther("100");
+    const offerPrice = parseEther("0.000000001");
 
     // First, ensure User B has enough tokens.
     // Since client0 (Account #0) is the admin, it can grant itself MINTER_ROLE and mint tokens.
