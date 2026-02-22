@@ -33,6 +33,10 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     mapping(uint256 => string) public onChainMedia;
 
     event Donated(address indexed donor, uint256 amount, uint256 nftTokenId, uint256 receiptTokenId, string message);
+    event TreasuryUpdated(address indexed treasury);
+    event MinimumDonationUpdated(uint256 minimumDonation);
+    event ReceiptContractUpdated(address indexed receiptContract);
+    event BragTokenUpdated(address indexed bragToken);
 
     constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
         ERC721("BragNFT", "BRAGNFT")
@@ -49,18 +53,22 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_treasury != address(0), "Invalid treasury address");
         treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
     }
 
     function setMinimumDonation(uint256 _minimumDonation) external onlyRole(DEFAULT_ADMIN_ROLE) {
         minimumDonation = _minimumDonation;
+        emit MinimumDonationUpdated(_minimumDonation);
     }
 
     function setReceiptContract(address _receiptContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
         receiptContract = IDonationReceipt(_receiptContract);
+        emit ReceiptContractUpdated(_receiptContract);
     }
 
     function setBragToken(address _bragToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         bragToken = IBragToken(_bragToken);
+        emit BragTokenUpdated(_bragToken);
     }
 
     /**
@@ -222,8 +230,8 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @dev Generates a simple SVG image with the donation message.
      */
     function _generateSVG(uint256 tokenId, string memory message) internal pure returns (string memory) {
-        string memory displayText = bytes(message).length > 0 ? message : string(abi.encodePacked("BragNFT #", tokenId.toString()));
-        // Note: Basic SVG escaping could be added here if needed, but for simplicity we keep it as is.
+        string memory displayText = bytes(message).length > 0 ? _escapeXML(message) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
+
         return string(abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
             '<style>.base { fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold; }</style>',
@@ -232,6 +240,44 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
             displayText,
             '</text></svg>'
         ));
+    }
+
+    /**
+     * @dev Escape special characters for XML/SVG compatibility.
+     */
+    function _escapeXML(string memory input) internal pure returns (string memory) {
+        bytes memory inputBytes = bytes(input);
+        uint256 length = inputBytes.length;
+        uint256 extraLength = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '&') extraLength += 4; // &amp;
+            else if (inputBytes[i] == '<') extraLength += 3; // &lt;
+            else if (inputBytes[i] == '>') extraLength += 3; // &gt;
+            else if (inputBytes[i] == '"') extraLength += 5; // &quot;
+            else if (inputBytes[i] == '\'') extraLength += 5; // &apos;
+        }
+
+        if (extraLength == 0) return input;
+
+        bytes memory outputBytes = new bytes(length + extraLength);
+        uint256 j = 0;
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '&') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'm'; outputBytes[j++] = 'p'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '<') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'l'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '>') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'g'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '"') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'q'; outputBytes[j++] = 'u'; outputBytes[j++] = 'o'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '\'') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'p'; outputBytes[j++] = 'o'; outputBytes[j++] = 's'; outputBytes[j++] = ';';
+            } else {
+                outputBytes[j++] = inputBytes[i];
+            }
+        }
+        return string(outputBytes);
     }
 
     /**
