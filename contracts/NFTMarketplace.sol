@@ -22,13 +22,15 @@ contract NFTMarketplace is ReentrancyGuard {
     mapping(address => mapping(uint256 => mapping(address => Offer))) public offers;
 
     IERC20 public immutable paymentToken;
+    uint256 public immutable refundPeriod;
 
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address seller, uint256 price, uint256 amount, address indexed buyer);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
     event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
 
-    constructor(address _paymentToken) {
+    constructor(uint256 _refundPeriod, address _paymentToken) {
+        refundPeriod = _refundPeriod;
         paymentToken = IERC20(_paymentToken);
     }
 
@@ -134,6 +136,7 @@ contract NFTMarketplace is ReentrancyGuard {
     function cancelOffer(address nftContract, uint256 tokenId) external nonReentrant {
         Offer memory offer = offers[nftContract][tokenId][msg.sender];
         require(offer.buyer == msg.sender, "You did not make this offer");
+        require(block.timestamp >= offer.timestamp + refundPeriod, "Refund period not yet passed");
 
         // Clear the offer first (CEI)
         delete offers[nftContract][tokenId][msg.sender];
