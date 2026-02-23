@@ -19,7 +19,9 @@ describe("BragNFT and DonationReceipt", async function () {
     const bragNFT = await viem.deployContract("BragNFT", [
         owner.account.address,
         treasury.account.address,
-        parseEther("0.1")
+        parseEther("0.1"),
+        100n,
+        "test-campaign"
     ]);
 
     // Setup: Authorize BragNFT to mint receipts

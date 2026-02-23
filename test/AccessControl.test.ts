@@ -19,7 +19,9 @@ describe("AccessControl Security Tests", async function () {
     const bragNFT = await viem.deployContract("BragNFT", [
       owner.account.address,
       treasury.address,
-      parseEther("0.1")
+      parseEther("0.1"),
+      100n,
+      "test-campaign"
     ]);
     const bragToken = await viem.deployContract("BragToken", [
       owner.account.address,

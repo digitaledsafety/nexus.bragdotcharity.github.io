@@ -16,7 +16,9 @@ describe("BragToken Integration", async function () {
     const bragNFT = await viem.deployContract("BragNFT", [
       owner.account.address,
       treasury.address,
-      1n // 1 wei minimum
+      1n, // 1 wei minimum
+      100n,
+      "test-campaign"
     ]);
     const bragToken = await viem.deployContract("BragToken", [
       owner.account.address,

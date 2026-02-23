@@ -18,7 +18,9 @@ describe("Treasury Management", async function () {
     const bragNFT = await viem.deployContract("BragNFT", [
         owner.account.address,
         treasury.address,
-        parseEther("0.1")
+        parseEther("0.1"),
+        100n,
+        "test-campaign"
     ]);
     const marketplace = await viem.deployContract("NFTMarketplace", [bragToken.address]);
 

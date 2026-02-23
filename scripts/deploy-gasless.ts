@@ -160,7 +160,9 @@ async function main() {
 
     const exhibitRegistry = await deploy("ExhibitRegistry", [scaAddress]);
     const donationReceipt = await deploy("DonationReceipt", [scaAddress]);
-    const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation]);
+    const campaignMaxSupply = 100n;
+    const campaignId = "initial-campaign";
+    const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation, campaignMaxSupply, campaignId]);
 
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;

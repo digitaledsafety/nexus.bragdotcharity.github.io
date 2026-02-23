@@ -23,7 +23,9 @@ export default buildModule("AppModule", (m) => {
   const donationReceipt = m.contract("DonationReceipt", [initialOwner]);
 
   // Deploy BragNFT
-  const bragNFT = m.contract("BragNFT", [initialOwner, treasury, minimumDonation]);
+  const campaignMaxSupply = m.getParameter("campaignMaxSupply", 100n);
+  const campaignId = m.getParameter("campaignId", "initial-campaign");
+  const bragNFT = m.contract("BragNFT", [initialOwner, treasury, minimumDonation, campaignMaxSupply, campaignId]);
 
   // BragToken Parameters
   const initialSupply = m.getParameter("initialSupply", 0n);
