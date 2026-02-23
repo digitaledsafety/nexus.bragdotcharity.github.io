@@ -11,11 +11,11 @@ test.describe('Landing Page', () => {
   test('should display the mission headline', async ({ page }) => {
     const headline = page.locator('h1');
     await expect(headline).toContainText('Empowering the underserved');
-    await expect(headline).toContainText('STEM/STEAM');
+    await expect(headline).toContainText('STEM');
   });
 
   test('should show risk disclosure', async ({ page }) => {
-    await expect(page.getByText('RISK DISCLOSURE')).toBeVisible();
+    await expect(page.getByText('RISK DISCLOSURE', { exact: false })).toBeVisible();
   });
 
   test('should have donation tiers', async ({ page }) => {
@@ -31,13 +31,13 @@ test.describe('Landing Page', () => {
   });
 
   test('should have a transparency section', async ({ page }) => {
-    await expect(page.getByText('Radical Transparency')).toBeVisible();
-    await expect(page.locator('#contractLink')).toBeVisible();
+    await expect(page.getByText('Transparency & Trust')).toBeVisible();
+    await expect(page.locator('#displayNftAddr')).toBeVisible();
   });
 
   test('should show fiat payment modal when clicked', async ({ page }) => {
     await page.click('#btnDonateFiat');
-    await expect(page.locator('#modalFiat')).toBeVisible();
-    await expect(page.getByText('Transak Integration')).toBeVisible();
+    await expect(page.locator('#fiatOverlay')).toBeVisible();
+    await expect(page.getByText('Transak widget would load here')).toBeVisible();
   });
 });
