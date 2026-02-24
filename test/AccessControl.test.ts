@@ -16,7 +16,7 @@ describe("AccessControl Security Tests", async function () {
     const treasury = await viem.deployContract("Treasury", [owner.account.address]);
     const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    const bragNFT = await viem.deployContract("BragNFT", [
+    const bragNFT = await viem.deployContract("Nexus", [
       owner.account.address,
       treasury.address,
       parseEther("0.1"),

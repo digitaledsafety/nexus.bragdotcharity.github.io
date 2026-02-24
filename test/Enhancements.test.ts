@@ -17,7 +17,7 @@ describe("Nexus Enhancements & Bug Fixes", async function () {
     const marketplace = await viem.deployContract("NFTMarketplace", [bragToken.address]);
 
     // BragNFT
-    const bragNFT = await viem.deployContract("BragNFT", [
+    const bragNFT = await viem.deployContract("Nexus", [
       owner.account.address,
       owner.account.address,
       parseEther("0.1"),

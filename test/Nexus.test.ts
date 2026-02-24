@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { network } from "hardhat";
 import { getAddress, parseEther, keccak256, toBytes } from "viem";
 
-describe("BragNFT and DonationReceipt", async function () {
+describe("Nexus and DonationReceipt", async function () {
   const { viem } = await network.connect();
 
   async function deployContracts() {
@@ -16,7 +16,7 @@ describe("BragNFT and DonationReceipt", async function () {
     await registry.write.verifyVault([vault.address, 3, "Art Gallery", "Main gallery"]);
 
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    const bragNFT = await viem.deployContract("BragNFT", [
+    const nexus = await viem.deployContract("Nexus", [
         owner.account.address,
         treasury.account.address,
         parseEther("0.1"),
@@ -24,22 +24,22 @@ describe("BragNFT and DonationReceipt", async function () {
         "test-campaign"
     ]);
 
-    // Setup: Authorize BragNFT to mint receipts
+    // Setup: Authorize Nexus to mint receipts
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+    await receipt.write.grantRole([MINTER_ROLE, nexus.address]);
+    await nexus.write.setReceiptContract([receipt.address]);
 
     // Optional: Setup BragToken for rewards testing
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, 0n, parseEther("1000000")]);
-    await bragToken.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setBragToken([bragToken.address]);
+    await bragToken.write.grantRole([MINTER_ROLE, nexus.address]);
+    await nexus.write.setBragToken([bragToken.address]);
 
     const mock1155 = await viem.deployContract("MockERC1155", []);
 
-    return { registry, vault, bragNFT, receipt, bragToken, mock1155, owner, donor, treasury, recipient };
+    return { registry, vault, bragNFT: nexus, receipt, bragToken, mock1155, owner, donor, treasury, recipient };
   }
 
-  it("Should mint BragNFT, DonationReceipt, and BragToken on donation", async function () {
+  it("Should mint BragNFT (Nexus), DonationReceipt, and BragToken on donation", async function () {
     const { bragNFT, receipt, bragToken, donor, treasury } = await deployContracts();
     const donationAmount = parseEther("0.5");
     const message = "Generous donor";

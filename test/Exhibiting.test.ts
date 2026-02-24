@@ -20,7 +20,7 @@ describe("Exhibiting System", async function () {
     await registry.write.verifyVault([vault2.address, 0, "Roblox Vault", "Vault for Roblox"]);
 
     // Deploy mock NFTs
-    const bragNFT = await viem.deployContract("BragNFT", [
+    const bragNFT = await viem.deployContract("Nexus", [
         owner.account.address,
         owner.account.address,
         parseEther("0.1"),

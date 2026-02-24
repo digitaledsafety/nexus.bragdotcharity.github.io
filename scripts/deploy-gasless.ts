@@ -162,7 +162,7 @@ async function main() {
     const donationReceipt = await deploy("DonationReceipt", [scaAddress]);
     const campaignMaxSupply = 100n;
     const campaignId = "initial-campaign";
-    const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation, campaignMaxSupply, campaignId]);
+    const bragNFT = await deploy("Nexus", [scaAddress, treasury.address, minimumDonation, campaignMaxSupply, campaignId]);
 
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
@@ -212,7 +212,7 @@ async function main() {
     // Ownership transfers
     const contractsToTransfer = [
         { name: "DonationReceipt", contract: donationReceipt },
-        { name: "BragNFT", contract: bragNFT },
+        { name: "Nexus", contract: bragNFT },
         { name: "BragToken", contract: bragToken }
     ];
 
@@ -292,6 +292,7 @@ async function main() {
         "AppModule#DonationReceipt": donationReceipt.address,
         "AppModule#ExhibitRegistry": exhibitRegistry.address,
         "AppModule#NFTMarketplace": marketplace.address,
+        "AppModule#Nexus": bragNFT.address,
     } as any;
 
     if (!externalTreasury) {

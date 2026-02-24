@@ -371,7 +371,7 @@ class BragDonationWidget extends HTMLElement {
             const chainId = (window.ethereum?.chainId ? parseInt(window.ethereum.chainId, 16) : 31337).toString();
             const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
             if (deps) {
-                this.setAttribute('brag-nft-address', deps.BragNFT);
+                this.setAttribute('brag-nft-address', deps.Nexus || deps.BragNFT);
                 this.setAttribute('treasury-address', deps.Treasury);
             }
         }
@@ -450,8 +450,11 @@ class BragDonationWidget extends HTMLElement {
         doc.setFontSize(22);
         doc.text("DONATION RECEIPT", 105, 30, { align: "center" });
 
+        doc.setFontSize(10);
+        doc.text(new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString(), 105, 38, { align: "center" });
+
         doc.setFontSize(12);
-        doc.text("Thank you for your generous contribution to our mission.", 105, 45, { align: "center" });
+        doc.text("Thank you for your generous contribution to our mission.", 105, 48, { align: "center" });
 
         doc.line(20, 55, 190, 55);
 

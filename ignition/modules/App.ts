@@ -22,10 +22,10 @@ export default buildModule("AppModule", (m) => {
   // Deploy DonationReceipt
   const donationReceipt = m.contract("DonationReceipt", [initialOwner]);
 
-  // Deploy BragNFT
+  // Deploy Nexus
   const campaignMaxSupply = m.getParameter("campaignMaxSupply", 100n);
   const campaignId = m.getParameter("campaignId", "initial-campaign");
-  const bragNFT = m.contract("BragNFT", [initialOwner, treasury, minimumDonation, campaignMaxSupply, campaignId]);
+  const nexus = m.contract("Nexus", [initialOwner, treasury, minimumDonation, campaignMaxSupply, campaignId]);
 
   // BragToken Parameters
   const initialSupply = m.getParameter("initialSupply", 0n);
@@ -40,15 +40,15 @@ export default buildModule("AppModule", (m) => {
   // Setup relationships
   const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
 
-  m.call(donationReceipt, "grantRole", [MINTER_ROLE, bragNFT]);
-  m.call(bragNFT, "setReceiptContract", [donationReceipt]);
-  m.call(bragNFT, "setBragToken", [bragToken]);
+  m.call(donationReceipt, "grantRole", [MINTER_ROLE, nexus]);
+  m.call(nexus, "setReceiptContract", [donationReceipt]);
+  m.call(nexus, "setBragToken", [bragToken]);
 
-  // Grant MINTER_ROLE to BragNFT to authorize it to mint rewards
-  m.call(bragToken, "grantRole", [MINTER_ROLE, bragNFT]);
+  // Grant MINTER_ROLE to Nexus to authorize it to mint rewards
+  m.call(bragToken, "grantRole", [MINTER_ROLE, nexus]);
 
   // We only return the treasury if we deployed it
-  const result: any = { exhibitRegistry, donationReceipt, bragNFT, marketplace, bragToken };
+  const result: any = { exhibitRegistry, donationReceipt, bragNFT: nexus, marketplace, bragToken };
   if (typeof treasury !== "string") {
     result.treasury = treasury;
   }
