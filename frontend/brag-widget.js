@@ -42,7 +42,7 @@ class BragDonationWidget extends HTMLElement {
                 }
                 .brag-container {
                     background-color: #0f172a;
-                    border-radius: 1.5rem;
+                    border-radius: 1rem;
                     overflow: hidden;
                     border: 1px solid rgba(255, 255, 255, 0.1);
                     position: relative;
@@ -64,11 +64,11 @@ class BragDonationWidget extends HTMLElement {
                 }
                 .tier-btn {
                     padding: 0.75rem;
-                    border-radius: 0.75rem;
+                    border-radius: 0.5rem;
                     border: 1px solid #334155;
                     background: #1e293b;
                     color: white;
-                    font-weight: bold;
+                    font-weight: 600;
                     cursor: pointer;
                     transition: all 0.2s;
                 }
@@ -83,8 +83,14 @@ class BragDonationWidget extends HTMLElement {
                 .flex { display: flex; }
                 .flex-col { flex-direction: column; }
                 .items-center { align-items: center; }
+                .justify-center { justify-content: center; }
                 .justify-between { justify-content: space-between; }
+                .space-x-2 > * + * { margin-left: 0.5rem; }
+                .space-x-4 > * + * { margin-left: 1rem; }
                 .space-x-8 > * + * { margin-left: 2rem; }
+                .space-y-1 > * + * { margin-top: 0.25rem; }
+                .space-y-2 > * + * { margin-top: 0.5rem; }
+                .space-y-3 > * + * { margin-top: 0.75rem; }
                 .space-y-4 > * + * { margin-top: 1rem; }
                 .space-y-6 > * + * { margin-top: 1.5rem; }
                 .grid { display: grid; }
@@ -99,6 +105,9 @@ class BragDonationWidget extends HTMLElement {
                 .font-black { font-weight: 900; }
                 .uppercase { text-transform: uppercase; }
                 .tracking-widest { letter-spacing: 0.1em; }
+                .text-slate-400 { color: #94a3b8; }
+                .text-slate-500 { color: #64748b; }
+                .text-indigo-400 { color: #818cf8; }
 
                 @media (min-width: 768px) {
                     .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
@@ -138,12 +147,16 @@ class BragDonationWidget extends HTMLElement {
                 .brag-badge img { height: 14px; margin-right: 8px; border-radius: 50%; }
 
                 .main-btn {
-                    padding: 1rem;
-                    border-radius: 0.75rem;
-                    font-weight: bold;
+                    padding: 0.75rem 1rem;
+                    border-radius: 0.5rem;
+                    font-weight: 700;
                     cursor: pointer;
                     border: none;
                     width: 100%;
+                    transition: opacity 0.2s;
+                }
+                .main-btn:hover {
+                    opacity: 0.9;
                 }
                 .status-overlay {
                     position: absolute;
@@ -189,7 +202,7 @@ class BragDonationWidget extends HTMLElement {
                             <button id="btnConnect" class="main-btn brag-gradient">Connect Wallet</button>
                         </div>
 
-                        <div class="glass-card p-6 rounded-3xl space-y-4">
+                        <div class="glass-card p-6 rounded-xl space-y-4">
                             <div class="flex items-center space-x-2 mb-2">
                                 <svg style="width:16px;height:16px;fill:#ec4899" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                                 <span class="font-bold">Donate to Support</span>
@@ -203,7 +216,7 @@ class BragDonationWidget extends HTMLElement {
 
                             <div style="position: relative;">
                                 <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-weight: bold;">$</span>
-                                <input type="number" id="customAmount" style="width: 100%; background: #020617; border: 1px solid #334155; border-radius: 0.75rem; padding: 0.8rem 1rem 0.8rem 2rem; color: white; font-weight: bold; box-sizing: border-box;" placeholder="Other">
+                                <input type="number" id="customAmount" style="width: 100%; background: #020617; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.8rem 1rem 0.8rem 2rem; color: white; font-weight: bold; box-sizing: border-box;" placeholder="Other">
                             </div>
 
                             <div id="ethConversion" class="text-center text-xs text-slate-500 italic hidden">
@@ -239,7 +252,7 @@ class BragDonationWidget extends HTMLElement {
                                     <svg style="width:20px;height:20px;margin:auto;display:block;fill:currentColor" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
                                 </div>
                                 <div class="text-xs font-bold mb-1">Compliance</div>
-                                <div class="flex justify-center text-[10px]" style="gap: 1rem;">
+                                <div class="flex justify-center space-x-4 text-[10px]">
                                     <a href="#" class="text-indigo-400 hover:underline">Privacy Policy</a>
                                     <a href="#" class="text-indigo-400 hover:underline">Terms of Service</a>
                                 </div>
@@ -270,10 +283,10 @@ class BragDonationWidget extends HTMLElement {
                 </div>
 
                 <div id="fiatOverlay" class="status-overlay hidden">
-                    <div class="bg-white text-slate-900 p-8 rounded-3xl w-full max-w-xs text-center space-y-4">
+                    <div class="bg-white text-slate-900 p-8 rounded-xl w-full max-w-xs text-center space-y-4">
                         <h3 class="font-bold text-lg">Fiat Payment</h3>
-                        <div class="p-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
-                            <i class="fas fa-credit-card text-3xl mb-2"></i>
+                        <div class="p-6 border-2 border-dashed border-slate-200 rounded-lg text-slate-400">
+                            <svg style="width:48px;height:48px;margin:0 auto 8px;fill:#cbd5e1" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
                             <p class="text-xs">Transak widget would load here.</p>
                         </div>
                         <button id="btnReturn" class="main-btn bg-indigo-600 text-white">Return</button>
@@ -413,7 +426,16 @@ class BragDonationWidget extends HTMLElement {
         this.lastReceipt = receipt;
         const r = this.shadowRoot;
         r.getElementById('statusTitle').innerText = "Success!";
-        r.getElementById('statusDesc').innerText = "NFT Minted!";
+
+        const txHash = receipt.transactionHash;
+        const explorerUrl = window.ethereum?.chainId === '0x1' ? 'https://etherscan.io/tx/' :
+                           (window.ethereum?.chainId === '0x89' ? 'https://polygonscan.com/tx/' :
+                           'https://sepolia.etherscan.io/tx/');
+
+        r.getElementById('statusDesc').innerHTML = `
+            NFT Minted!<br>
+            <a href="${explorerUrl}${txHash}" target="_blank" style="color: #818cf8; text-decoration: underline; font-size: 0.65rem; font-family: monospace; display: block; margin-top: 8px;">View on Explorer</a>
+        `;
         r.getElementById('statusIcon').innerHTML = '<i class="fas fa-check"></i>';
         r.getElementById('statusActions').classList.remove('hidden');
         r.getElementById('btnDownload').onclick = () => this.pdf();

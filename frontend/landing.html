@@ -3,38 +3,391 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donate | STEM Education Mission</title>
-    <!-- Dependencies for the Widget -->
+    <title>Donate to Support STEM Education | Brag.Charity</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-    <!-- The Widget Script -->
-    <script src="contracts.js"></script>
-    <script src="brag-widget.js"></script>
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body {
-            background-color: #020617;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
         }
-        .container {
-            width: 100%;
-            max-width: 1000px;
+        .brag-gradient {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+        .brag-gradient-text {
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .tier-btn {
+            @apply border border-slate-700 bg-slate-800/50 hover:border-indigo-500 transition-all font-semibold py-3 rounded-lg;
+        }
+        .tier-btn.active {
+            @apply border-indigo-400 bg-indigo-500/20;
+        }
+        .btn-primary {
+            @apply brag-gradient font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity;
+        }
+        .status-overlay {
+            @apply fixed inset-0 bg-slate-900/95 flex items-center justify-center z-50;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <!-- The Embeddable Widget -->
-        <brag-donation-widget
-            campaign-name="Empowering the underserved with modern STEM education"
-            campaign-desc="Join our mission to bridge the digital divide. Donate today to receive a unique commemorative NFT and a verifiable donation receipt.">
-        </brag-donation-widget>
+<body class="min-h-screen flex flex-col">
+    <!-- Risk Disclosure -->
+    <div class="bg-red-900/30 border-b border-red-500/20 py-2 text-center">
+        <p class="text-[10px] md:text-xs text-red-300 font-bold tracking-widest uppercase">
+            Risk Disclosure: Crypto donations involve inherent risks. NFTs are commemorative.
+        </p>
     </div>
+
+    <!-- Navbar -->
+    <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center cursor-pointer" onclick="window.location.href='index.html'">
+                    <span class="text-2xl font-bold brag-gradient-text">BRAG</span>
+                    <span class="ml-2 text-xl font-light">Charity</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 text-sm font-medium">
+                    <a href="index.html" class="hover:text-purple-400 transition-colors">Discover</a>
+                    <a href="manager.html" class="hover:text-purple-400 transition-colors">Manager</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="navConnectBtn" class="brag-gradient text-xs font-bold px-4 py-2 rounded-md">Connect Wallet</button>
+                    <div id="navWalletInfo" class="hidden text-xs font-mono text-indigo-400">0x...</div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow container mx-auto px-4 py-12 md:py-24">
+        <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+            <!-- Hero Section -->
+            <div class="space-y-8">
+                <div class="inline-flex items-center px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold uppercase tracking-wider">
+                    Active Campaign
+                </div>
+                <h1 class="text-4xl md:text-6xl font-black leading-tight">
+                    Empowering the underserved with modern <span class="brag-gradient-text">STEM Education</span>
+                </h1>
+                <p class="text-slate-400 text-lg leading-relaxed max-w-lg">
+                    Join our mission to bridge the digital divide. Donate today to receive a unique commemorative NFT and a verifiable donation receipt.
+                </p>
+
+                <div class="flex space-x-12 pt-4">
+                    <div>
+                        <div class="text-slate-500 text-xs font-bold uppercase mb-1 tracking-widest">Raised</div>
+                        <div id="raisedUSD" class="text-3xl font-black">$0.00</div>
+                        <div id="raisedETH" class="text-sm text-slate-500 font-medium">0.00 ETH</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-500 text-xs font-bold uppercase mb-1 tracking-widest">NFTs Left</div>
+                        <div class="text-3xl font-black"><span id="supplyLeft">--</span> / <span id="totalSupply">--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Donation Card -->
+            <div class="glass-card rounded-2xl p-8 space-y-6">
+                <div class="flex items-center space-x-3 mb-2">
+                    <div class="w-10 h-10 rounded-full brag-gradient flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                        <i class="fas fa-heart text-white"></i>
+                    </div>
+                    <h2 class="text-xl font-bold">Donate to Support</h2>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <button data-amount="5" class="tier-btn border border-slate-700 bg-slate-800/50 hover:border-indigo-500 transition-all font-semibold py-3 rounded-lg">$5</button>
+                    <button data-amount="20" class="tier-btn border border-slate-700 bg-slate-800/50 hover:border-indigo-500 transition-all font-semibold py-3 rounded-lg">$20</button>
+                    <button data-amount="100" class="tier-btn border border-slate-700 bg-slate-800/50 hover:border-indigo-500 transition-all font-semibold py-3 rounded-lg">$100</button>
+                </div>
+
+                <div class="relative group">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold group-focus-within:text-indigo-400 transition-colors">$</span>
+                    <input type="number" id="customAmount" placeholder="Enter custom amount"
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-3 pl-10 pr-4 outline-none focus:border-indigo-500 transition-all font-bold">
+                </div>
+
+                <div id="conversion" class="text-center text-xs text-slate-500 italic hidden">
+                    ≈ <span id="ethVal">0.000</span> ETH
+                </div>
+
+                <div class="space-y-4 pt-4">
+                    <button id="btnDonate" class="btn-primary w-full shadow-lg shadow-indigo-500/20">Donate ETH</button>
+                    <button id="btnFiat" class="w-full bg-white text-slate-900 font-bold py-3 rounded-lg hover:bg-slate-100 transition-colors flex items-center justify-center space-x-2">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Card / PayPal</span>
+                    </button>
+                </div>
+
+                <p class="text-[10px] text-center text-slate-500 px-4">
+                    Contributions are non-refundable. Your NFT will be minted instantly upon confirmation.
+                </p>
+            </div>
+        </div>
+
+        <!-- Transparency Section -->
+        <div class="mt-32 pt-16 border-t border-slate-800">
+            <h2 class="text-center text-sm font-bold uppercase tracking-[0.3em] text-slate-500 mb-12">Transparency & Trust</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="glass-card p-6 rounded-xl text-center space-y-3">
+                    <div class="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto">
+                        <i class="fas fa-shield-alt text-indigo-400 text-xl"></i>
+                    </div>
+                    <h3 class="font-bold">Verified Contract</h3>
+                    <p class="text-xs text-slate-500 font-mono break-all" id="contractAddr">--</p>
+                </div>
+                <div class="glass-card p-6 rounded-xl text-center space-y-3">
+                    <div class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
+                        <i class="fas fa-check-circle text-green-400 text-xl"></i>
+                    </div>
+                    <h3 class="font-bold">Audit Status</h3>
+                    <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Mock Audit Passed 2026</p>
+                </div>
+                <div class="glass-card p-6 rounded-xl text-center space-y-3">
+                    <div class="w-12 h-12 rounded-full bg-slate-500/10 flex items-center justify-center mx-auto">
+                        <i class="fas fa-file-contract text-slate-400 text-xl"></i>
+                    </div>
+                    <h3 class="font-bold">Compliance</h3>
+                    <div class="flex justify-center space-x-4 text-xs">
+                        <a href="#" class="text-indigo-400 hover:underline">Privacy Policy</a>
+                        <a href="#" class="text-indigo-400 hover:underline">Terms of Service</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-24 py-12 border-t border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <div class="flex items-center justify-center mb-6">
+                <span class="text-2xl font-bold brag-gradient-text">BRAG</span>
+                <span class="ml-2 text-xl font-light">Charity</span>
+            </div>
+            <p class="text-slate-500 text-sm max-w-md mx-auto mb-8">
+                The Digital Education & Safety Foundation Inc. is a registered non-profit.
+            </p>
+            <div class="flex justify-center space-x-6 text-slate-400 text-xl mb-8">
+                <a href="#" class="hover:text-indigo-400 transition-colors"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="hover:text-indigo-400 transition-colors"><i class="fab fa-discord"></i></a>
+                <a href="#" class="hover:text-indigo-400 transition-colors"><i class="fab fa-github"></i></a>
+            </div>
+            <div class="text-[10px] text-slate-600 uppercase tracking-widest">
+                &copy; 2026 Brag.Charity. All Rights Reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modals & Overlays -->
+    <div id="statusOverlay" class="status-overlay hidden">
+        <div class="text-center p-8 space-y-6 max-w-sm">
+            <div id="statusIcon" class="w-20 h-20 brag-gradient rounded-full flex items-center justify-center mx-auto text-3xl shadow-2xl shadow-indigo-500/40">
+                <i class="fas fa-spinner fa-spin text-white"></i>
+            </div>
+            <h3 id="statusTitle" class="text-2xl font-black">Processing</h3>
+            <p id="statusDesc" class="text-slate-400">Waiting for transaction to be mined...</p>
+            <div id="statusActions" class="hidden flex flex-col space-y-3">
+                <button id="btnDownload" class="btn-primary w-full">Download Receipt</button>
+                <button id="btnCloseStatus" class="text-slate-500 text-xs font-bold uppercase tracking-widest hover:text-slate-300">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="contracts.js"></script>
+    <script>
+        const BRAG_NFT_ABI = [
+            "function donate(string message, string tokenURI_) payable",
+            "function maxSupply() view returns (uint256)",
+            "function totalSupply() view returns (uint256)"
+        ];
+
+        let provider, signer, nftContract, ethPrice = 0, selectedUsd = 0, lastReceipt = null;
+        let nftAddress, treasuryAddress;
+
+        async function init() {
+            await fetchPrice();
+            setupTiers();
+            await connectWallet(true);
+            detectContracts();
+            refreshStats();
+            setInterval(refreshStats, 20000);
+        }
+
+        async function fetchPrice() {
+            try {
+                const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+                const d = await r.json();
+                ethPrice = d.ethereum.usd;
+            } catch(e) { ethPrice = 2500; }
+        }
+
+        function setupTiers() {
+            document.querySelectorAll('.tier-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedUsd = parseFloat(btn.dataset.amount);
+                    document.getElementById('customAmount').value = '';
+                    updateConv();
+                };
+            });
+            document.getElementById('customAmount').oninput = (e) => {
+                document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+                selectedUsd = parseFloat(e.target.value) || 0;
+                updateConv();
+            };
+            document.getElementById('btnDonate').onclick = donate;
+            document.getElementById('navConnectBtn').onclick = () => connectWallet();
+            document.getElementById('btnCloseStatus').onclick = () => document.getElementById('statusOverlay').classList.add('hidden');
+            document.getElementById('btnFiat').onclick = () => alert("Fiat gateway integration would open here.");
+        }
+
+        function updateConv() {
+            const eth = selectedUsd / ethPrice;
+            if (eth > 0) {
+                document.getElementById('ethVal').innerText = eth.toFixed(5);
+                document.getElementById('conversion').classList.remove('hidden');
+            } else {
+                document.getElementById('conversion').classList.add('hidden');
+            }
+        }
+
+        async function connectWallet(silent=false) {
+            if (!window.ethereum) return;
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                const accs = await provider.send(silent ? "eth_accounts" : "eth_requestAccounts", []);
+                if (accs.length > 0) {
+                    signer = provider.getSigner();
+                    const addr = await signer.getAddress();
+                    document.getElementById('navConnectBtn').classList.add('hidden');
+                    document.getElementById('navWalletInfo').innerText = `${addr.slice(0,6)}...${addr.slice(-4)}`;
+                    document.getElementById('navWalletInfo').classList.remove('hidden');
+                    detectContracts();
+                }
+            } catch(e) {}
+        }
+
+        function detectContracts() {
+            if (typeof CONTRACT_DATA !== 'undefined') {
+                const chainId = (window.ethereum?.chainId ? parseInt(window.ethereum.chainId, 16) : 31337).toString();
+                const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
+                if (deps) {
+                    nftAddress = deps.BragNFT;
+                    treasuryAddress = deps.Treasury;
+                    document.getElementById('contractAddr').innerText = nftAddress;
+                }
+            }
+        }
+
+        async function refreshStats() {
+            if (!nftAddress || !treasuryAddress) return;
+            try {
+                const p = provider || new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
+                const bal = await p.getBalance(treasuryAddress);
+                const eth = parseFloat(ethers.utils.formatEther(bal));
+                document.getElementById('raisedETH').innerText = `${eth.toFixed(4)} ETH`;
+                document.getElementById('raisedUSD').innerText = `$${(eth * ethPrice).toLocaleString(undefined, {minimumFractionDigits:2})}`;
+
+                const c = new ethers.Contract(nftAddress, BRAG_NFT_ABI, p);
+                const max = await c.maxSupply();
+                const cur = await c.totalSupply();
+                document.getElementById('totalSupply').innerText = max.toString();
+                document.getElementById('supplyLeft').innerText = max.sub(cur).toString();
+            } catch(e) {}
+        }
+
+        async function donate() {
+            if (!signer) return connectWallet();
+            if (selectedUsd <= 0) return alert("Please select or enter an amount.");
+
+            const eth = ethers.utils.parseEther((selectedUsd / ethPrice).toFixed(18));
+            const c = new ethers.Contract(nftAddress, BRAG_NFT_ABI, signer);
+
+            try {
+                showStatus("Confirming", "Please approve the transaction in your wallet...");
+                const tx = await c.donate("Support", "", { value: eth });
+                showStatus("Minting", "Transaction submitted! Waiting for confirmation...");
+                lastReceipt = await tx.wait();
+                handleSuccess();
+            } catch(e) {
+                showStatus("Error", e.reason || e.message);
+                document.getElementById('statusIcon').innerHTML = '<i class="fas fa-times text-white"></i>';
+            }
+        }
+
+        function showStatus(t, d) {
+            document.getElementById('statusOverlay').classList.remove('hidden');
+            document.getElementById('statusTitle').innerText = t;
+            document.getElementById('statusDesc').innerText = d;
+            document.getElementById('statusActions').classList.add('hidden');
+            document.getElementById('statusIcon').innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i>';
+        }
+
+        function handleSuccess() {
+            document.getElementById('statusTitle').innerText = "Contribution Received!";
+            const txHash = lastReceipt.transactionHash;
+            const explorerUrl = window.ethereum?.chainId === '0x1' ? 'https://etherscan.io/tx/' :
+                               (window.ethereum?.chainId === '0x89' ? 'https://polygonscan.com/tx/' :
+                               'https://sepolia.etherscan.io/tx/');
+
+            document.getElementById('statusDesc').innerHTML = `
+                Your commemorative NFT has been minted successfully.<br>
+                <a href="${explorerUrl}${txHash}" target="_blank" class="text-indigo-400 hover:underline text-xs font-mono mt-2 inline-block">View on Explorer</a>
+            `;
+            document.getElementById('statusIcon').innerHTML = '<i class="fas fa-check text-white"></i>';
+            document.getElementById('statusActions').classList.remove('hidden');
+            document.getElementById('btnDownload').onclick = downloadReceipt;
+            refreshStats();
+        }
+
+        async function downloadReceipt() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const addr = await signer.getAddress();
+
+            doc.setFontSize(22);
+            doc.text("DONATION RECEIPT", 105, 30, { align: "center" });
+            doc.setFontSize(12);
+            doc.text("Thank you for supporting STEM Education.", 105, 45, { align: "center" });
+            doc.line(20, 55, 190, 55);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("Campaign:", 20, 70);
+            doc.setFont("helvetica", "normal");
+            doc.text("STEM Education Empowerment", 60, 70);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("Donor:", 20, 80);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(addr, 60, 80);
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text("Amount (USD eq.):", 20, 90);
+            doc.setFont("helvetica", "normal");
+            doc.text(`$${selectedUsd.toFixed(2)}`, 60, 90);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("Tx Hash:", 20, 100);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(lastReceipt.transactionHash, 60, 100);
+
+            doc.save("Donation_Receipt.pdf");
+        }
+
+        init();
+    </script>
 </body>
 </html>
