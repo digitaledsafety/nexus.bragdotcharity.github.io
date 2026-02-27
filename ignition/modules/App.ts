@@ -47,6 +47,11 @@ export default buildModule("AppModule", (m) => {
   // Grant MINTER_ROLE to Nexus to authorize it to mint rewards
   m.call(bragToken, "grantRole", [MINTER_ROLE, nexus]);
 
+  // Seed initial NFTs
+  m.call(nexus, "donate(string,string)", ["First Donation!", "https://picsum.photos/400"], { value: minimumDonation, id: "seed_nft_1" });
+  m.call(nexus, "donate(string,string)", ["Supporting the cause!", "https://picsum.photos/401"], { value: minimumDonation, id: "seed_nft_2" });
+  m.call(nexus, "donate(string,string)", ["Art for good", "https://picsum.photos/402"], { value: minimumDonation, id: "seed_nft_3" });
+
   // We only return the treasury if we deployed it
   const result: any = { exhibitRegistry, donationReceipt, bragNFT: nexus, marketplace, bragToken };
   if (typeof treasury !== "string") {
