@@ -17,10 +17,12 @@ describe("Nexus Enhancements & Bug Fixes", async function () {
     const marketplace = await viem.deployContract("NFTMarketplace", [bragToken.address]);
 
     // BragNFT
-    const bragNFT = await viem.deployContract("BragNFT", [
+    const bragNFT = await viem.deployContract("Nexus", [
       owner.account.address,
       owner.account.address,
-      parseEther("0.1")
+      parseEther("0.1"),
+      100n,
+      "test-campaign"
     ]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";

@@ -14,13 +14,13 @@ interface IBragToken {
 
 /**
  * @title BragNFT
- * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
- * Uses AccessControl for flexible permissions.
+ * @dev Abstract base contract for BragNFT campaigns.
+ * Handles core donation logic, receipt linking, and BRAG token rewards.
  */
-contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
+abstract contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     using Strings for uint256;
 
-    uint256 private _nextTokenId;
+    uint256 internal _nextTokenId;
     address public treasury;
     uint256 public minimumDonation;
     IDonationReceipt public receiptContract;
@@ -38,8 +38,8 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     event ReceiptContractUpdated(address indexed receiptContract);
     event BragTokenUpdated(address indexed bragToken);
 
-    constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
-        ERC721("BragNFT", "BRAGNFT")
+    constructor(string memory name, string memory symbol, address _initialOwner, address _treasury, uint256 _minimumDonation)
+        ERC721(name, symbol)
     {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
@@ -76,7 +76,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @param message A message to include with the donation receipt.
      * @param tokenURI_ The URI for the NFT media.
      */
-    function donate(string calldata message, string calldata tokenURI_) external payable nonReentrant {
+    function donate(string calldata message, string calldata tokenURI_) external payable virtual nonReentrant {
         _donate(msg.sender, message, tokenURI_, false);
     }
 
@@ -86,7 +86,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @param media The URI or raw media content.
      * @param onChain Whether to store the media directly on-chain.
      */
-    function donate(string calldata message, string calldata media, bool onChain) external payable nonReentrant {
+    function donate(string calldata message, string calldata media, bool onChain) external payable virtual nonReentrant {
         _donate(msg.sender, message, media, onChain);
     }
 
@@ -96,21 +96,21 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @param message A message to include with the donation receipt.
      * @param tokenURI_ The URI for the NFT media.
      */
-    function donateTo(address recipient, string calldata message, string calldata tokenURI_) external payable nonReentrant {
+    function donateTo(address recipient, string calldata message, string calldata tokenURI_) external payable virtual nonReentrant {
         _donate(recipient, message, tokenURI_, false);
     }
 
     /**
      * @dev Mint a new BragNFT by donating ETH to a recipient with optional on-chain media.
      */
-    function donateTo(address recipient, string calldata message, string calldata media, bool onChain) external payable nonReentrant {
+    function donateTo(address recipient, string calldata message, string calldata media, bool onChain) external payable virtual nonReentrant {
         _donate(recipient, message, media, onChain);
     }
 
     /**
      * @dev Internal donation logic.
      */
-    function _donate(address recipient, string calldata message, string calldata media, bool onChain) internal {
+    function _donate(address recipient, string calldata message, string calldata media, bool onChain) internal virtual {
         require(address(receiptContract) != address(0), "Receipt contract not set");
         require(msg.value >= minimumDonation, "Donation below minimum");
 
@@ -124,21 +124,20 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         }
 
         // 2. Mint the soulbound receipt to the donor (always msg.sender)
-        // Interaction with trusted contract
         uint256 receiptTokenId = receiptContract.mint(msg.sender, msg.value, message);
 
-        // 3. Link them (Effect)
+        // 3. Link them
         nftToReceipt[nftTokenId] = receiptTokenId;
 
-        // 4. Mint the transferable BragNFT to the specified recipient (Interaction - may call onERC721Received)
+        // 4. Mint the transferable BragNFT
         _safeMint(recipient, nftTokenId);
 
-        // 5. Mint Brag Tokens (Interaction - if token contract is set)
+        // 5. Mint Brag Tokens
         if (address(bragToken) != address(0)) {
             bragToken.mint(msg.sender, msg.value);
         }
 
-        // 6. Transfer to treasury (Interaction)
+        // 6. Transfer to treasury
         (bool success, ) = treasury.call{value: msg.value}("");
         require(success, "Transfer to treasury failed");
 
@@ -146,21 +145,24 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @dev Returns the total number of tokens minted in this campaign.
+     */
+    function totalSupply() public view returns (uint256) {
+        return _nextTokenId;
+    }
+
+    /**
      * @dev Returns the metadata URI for a given token. Generates on-chain JSON.
-     * Includes message from DonationReceipt and uses SVG fallback if no media provided.
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
 
-        // Get message from linked receipt
         uint256 receiptId = nftToReceipt[tokenId];
         string memory message = "";
         if (address(receiptContract) != address(0)) {
             try receiptContract.getReceipt(receiptId) returns (IDonationReceipt.Receipt memory receipt) {
                 message = receipt.message;
-            } catch {
-                // Fallback if receipt not found or other error
-            }
+            } catch {}
         }
 
         string memory imageURI;
@@ -184,7 +186,6 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
                     imageURI = offChainURI;
                 }
             } else {
-                // SVG Fallback using the message
                 imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, message)))));
             }
         }
@@ -198,15 +199,12 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
             bytes(
                 string(
                     abi.encodePacked(
-                        '{"name": "BragNFT #',
-                        tokenId.toString(),
-                        '", "description": "Brag.Charity Donation NFT',
+                        '{"name": "', name(), ' #', tokenId.toString(),
+                        '", "description": "Commemorative Donation NFT',
                         bytes(message).length > 0 ? string(abi.encodePacked(": ", _escapeJSON(message))) : "",
-                        '", "image": "',
-                        imageURI,
+                        '", "image": "', imageURI,
                         animationPart,
-                        '", "attributes": [{"trait_type": "Message", "value": "',
-                        _escapeJSON(message),
+                        '", "attributes": [{"trait_type": "Message", "value": "', _escapeJSON(message),
                         '"}]}'
                     )
                 )
@@ -215,22 +213,15 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         return string(abi.encodePacked("data:application/json;base64,", json));
     }
 
-    /**
-     * @dev Detect if a media string is an audio data URI.
-     */
     function _isAudio(string memory _media) internal pure returns (bool) {
         bytes memory b = bytes(_media);
         if (b.length < 11) return false;
-        // Check for "data:audio/"
         return (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
                 b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/');
     }
 
-    /**
-     * @dev Generates a simple SVG image with the donation message.
-     */
-    function _generateSVG(uint256 tokenId, string memory message) internal pure returns (string memory) {
-        string memory displayText = bytes(message).length > 0 ? _escapeXML(message) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
+    function _generateSVG(uint256 tokenId, string memory message) internal view virtual returns (string memory) {
+        string memory displayText = bytes(message).length > 0 ? _escapeXML(message) : string(abi.encodePacked(name(), " #", tokenId.toString()));
 
         return string(abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
@@ -242,66 +233,43 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         ));
     }
 
-    /**
-     * @dev Escape special characters for XML/SVG compatibility.
-     */
     function _escapeXML(string memory input) internal pure returns (string memory) {
         bytes memory inputBytes = bytes(input);
         uint256 length = inputBytes.length;
         uint256 extraLength = 0;
-
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '&') extraLength += 4; // &amp;
-            else if (inputBytes[i] == '<') extraLength += 3; // &lt;
-            else if (inputBytes[i] == '>') extraLength += 3; // &gt;
-            else if (inputBytes[i] == '"') extraLength += 5; // &quot;
-            else if (inputBytes[i] == '\'') extraLength += 5; // &apos;
+            if (inputBytes[i] == '&') extraLength += 4;
+            else if (inputBytes[i] == '<') extraLength += 3;
+            else if (inputBytes[i] == '>') extraLength += 3;
+            else if (inputBytes[i] == '"') extraLength += 5;
+            else if (inputBytes[i] == '\'') extraLength += 5;
         }
-
         if (extraLength == 0) return input;
-
         bytes memory outputBytes = new bytes(length + extraLength);
         uint256 j = 0;
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '&') {
-                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'm'; outputBytes[j++] = 'p'; outputBytes[j++] = ';';
-            } else if (inputBytes[i] == '<') {
-                outputBytes[j++] = '&'; outputBytes[j++] = 'l'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
-            } else if (inputBytes[i] == '>') {
-                outputBytes[j++] = '&'; outputBytes[j++] = 'g'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
-            } else if (inputBytes[i] == '"') {
-                outputBytes[j++] = '&'; outputBytes[j++] = 'q'; outputBytes[j++] = 'u'; outputBytes[j++] = 'o'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
-            } else if (inputBytes[i] == '\'') {
-                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'p'; outputBytes[j++] = 'o'; outputBytes[j++] = 's'; outputBytes[j++] = ';';
-            } else {
-                outputBytes[j++] = inputBytes[i];
-            }
+            if (inputBytes[i] == '&') { outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'm'; outputBytes[j++] = 'p'; outputBytes[j++] = ';'; }
+            else if (inputBytes[i] == '<') { outputBytes[j++] = '&'; outputBytes[j++] = 'l'; outputBytes[j++] = 't'; outputBytes[j++] = ';'; }
+            else if (inputBytes[i] == '>') { outputBytes[j++] = '&'; outputBytes[j++] = 'g'; outputBytes[j++] = 't'; outputBytes[j++] = ';'; }
+            else if (inputBytes[i] == '"') { outputBytes[j++] = '&'; outputBytes[j++] = 'q'; outputBytes[j++] = 'u'; outputBytes[j++] = 'o'; outputBytes[j++] = 't'; outputBytes[j++] = ';'; }
+            else if (inputBytes[i] == '\'') { outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'p'; outputBytes[j++] = 'o'; outputBytes[j++] = 's'; outputBytes[j++] = ';'; }
+            else { outputBytes[j++] = inputBytes[i]; }
         }
         return string(outputBytes);
     }
 
-    /**
-     * @dev Escape double quotes and backslashes for JSON compatibility.
-     */
     function _escapeJSON(string memory input) internal pure returns (string memory) {
         bytes memory inputBytes = bytes(input);
         uint256 length = inputBytes.length;
         uint256 extraLength = 0;
-
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
-                extraLength++;
-            }
+            if (inputBytes[i] == '"' || inputBytes[i] == '\\') extraLength++;
         }
-
         if (extraLength == 0) return input;
-
         bytes memory outputBytes = new bytes(length + extraLength);
         uint256 j = 0;
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
-                outputBytes[j++] = '\\';
-            }
+            if (inputBytes[i] == '"' || inputBytes[i] == '\\') outputBytes[j++] = '\\';
             outputBytes[j++] = inputBytes[i];
         }
         return string(outputBytes);

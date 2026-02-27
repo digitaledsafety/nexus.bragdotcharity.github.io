@@ -20,10 +20,12 @@ describe("Exhibiting System", async function () {
     await registry.write.verifyVault([vault2.address, 0, "Roblox Vault", "Vault for Roblox"]);
 
     // Deploy mock NFTs
-    const bragNFT = await viem.deployContract("BragNFT", [
+    const bragNFT = await viem.deployContract("Nexus", [
         owner.account.address,
         owner.account.address,
-        parseEther("0.1")
+        parseEther("0.1"),
+        100n,
+        "test-campaign"
     ]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
