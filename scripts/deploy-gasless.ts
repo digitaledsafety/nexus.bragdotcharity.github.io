@@ -49,8 +49,16 @@ async function main() {
     }
 
     let privateKey = (isSepolia ? process.env.SEPOLIA_PRIVATE_KEY : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80") as string;
+    if (privateKey) privateKey = privateKey.trim();
+
+    if (isSepolia && !privateKey) {
+        throw new Error("Missing SEPOLIA_PRIVATE_KEY environment variable.");
+    }
     if (privateKey && !privateKey.startsWith("0x")) {
         privateKey = `0x${privateKey}`;
+    }
+    if (privateKey && !/^(0x)?[0-9a-fA-F]{64}$/.test(privateKey)) {
+        throw new Error("Invalid private key format. Expected 32-byte hex string.");
     }
     const viemAccount = privateKeyToAccount(privateKey as Hex);
     const eoaAddress = viemAccount.address;

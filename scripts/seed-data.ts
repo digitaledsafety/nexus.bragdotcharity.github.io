@@ -51,12 +51,29 @@ async function main() {
     }
 
     let privateKey0 = (isSepolia ? process.env.SEPOLIA_PRIVATE_KEY : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80") as string;
+    if (privateKey0) privateKey0 = privateKey0.trim();
+
+    if (isSepolia && !privateKey0) {
+        throw new Error("Missing SEPOLIA_PRIVATE_KEY environment variable.");
+    }
     if (privateKey0 && !privateKey0.startsWith("0x")) {
         privateKey0 = `0x${privateKey0}`;
     }
+    if (privateKey0 && !/^(0x)?[0-9a-fA-F]{64}$/.test(privateKey0)) {
+        throw new Error("Invalid private key format for SEPOLIA_PRIVATE_KEY. Expected 32-byte hex string.");
+    }
+
     let privateKey1 = (isSepolia ? process.env.SEPOLIA_BUYER_PRIVATE_KEY : "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d") as string;
+    if (privateKey1) privateKey1 = privateKey1.trim();
+
+    if (isSepolia && !privateKey1) {
+        throw new Error("Missing SEPOLIA_BUYER_PRIVATE_KEY environment variable.");
+    }
     if (privateKey1 && !privateKey1.startsWith("0x")) {
         privateKey1 = `0x${privateKey1}`;
+    }
+    if (privateKey1 && !/^(0x)?[0-9a-fA-F]{64}$/.test(privateKey1)) {
+        throw new Error("Invalid private key format for SEPOLIA_BUYER_PRIVATE_KEY. Expected 32-byte hex string.");
     }
 
     const account0 = privateKeyToAccount(privateKey0 as Hex);
