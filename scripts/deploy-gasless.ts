@@ -175,7 +175,7 @@ async function main() {
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
-    const marketplace = await deploy("NFTMarketplace", [refundPeriod, bragToken.address]);
+    const marketplace = await deploy("NFTMarketplace", [bragToken.address]);
 
     console.log("Batching setup and ownership transfer...");
     const setupTxs: any[] = [
@@ -234,6 +234,33 @@ async function main() {
             })
         });
         // We do NOT renounce the SCA roles here to allow the Smart Account to perform seeding operations
+    }
+
+    // Seed initial NFTs
+    const seedNFTs: { msg: string, img: string }[] = [];
+    for (let i = 1; i <= 50; i++) {
+        seedNFTs.push({ msg: `Gasless Seed #${i}`, img: `https://picsum.photos/seed/g${i}/400` });
+    }
+
+    for (const nft of seedNFTs) {
+        setupTxs.push({
+            to: bragNFT.address,
+            data: encodeFunctionData({
+                abi: [{
+                    name: 'donate',
+                    type: 'function',
+                    inputs: [
+                        { name: 'message', type: 'string' },
+                        { name: 'tokenURI_', type: 'string' }
+                    ],
+                    outputs: [],
+                    stateMutability: 'payable'
+                }],
+                functionName: "donate",
+                args: [nft.msg, nft.img]
+            }),
+            value: minimumDonation
+        });
     }
 
     if (!externalTreasury) {
