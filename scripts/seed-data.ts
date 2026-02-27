@@ -219,11 +219,10 @@ async function main() {
     // 1. User A: Mint Multiple BragNFTs by donating
     console.log("User A: Minting Multiple BragNFTs...");
 
-    const seedNFTData = [
-        { message: "Seeding data 1!", media: "https://picsum.photos/406" },
-        { message: "Seeding data 2!", media: "https://picsum.photos/407" },
-        { message: "Seeding data 3!", media: "https://picsum.photos/408" }
-    ];
+    const seedNFTData: { message: string, media: string }[] = [];
+    for (let i = 1; i <= 50; i++) {
+        seedNFTData.push({ message: `Seeding NFT #${i}!`, media: `https://picsum.photos/seed/s${i}/400` });
+    }
 
     let lastTokenId = 0n;
     const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));

@@ -228,34 +228,6 @@ async function main() {
         // We do NOT renounce the SCA roles here to allow the Smart Account to perform seeding operations
     }
 
-    // Seed initial NFTs
-    const seedNFTs = [
-        { msg: "Gasless Seed 1", img: "https://picsum.photos/403" },
-        { msg: "Gasless Seed 2", img: "https://picsum.photos/404" },
-        { msg: "Gasless Seed 3", img: "https://picsum.photos/405" }
-    ];
-
-    for (const nft of seedNFTs) {
-        setupTxs.push({
-            to: bragNFT.address,
-            data: encodeFunctionData({
-                abi: [{
-                    name: 'donate',
-                    type: 'function',
-                    inputs: [
-                        { name: 'message', type: 'string' },
-                        { name: 'media', type: 'string' }
-                    ],
-                    outputs: [],
-                    stateMutability: 'payable'
-                }],
-                functionName: "donate",
-                args: [nft.msg, nft.img]
-            }),
-            value: minimumDonation
-        });
-    }
-
     if (!externalTreasury) {
         const treasuryAbi = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8")).abi;
         setupTxs.push({
