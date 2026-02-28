@@ -444,8 +444,8 @@ async function main() {
         {
             target: marketplaceAddr,
             data: encodeFunctionData({
-                abi: [{ name: 'acceptOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }], outputs: [] }],
-                args: [bragNFTAddr, tokenId]
+                abi: [{ name: 'acceptOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'buyer', type: 'address' }], outputs: [] }],
+                args: [bragNFTAddr, tokenId, client1.account.address]
             })
         }
     ];
