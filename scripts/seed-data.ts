@@ -132,7 +132,7 @@ async function main() {
     }
     const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
 
-    const bragNFTAddr = deployment["AppModule#Nexus"] || deployment["AppModule#BragNFT"];
+    const bragNFTAddr = deployment["AppModule#BragNFT"];
     const bragTokenAddr = deployment["AppModule#BragToken"];
     const registryAddr = deployment["AppModule#ExhibitRegistry"];
     const marketplaceAddr = deployment["AppModule#NFTMarketplace"];
@@ -216,45 +216,15 @@ async function main() {
 
 
 
-    // 1. User A: Mint Multiple BragNFTs by donating
-    console.log("User A: Minting Multiple BragNFTs...");
+    // 1. User A: Mint BragNFT by donating
+    console.log("User A: Minting BragNFT...");
 
-    const seedNFTData: { message: string, media: string }[] = [];
-    for (let i = 1; i <= 50; i++) {
-        seedNFTData.push({ message: `Seeding NFT #${i}!`, media: `https://picsum.photos/seed/s${i}/400` });
-    }
-
-    let lastTokenId = 0n;
-    const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
-
-    for (const seed of seedNFTData) {
-        console.log(`Minting: ${seed.message}`);
-        let donateTxHash;
-        if (isSepolia) {
-            // Using sendUserOperation instead of sendTransaction for Gasless/AA
-            donateTxHash = await client0.sendUserOperation({
-                uo: {
-                    target: bragNFTAddr,
-                    data: encodeFunctionData({
-                        abi: [{
-                            name: 'donate',
-                            type: 'function',
-                            inputs: [
-                                { name: 'message', type: 'string' },
-                                { name: 'media', type: 'string' }
-                            ],
-                            outputs: [],
-                            stateMutability: 'payable'
-                        }],
-                        args: [seed.message, seed.media]
-                    }),
-                    value: donationAmount
-                }
-            });
-        } else {
-            // Standard EOA transaction for local
-            donateTxHash = await client0.sendTransaction({
-                to: bragNFTAddr,
+    let donateTxHash;
+    if (isSepolia) {
+        // Using sendUserOperation instead of sendTransaction for Gasless/AA
+        donateTxHash = await client0.sendUserOperation({
+            uo: {
+                target: bragNFTAddr,
                 data: encodeFunctionData({
                     abi: [{
                         name: 'donate',
@@ -266,35 +236,55 @@ async function main() {
                         outputs: [],
                         stateMutability: 'payable'
                     }],
-                    args: [seed.message, seed.media]
+                    args: ["Seeding data!", "https://picsum.photos/400"]
                 }),
                 value: donationAmount
-            });
-        }
-
-        const donateReceipt = await waitForTx(client0, donateTxHash);
-
-        // Get tokenId from logs
-        for (const log of donateReceipt.logs) {
-            try {
-                const decoded = decodeEventLog({
-                    abi: bragNFTArtifact.abi,
-                    data: log.data,
-                    topics: log.topics
-                });
-                if (decoded.eventName === 'Donated') {
-                    lastTokenId = (decoded.args as any).nftTokenId;
-                    console.log(`Minted Token ID: ${lastTokenId}`);
-                    break;
-                }
-            } catch (e) {
-                // Ignore logs that don't match the ABI
             }
-        }
+        });
+    } else {
+        // Standard EOA transaction for local
+        donateTxHash = await client0.sendTransaction({
+            to: bragNFTAddr,
+            data: encodeFunctionData({
+                abi: [{
+                    name: 'donate',
+                    type: 'function',
+                    inputs: [
+                        { name: 'message', type: 'string' },
+                        { name: 'media', type: 'string' }
+                    ],
+                    outputs: [],
+                    stateMutability: 'payable'
+                }],
+                args: ["Seeding data!", "https://picsum.photos/400"]
+            }),
+            value: donationAmount
+        });
     }
 
-    const tokenId = lastTokenId;
-    console.log(`Using Token ID for further operations: ${tokenId}`);
+    const donateReceipt = await waitForTx(client0, donateTxHash);
+
+    // Get tokenId from logs
+    // We'll look for the Donated event in BragNFT
+    const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
+
+    let tokenId = 0n;
+    for (const log of donateReceipt.logs) {
+        try {
+            const decoded = decodeEventLog({
+                abi: bragNFTArtifact.abi,
+                data: log.data,
+                topics: log.topics
+            });
+            if (decoded.eventName === 'Donated') {
+                tokenId = (decoded.args as any).nftTokenId;
+                break;
+            }
+        } catch (e) {
+            // Ignore logs that don't match the ABI
+        }
+    }
+    console.log(`Using Token ID: ${tokenId}`);
 
     // 2. User A: Deploy 5 ExhibitVault instances
     const vaultNames = ["server-1", "server-2", "gallery-1", "custom-1"];
