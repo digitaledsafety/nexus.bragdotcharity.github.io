@@ -7,8 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract NFTMarketplace is ReentrancyGuard {
+contract NFTMarketplace is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     struct Offer {
@@ -22,14 +23,27 @@ contract NFTMarketplace is ReentrancyGuard {
     mapping(address => mapping(uint256 => mapping(address => Offer))) public offers;
 
     IERC20 public immutable paymentToken;
+    uint256 public feeBps; // Fee in basis points (1/100th of a percent)
+    address public feeRecipient;
 
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address seller, uint256 price, uint256 amount, address indexed buyer);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
     event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
+    event FeesUpdated(uint256 feeBps, address feeRecipient);
 
-    constructor(address _paymentToken) {
+    constructor(address _paymentToken) Ownable(msg.sender) {
         paymentToken = IERC20(_paymentToken);
+    }
+
+    /**
+     * @notice Update marketplace fee and recipient
+     */
+    function setFees(uint256 _feeBps, address _feeRecipient) external onlyOwner {
+        require(_feeBps <= 1000, "Fee too high"); // Max 10%
+        feeBps = _feeBps;
+        feeRecipient = _feeRecipient;
+        emit FeesUpdated(_feeBps, _feeRecipient);
     }
 
     /**
@@ -91,8 +105,13 @@ contract NFTMarketplace is ReentrancyGuard {
             revert("Unsupported NFT type");
         }
 
-        // Pay the seller
-        paymentToken.safeTransfer(msg.sender, offer.price);
+        // Pay the seller (minus fees)
+        uint256 fee = 0;
+        if (feeBps > 0 && feeRecipient != address(0)) {
+            fee = (offer.price * feeBps) / 10000;
+            paymentToken.safeTransfer(feeRecipient, fee);
+        }
+        paymentToken.safeTransfer(msg.sender, offer.price - fee);
 
         emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount, offer.buyer);
     }
@@ -107,12 +126,11 @@ contract NFTMarketplace is ReentrancyGuard {
         Offer memory offer = offers[nftContract][tokenId][buyer];
         require(offer.buyer != address(0), "No valid offer exists");
 
-        // Only owner (721) or anyone with balance (1155) can reject?
-        // Actually, usually only the person who could ACCEPT should be able to REJECT.
+        // Only owner (721) or someone with sufficient balance (1155) can reject.
         if (IERC165(nftContract).supportsInterface(type(IERC721).interfaceId)) {
             require(IERC721(nftContract).ownerOf(tokenId) == msg.sender, "Only owner can reject");
         } else if (IERC165(nftContract).supportsInterface(type(IERC1155).interfaceId)) {
-            require(IERC1155(nftContract).balanceOf(msg.sender, tokenId) > 0, "Only token holders can reject");
+            require(IERC1155(nftContract).balanceOf(msg.sender, tokenId) >= offer.amount, "Insufficient balance to reject");
         } else {
             revert("Unsupported NFT type");
         }

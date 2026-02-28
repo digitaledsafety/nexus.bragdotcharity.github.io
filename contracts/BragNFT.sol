@@ -263,14 +263,37 @@ abstract contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         uint256 length = inputBytes.length;
         uint256 extraLength = 0;
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '"' || inputBytes[i] == '\\') extraLength++;
+            if (inputBytes[i] == '"' || inputBytes[i] == '\\' || inputBytes[i] == 0x08 ||
+                inputBytes[i] == 0x09 || inputBytes[i] == 0x0A || inputBytes[i] == 0x0C ||
+                inputBytes[i] == 0x0D) {
+                extraLength++;
+            }
         }
         if (extraLength == 0) return input;
         bytes memory outputBytes = new bytes(length + extraLength);
         uint256 j = 0;
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '"' || inputBytes[i] == '\\') outputBytes[j++] = '\\';
-            outputBytes[j++] = inputBytes[i];
+            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = inputBytes[i];
+            } else if (inputBytes[i] == 0x08) {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = 'b';
+            } else if (inputBytes[i] == 0x09) {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = 't';
+            } else if (inputBytes[i] == 0x0A) {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = 'n';
+            } else if (inputBytes[i] == 0x0C) {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = 'f';
+            } else if (inputBytes[i] == 0x0D) {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = 'r';
+            } else {
+                outputBytes[j++] = inputBytes[i];
+            }
         }
         return string(outputBytes);
     }
