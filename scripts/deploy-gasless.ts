@@ -13,7 +13,9 @@ import {
     concat,
     getContractAddress,
     keccak256,
-    toHex
+    toHex,
+    stringToHex,
+    createWalletClient
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { localhost, sepolia } from "viem/chains";
@@ -30,10 +32,14 @@ const hardhatLocal = defineChain({
     id: 31337,
 });
 
+/** * CORRECTED ROLES: 
+ * Using keccak256(stringToHex()) ensures exactly 32 bytes (64 hex chars + 0x).
+ * This prevents AbiEncodingBytesSizeMismatchError.
+ */
 const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex;
-const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6" as Hex;
-const TREASURY_ROLE = "0x3563722e0e0a544b91425d15adf6020ad7b9d4c5307691425d15adf6020ad7b9d" as Hex; // keccak256("TREASURY_ROLE")
-const VERIFIER_ROLE = "0x0ce23c3e399818cfee81a7ab0880f714e53d7672b08df0fa62f2843416e1ea09" as Hex; // keccak256("VERIFIER_ROLE")
+const MINTER_ROLE = keccak256(stringToHex("MINTER_ROLE"));
+const TREASURY_ROLE = keccak256(stringToHex("TREASURY_ROLE"));
+const VERIFIER_ROLE = keccak256(stringToHex("VERIFIER_ROLE"));
 
 async function main() {
     const networkName = process.env.HARDHAT_NETWORK || "localhost";
@@ -66,7 +72,6 @@ async function main() {
 
     const transport = http(isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}` : rpcUrl);
 
-    // Create Smart Account Client
     const smartAccountClient = await createAlchemySmartAccountClient({
         transport,
         chain,
@@ -86,10 +91,6 @@ async function main() {
     const scaAddress = smartAccountClient.account.address;
     console.log(`Smart Contract Account Address: ${scaAddress}`);
 
-    // Extend with wallet actions to get deployContract
-    const client = smartAccountClient.extend(walletActions);
-
-    // Helper to deploy contract
     async function deploy(name: string, args: any[]) {
         console.log(`Deploying ${name}...`);
         const artifactPath = path.join(process.cwd(), `artifacts/contracts/${name}.sol/${name}.json`);
@@ -98,20 +99,13 @@ async function main() {
         const deployData = encodeDeployData({ abi, args, bytecode });
 
         if (isSepolia) {
-            // Use Arachnid Deterministic Deployment Proxy (Nick's Factory)
-            // This is pre-deployed at 0x4e59b44847b379578588920cA78FbF26c0B4956C on many networks
             const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
-            // Create a unique salt for each contract in this run to avoid collisions
             const salt = keccak256(toHex(`${name}-${Date.now()}`));
             const data = concat([salt, deployData]);
 
-            console.log(`Deploying ${name} via factory...`);
             try {
                 const uoResponse = await smartAccountClient.sendUserOperation({
-                    uo: {
-                        target: factoryAddress,
-                        data
-                    }
+                    uo: { target: factoryAddress, data }
                 });
                 const txHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
                 await publicClient.waitForTransactionReceipt({ hash: txHash });
@@ -130,31 +124,26 @@ async function main() {
                 throw e;
             }
         } else {
-            // Local fallback to EOA
-            console.log(`Deploying ${name} via EOA (Local)...`);
             const eoaClient = createWalletClient({ account: viemAccount, chain, transport: http(rpcUrl) }).extend(walletActions);
-            const hash = await eoaClient.deployContract({
-                abi,
-                bytecode,
-                args
-            });
+            const hash = await eoaClient.deployContract({ abi, bytecode, args });
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
             console.log(`${name} deployed at ${receipt.contractAddress}`);
             return { address: receipt.contractAddress!, abi };
         }
     }
 
-    // Replication of ignition/modules/App.ts
+    // --- Contract Deployments ---
     const minimumDonation = 1n;
     const refundPeriod = 604800n;
     const externalTreasury = process.env.TREASURY_ADDRESS;
 
-    let treasury;
+    let treasury: { address: `0x${string}`, abi: any };
     if (externalTreasury && externalTreasury !== "") {
         console.log(`Using external treasury: ${externalTreasury}`);
-        treasury = { address: getAddress(externalTreasury) };
+        // We still need the Treasury ABI for role granting later
+        const treasuryArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8"));
+        treasury = { address: getAddress(externalTreasury), abi: treasuryArtifact.abi };
     } else {
-        // Initially set SCA as owner so it can manage/transfer
         treasury = await deploy("Treasury", [scaAddress]);
     }
 
@@ -167,9 +156,9 @@ async function main() {
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
     const marketplace = await deploy("NFTMarketplace", [refundPeriod, bragToken.address]);
 
+    // --- Batch Setup Transactions ---
     console.log("Batching setup and ownership transfer...");
     const setupTxs: any[] = [
-        // 1. donationReceipt.grantRole(MINTER_ROLE, bragNFT.address)
         {
             to: donationReceipt.address,
             data: encodeFunctionData({
@@ -178,7 +167,6 @@ async function main() {
                 args: [MINTER_ROLE, bragNFT.address]
             })
         },
-        // 2. bragNFT.setReceiptContract(donationReceipt.address)
         {
             to: bragNFT.address,
             data: encodeFunctionData({
@@ -187,7 +175,6 @@ async function main() {
                 args: [donationReceipt.address]
             })
         },
-        // 3. bragNFT.setBragToken(bragToken.address)
         {
             to: bragNFT.address,
             data: encodeFunctionData({
@@ -196,7 +183,6 @@ async function main() {
                 args: [bragToken.address]
             })
         },
-        // 4. bragToken.grantRole(MINTER_ROLE, bragNFT.address)
         {
             to: bragToken.address,
             data: encodeFunctionData({
@@ -207,7 +193,7 @@ async function main() {
         }
     ];
 
-    // Ownership transfers
+    // Grant Admin Roles to EOA
     const contractsToTransfer = [
         { name: "DonationReceipt", contract: donationReceipt },
         { name: "BragNFT", contract: bragNFT },
@@ -223,30 +209,27 @@ async function main() {
                 args: [DEFAULT_ADMIN_ROLE, eoaAddress]
             })
         });
-        // We do NOT renounce the SCA roles here to allow the Smart Account to perform seeding operations
     }
 
-    if (!externalTreasury) {
-        const treasuryAbi = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8")).abi;
-        setupTxs.push({
-            to: treasury.address,
-            data: encodeFunctionData({
-                abi: treasuryAbi,
-                functionName: "grantRole",
-                args: [DEFAULT_ADMIN_ROLE, eoaAddress]
-            })
-        });
-        setupTxs.push({
-            to: treasury.address,
-            data: encodeFunctionData({
-                abi: treasuryAbi,
-                functionName: "grantRole",
-                args: [TREASURY_ROLE, eoaAddress]
-            })
-        });
-        // We do NOT renounce the SCA roles here to allow the Smart Account to perform seeding operations
-    }
+    // Treasury Roles
+    setupTxs.push({
+        to: treasury.address,
+        data: encodeFunctionData({
+            abi: treasury.abi,
+            functionName: "grantRole",
+            args: [DEFAULT_ADMIN_ROLE, eoaAddress]
+        })
+    });
+    setupTxs.push({
+        to: treasury.address,
+        data: encodeFunctionData({
+            abi: treasury.abi,
+            functionName: "grantRole",
+            args: [TREASURY_ROLE, eoaAddress]
+        })
+    });
 
+    // Exhibit Registry Roles
     setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
@@ -263,21 +246,20 @@ async function main() {
             args: [VERIFIER_ROLE, eoaAddress]
         })
     });
-    // We do NOT renounce the SCA roles here to allow the Smart Account to perform seeding operations
 
     console.log(`Sending batch of ${setupTxs.length} transactions...`);
     const uoResponse = await smartAccountClient.sendUserOperation({
         uo: setupTxs.map(tx => ({
             target: tx.to,
-            data: tx.data,
-            value: tx.value
+            data: tx.data
         }))
     });
+    
     const batchTxHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
     await publicClient.waitForTransactionReceipt({ hash: batchTxHash });
     console.log("Batch setup complete!");
 
-    // Save artifacts
+    // --- Save Deployment Artifacts ---
     const chainId = await publicClient.getChainId();
     const deploymentDir = path.join(process.cwd(), `ignition/deployments/chain-${chainId}`);
     if (!fs.existsSync(deploymentDir)) {
@@ -290,11 +272,8 @@ async function main() {
         "AppModule#DonationReceipt": donationReceipt.address,
         "AppModule#ExhibitRegistry": exhibitRegistry.address,
         "AppModule#NFTMarketplace": marketplace.address,
-    } as any;
-
-    if (!externalTreasury) {
-        deployedAddresses["AppModule#Treasury"] = treasury.address;
-    }
+        "AppModule#Treasury": treasury.address,
+    };
 
     fs.writeFileSync(
         path.join(deploymentDir, "deployed_addresses.json"),
