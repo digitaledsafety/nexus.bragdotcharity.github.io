@@ -425,49 +425,20 @@ async function initProduct() {
 
         // Marketplace Info & Price History
         if (marketplace) {
-            try {
-                const filter = marketplace.filters.OfferCreated(contractAddr, ethers.BigNumber.from(tokenId));
-                const events = await marketplace.queryFilter(filter, 0);
+            const offer = await marketplace.offers(contractAddr, tokenId);
+            if (offer.buyer !== ethers.constants.AddressZero) {
+                document.getElementById('noOffer').classList.add('hidden');
+                document.getElementById('offerExists').classList.remove('hidden');
+                const priceFormatted = `${ethers.utils.formatEther(offer.price)} BRAG`;
+                document.getElementById('highestOfferPrice').textContent = priceFormatted;
+                document.getElementById('highestOfferBuyer').textContent = `by ${offer.buyer.substring(0, 6)}...${offer.buyer.substring(38)}`;
 
-                let highestOffer = null;
-                const uniqueBuyers = [...new Set(events.map(e => e.args.buyer))];
-
-                for (const buyer of uniqueBuyers) {
-                    const offer = await marketplace.offers(contractAddr, tokenId, buyer);
-                    if (offer.buyer !== ethers.constants.AddressZero) {
-                        if (!highestOffer || offer.price.gt(highestOffer.price)) {
-                            highestOffer = offer;
-                        }
-                    }
+                // Show in history
+                const histItem = document.getElementById('offerHistoryItem');
+                if (histItem) {
+                    histItem.classList.remove('hidden');
+                    document.getElementById('histOfferPrice').textContent = priceFormatted;
                 }
-
-                if (highestOffer) {
-                    document.getElementById('noOffer').classList.add('hidden');
-                    document.getElementById('offerExists').classList.remove('hidden');
-                    const priceFormatted = `${ethers.utils.formatEther(highestOffer.price)} BRAG`;
-                    document.getElementById('highestOfferPrice').textContent = priceFormatted;
-                    document.getElementById('highestOfferBuyer').textContent = `by ${highestOffer.buyer.substring(0, 6)}...${highestOffer.buyer.substring(38)}`;
-
-                    // Show in history
-                    const histItem = document.getElementById('offerHistoryItem');
-                    if (histItem) {
-                        histItem.classList.remove('hidden');
-                        document.getElementById('histOfferPrice').textContent = priceFormatted;
-                    }
-                }
-            } catch (e) {
-                console.warn("Failed to fetch offers via events, trying legacy check", e);
-                // Fallback for older contract version if any
-                try {
-                    const offer = await marketplace.offers(contractAddr, tokenId);
-                    if (offer.buyer !== ethers.constants.AddressZero) {
-                        document.getElementById('noOffer').classList.add('hidden');
-                        document.getElementById('offerExists').classList.remove('hidden');
-                        const priceFormatted = `${ethers.utils.formatEther(offer.price)} BRAG`;
-                        document.getElementById('highestOfferPrice').textContent = priceFormatted;
-                        document.getElementById('highestOfferBuyer').textContent = `by ${offer.buyer.substring(0, 6)}...${offer.buyer.substring(38)}`;
-                    }
-                } catch (e2) {}
             }
         }
 
