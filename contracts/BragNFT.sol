@@ -100,9 +100,16 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @dev Fallback to handle raw ETH transfers.
+     */
+    receive() external payable nonReentrant {
+        _donate(msg.sender, "Direct donation", "", false);
+    }
+
+    /**
      * @dev Internal donation logic.
      */
-    function _donate(address recipient, string calldata message, string calldata media, bool onChain) internal {
+    function _donate(address recipient, string memory message, string memory media, bool onChain) internal {
         require(address(receiptContract) != address(0), "Receipt contract not set");
         require(msg.value >= minimumDonation, "Donation below minimum");
 
