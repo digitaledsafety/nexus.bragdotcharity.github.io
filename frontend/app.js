@@ -28,7 +28,7 @@ function log(message, type = 'info') {
 }
 
 // Persistent addresses
-const addressFields = ['addrBragNFT', 'addrTreasury', 'addrBragToken', 'addrExhibitRegistry', 'addrMarketplace'];
+const addressFields = ['addrNexus', 'addrTreasury', 'addrNexusToken', 'addrExhibitRegistry', 'addrMarketplace'];
 addressFields.forEach(id => {
     const saved = localStorage.getItem(id);
     if (saved) document.getElementById(id).value = saved;
@@ -86,7 +86,7 @@ async function connectWallet(silent = false) {
         const chainId = network.chainId.toString();
         const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
         if (deps) {
-            if (deps.BragNFT && !document.getElementById('addrBragNFT').value) document.getElementById('addrBragNFT').value = deps.BragNFT;
+            if (deps.Nexus && !document.getElementById('addrNexus').value) document.getElementById('addrNexus').value = deps.Nexus;
             if (deps.ExhibitRegistry && !document.getElementById('addrExhibitRegistry').value) document.getElementById('addrExhibitRegistry').value = deps.ExhibitRegistry;
             const mpAddr = deps.NFTMarketplace || deps.Marketplace;
             if (mpAddr && !document.getElementById('addrMarketplace').value) document.getElementById('addrMarketplace').value = mpAddr;
@@ -154,14 +154,14 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
 });
 
 document.getElementById('btnMint').addEventListener('click', async () => {
-    const addr = document.getElementById('addrBragNFT').value;
+    const addr = document.getElementById('addrNexus').value;
     const amount = document.getElementById('mintAmount').value;
     const message = document.getElementById('mintMessage').value;
     const recipient = document.getElementById('mintRecipient').value;
     const tokenURI = document.getElementById('mintTokenURI').value;
     const onChain = document.getElementById('mintOnChain').checked;
 
-    const contract = getContract('BragNFT', addr);
+    const contract = getContract('Nexus', addr);
     const val = ethers.utils.parseEther(amount);
 
     if (recipient && ethers.utils.isAddress(recipient)) {
@@ -298,25 +298,25 @@ document.getElementById('btnCreateOffer').addEventListener('click', async () => 
     const price = ethers.utils.parseEther(priceStr);
     const marketplace = getContract('NFTMarketplace', addr);
 
-    // Get BragToken address and contract
+    // Get NexusToken address and contract
     const chainId = network.chainId.toString();
     const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
-    const bragTokenAddr = deps ? deps.BragToken : null;
+    const nexusTokenAddr = deps ? deps.NexusToken : null;
 
-    if (!bragTokenAddr) {
-        log('BragToken address not found for this network', 'error');
+    if (!nexusTokenAddr) {
+        log('NexusToken address not found for this network', 'error');
         return;
     }
 
-    const bragToken = getContract('BragToken', bragTokenAddr);
+    const nexusToken = getContract('NexusToken', nexusTokenAddr);
     const from = await signer.getAddress();
 
     // Check allowance
-    log('Checking BragToken allowance...');
-    const allowance = await bragToken.allowance(from, addr);
+    log('Checking NexusToken allowance...');
+    const allowance = await nexusToken.allowance(from, addr);
     if (allowance.lt(price)) {
-        log('Approving BragToken for Marketplace...');
-        const appTx = await bragToken.approve(addr, price);
+        log('Approving NexusToken for Marketplace...');
+        const appTx = await nexusToken.approve(addr, price);
         await appTx.wait();
         log('Approval confirmed', 'success');
     }
@@ -574,11 +574,11 @@ function updateSIWEMessage() {
     // Use the link token as part of the message if available to prevent replay attacks
     const nonceText = linkToken ? `${currentNonce}-${linkToken}` : currentNonce;
 
-    messageBox.value = `Welcome to brag.charity!
+    messageBox.value = `Welcome to nexus.charity!
 
 Click to sign in and accept the Terms of Service.
 
-Domain: brag.charity
+Domain: nexus.charity
 Statement: Securely verify wallet ownership.
 Nonce: ${nonceText}`;
 }

@@ -23,31 +23,31 @@ export default buildModule("AppModule", (m) => {
   // Deploy DonationReceipt
   const donationReceipt = m.contract("DonationReceipt", [initialOwner]);
 
-  // Deploy BragNFT
-  const bragNFT = m.contract("BragNFT", [initialOwner, treasury, minimumDonation]);
+  // Deploy Nexus
+  const nexus = m.contract("Nexus", [initialOwner, treasury, minimumDonation]);
 
-  // BragToken Parameters
+  // NexusToken Parameters
   const initialSupply = m.getParameter("initialSupply", 0n);
-  const maxSupply = m.getParameter("maxSupply", 1000000000000000000000000000n); // 1 Billion BRAG (18 decimals)
+  const maxSupply = m.getParameter("maxSupply", 1000000000000000000000000000n); // 1 Billion NEXUS (18 decimals)
 
-  // Deploy BragToken
-  const bragToken = m.contract("BragToken", [initialOwner, initialSupply, maxSupply]);
+  // Deploy NexusToken
+  const nexusToken = m.contract("NexusToken", [initialOwner, initialSupply, maxSupply]);
 
   // Deploy NFTMarketplace
-  const marketplace = m.contract("NFTMarketplace", [refundPeriod, bragToken]);
+  const marketplace = m.contract("NFTMarketplace", [refundPeriod, nexusToken]);
 
   // Setup relationships
   const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
 
-  m.call(donationReceipt, "grantRole", [MINTER_ROLE, bragNFT]);
-  m.call(bragNFT, "setReceiptContract", [donationReceipt]);
-  m.call(bragNFT, "setBragToken", [bragToken]);
+  m.call(donationReceipt, "grantRole", [MINTER_ROLE, nexus]);
+  m.call(nexus, "setReceiptContract", [donationReceipt]);
+  m.call(nexus, "setNexusToken", [nexusToken]);
 
-  // Grant MINTER_ROLE to BragNFT to authorize it to mint rewards
-  m.call(bragToken, "grantRole", [MINTER_ROLE, bragNFT]);
+  // Grant MINTER_ROLE to Nexus to authorize it to mint rewards
+  m.call(nexusToken, "grantRole", [MINTER_ROLE, nexus]);
 
   // We only return the treasury if we deployed it
-  const result: any = { exhibitRegistry, donationReceipt, bragNFT, marketplace, bragToken };
+  const result: any = { exhibitRegistry, donationReceipt, nexus, marketplace, nexusToken };
   if (typeof treasury !== "string") {
     result.treasury = treasury;
   }

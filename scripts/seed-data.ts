@@ -132,12 +132,12 @@ async function main() {
     }
     const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
 
-    const bragNFTAddr = deployment["AppModule#BragNFT"];
-    const bragTokenAddr = deployment["AppModule#BragToken"];
+    const nexusAddr = deployment["AppModule#Nexus"];
+    const nexusTokenAddr = deployment["AppModule#NexusToken"];
     const registryAddr = deployment["AppModule#ExhibitRegistry"];
     const marketplaceAddr = deployment["AppModule#NFTMarketplace"];
 
-    console.log("Contracts:", { bragNFTAddr, bragTokenAddr, registryAddr, marketplaceAddr });
+    console.log("Contracts:", { nexusAddr, nexusTokenAddr, registryAddr, marketplaceAddr });
 
     // Use dust ETH for Sepolia donation as requested
     const donationAmount = isSepolia ? parseEther("0.00000001") : parseEther("0.001");
@@ -216,15 +216,15 @@ async function main() {
 
 
 
-    // 1. User A: Mint BragNFT by donating
-    console.log("User A: Minting BragNFT...");
+    // 1. User A: Mint Nexus by donating
+    console.log("User A: Minting Nexus...");
 
     let donateTxHash;
     if (isSepolia) {
         // Using sendUserOperation instead of sendTransaction for Gasless/AA
         donateTxHash = await client0.sendUserOperation({
             uo: {
-                target: bragNFTAddr,
+                target: nexusAddr,
                 data: encodeFunctionData({
                     abi: [{
                         name: 'donate',
@@ -244,7 +244,7 @@ async function main() {
     } else {
         // Standard EOA transaction for local
         donateTxHash = await client0.sendTransaction({
-            to: bragNFTAddr,
+            to: nexusAddr,
             data: encodeFunctionData({
                 abi: [{
                     name: 'donate',
@@ -265,14 +265,14 @@ async function main() {
     const donateReceipt = await waitForTx(client0, donateTxHash);
 
     // Get tokenId from logs
-    // We'll look for the Donated event in BragNFT
-    const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
+    // We'll look for the Donated event in Nexus
+    const nexusArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Nexus.sol/Nexus.json"), "utf8"));
 
     let tokenId = 0n;
     for (const log of donateReceipt.logs) {
         try {
             const decoded = decodeEventLog({
-                abi: bragNFTArtifact.abi,
+                abi: nexusArtifact.abi,
                 data: log.data,
                 topics: log.topics
             });
@@ -360,7 +360,7 @@ async function main() {
     const userAActions: any[] = [
         // Exhibit
         {
-            target: bragNFTAddr,
+            target: nexusAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'safeTransferFrom', type: 'function', inputs: [{ name: 'from', type: 'address' }, { name: 'to', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'data', type: 'bytes' }], outputs: [] }],
                 args: [client0.account.address, vault1, tokenId, "0x"]
@@ -371,7 +371,7 @@ async function main() {
             target: vault1,
             data: encodeFunctionData({
                 abi: [{ name: 'move721', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'destinationVault', type: 'address' }], outputs: [] }],
-                args: [bragNFTAddr, tokenId, vault2]
+                args: [nexusAddr, tokenId, vault2]
             })
         },
         // Withdraw
@@ -379,14 +379,14 @@ async function main() {
             target: vault2,
             data: encodeFunctionData({
                 abi: [{ name: 'withdraw721', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }], outputs: [] }],
-                args: [bragNFTAddr, tokenId]
+                args: [nexusAddr, tokenId]
             })
         }
     ];
 
     await sendTransactions(client0, userAActions);
 
-    // 6. User B: Create an offer for the BragNFT in the NFTMarketplace using BragToken
+    // 6. User B: Create an offer for the Nexus in the NFTMarketplace using NexusToken
     console.log("User B: Creating offer on Marketplace...");
     const offerPrice = parseEther("0.000000001");
 
@@ -397,14 +397,14 @@ async function main() {
     console.log("User B: Minting and Offering...");
     const setupUserBTxs: any[] = [
         {
-            target: bragTokenAddr,
+            target: nexusTokenAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'grantRole', type: 'function', inputs: [{ name: 'role', type: 'bytes32' }, { name: 'account', type: 'address' }], outputs: [] }],
                 args: [MINTER_ROLE, account0.address]
             })
         },
         {
-            target: bragTokenAddr,
+            target: nexusTokenAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] }],
                 args: [client1.account.address, offerPrice * 2n]
@@ -415,7 +415,7 @@ async function main() {
 
     const userBOfferTxs: any[] = [
         {
-            target: bragTokenAddr,
+            target: nexusTokenAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'approve', type: 'function', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }],
                 args: [marketplaceAddr, offerPrice]
@@ -425,7 +425,7 @@ async function main() {
             target: marketplaceAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'createOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'amount', type: 'uint256' }, { name: 'price', type: 'uint256' }], outputs: [] }],
-                args: [bragNFTAddr, tokenId, 1n, offerPrice]
+                args: [nexusAddr, tokenId, 1n, offerPrice]
             })
         }
     ];
@@ -435,7 +435,7 @@ async function main() {
     console.log("User A: Accepting offer...");
     const userAAcceptTxs: any[] = [
         {
-            target: bragNFTAddr,
+            target: nexusAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'approve', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'tokenId', type: 'uint256' }], outputs: [] }],
                 args: [marketplaceAddr, tokenId]
@@ -445,7 +445,7 @@ async function main() {
             target: marketplaceAddr,
             data: encodeFunctionData({
                 abi: [{ name: 'acceptOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }], outputs: [] }],
-                args: [bragNFTAddr, tokenId]
+                args: [nexusAddr, tokenId]
             })
         }
     ];

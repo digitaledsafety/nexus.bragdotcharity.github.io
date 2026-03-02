@@ -58,10 +58,10 @@ After starting the local node and deploying contracts, run:
 npm run seed:local
 ```
 This script will:
-- Mint a BragNFT.
+- Mint a Nexus.
 - Deploy and register 5 Exhibit Vaults (`minecraft-server-1`, etc.).
 - Exhibit, move, and withdraw the NFT to test vault logic.
-- Create and accept a marketplace offer using `BragToken`.
+- Create and accept a marketplace offer using `NexusToken`.
 
 ### 2. Seed Sepolia Data
 To seed data on Sepolia using gasless transactions (via Alchemy Paymaster):
@@ -152,13 +152,13 @@ To use the Sepolia deployment workflow, you must configure the following [GitHub
 ### Treasury Contract
 
 This project includes a `Treasury.sol` contract. It is a simple, secure vault designed to:
-- **Receive ETH**: It has a `receive()` function to handle donations from `BragNFT`.
+- **Receive ETH**: It has a `receive()` function to handle donations from `Nexus`.
 - **Receive NFTs**: It implements `ERC721Holder` and `ERC1155Holder`, making it compatible with all NFT types.
 - **Owner Control**: Only the contract owner can withdraw ETH or manage assets within the treasury.
 
 By default, the deployment module will create a new instance of this `Treasury` contract during deployment.
 
-## BragNFT E-commerce Landing Page
+## Nexus E-commerce Landing Page
 
 This project includes a high-fidelity e-commerce experience for discovering and trading NFTs.
 
@@ -178,7 +178,7 @@ You can explore the full e-commerce UI without a local blockchain by visiting:
 
 ---
 
-## BragNFT Manager (Web Interface)
+## Nexus Manager (Web Interface)
 
 This project includes a built-in web-based manager that allows you to interact with all the smart contracts through a user-friendly interface.
 
@@ -186,7 +186,7 @@ This project includes a built-in web-based manager that allows you to interact w
 - **Local Access**: You can also open `frontend/manager.html` directly in your browser.
 
 ### Key Features:
-- **Minting**: Donate ETH to mint BragNFTs.
+- **Minting**: Donate ETH to mint Nexuss.
 - **Exhibition**: Deploy and manage "Exhibit Vaults" for your NFTs across games, galleries, and websites.
 - **Marketplace**: Create, accept, and cancel offers on NFTs.
 - **Contract Explorer**: A dynamic section that automatically generates a UI for **every function** in your smart contracts.
@@ -201,7 +201,7 @@ This project demonstrates the industry-standard method for verifying wallet owne
 ### The Architecture: "The Verification Handshake"
 
 1.  **Identity Request (In-Game):** The player types `!register` in Minecraft. The game requests a short-lived **Linking Token** from the Bridge.
-2.  **Web Proof (Off-Game):** The player visits the BragNFT Manager website and enters the Linking Token.
+2.  **Web Proof (Off-Game):** The player visits the Nexus Manager website and enters the Linking Token.
 3.  **Cryptographic Signature (SIWE):** The player signs a "Sign-In with Ethereum" (EIP-4361) message. This proves they own the wallet address without sending a transaction.
 4.  **Persistent Mapping (Off-Chain):** The bridge verifies the signature, recovers the address, and **stores the relationship** (e.g., `Minecraft_XUID` -> `Wallet_Address`) in a database.
 5.  **Seamless Access:** Every time the player spawns, the game sends their XUID to the bridge. The bridge looks up the mapped wallet and checks for NFTs on-chain.

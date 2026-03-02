@@ -9,19 +9,19 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Nonces.sol";
 
 /**
- * @title BragToken
- * @dev The governance token for the brag.charity ecosystem.
+ * @title NexusToken
+ * @dev The governance token for the ecosystem.
  * Holders can vote on how treasury funds are spent.
  * Implements ERC20Burnable for token burning and ERC20Votes for governance.
- * Uses AccessControl to allow multiple minters (e.g., BragNFT and Governance).
+ * Uses AccessControl to allow multiple minters (e.g., Nexus and Governance).
  */
-contract BragToken is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes, AccessControl {
+contract NexusToken is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes, AccessControl {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     uint256 public immutable maxSupply;
 
     constructor(address initialOwner, uint256 initialSupply, uint256 _maxSupply)
-        ERC20("Brag Token", "BRAG")
-        ERC20Permit("Brag Token")
+        ERC20("Nexus Token", "NEXUS")
+        ERC20Permit("Nexus Token")
     {
         require(_maxSupply >= initialSupply, "Max supply must be >= initial supply");
         maxSupply = _maxSupply;

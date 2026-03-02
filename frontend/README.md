@@ -1,6 +1,6 @@
-# BragNFT Frontend
+# Nexus Frontend
 
-This is a vanilla HTML/JS interface for interacting with the BragNFT ecosystem.
+This is a vanilla HTML/JS interface for interacting with the Nexus ecosystem.
 
 ## Deployment to GitHub Pages
 
@@ -32,12 +32,12 @@ The product page identifies NFTs using URL parameters.
 **Example:**
 `product.html?id=0&addr=0x5FC8d32690cc91D4c39d9d3abcBD16989F875707`
 
-The **Discovery Gallery** (`index.html`) automatically switches from demo data to real blockchain data once it detects `Donated` events from the BragNFT contract.
+The **Discovery Gallery** (`index.html`) automatically switches from demo data to real blockchain data once it detects `Donated` events from the Nexus contract.
 
 ### Triggering Live Data
 To see real data in the gallery and product page, you must fire a `Donated` event:
 1.  Open **`manager.html`** and connect your wallet.
-2.  Use the **Mint BragNFT** section.
+2.  Use the **Mint Nexus** section.
 3.  Fill in the donation amount, a message, and upload an image (this generates a Data URI).
 4.  Check **"Store Media On-chain"** (ensures immediate compatibility with the current frontend).
 5.  Click **"Donate & Mint"**.

@@ -16,25 +16,25 @@ describe("AccessControl Security Tests", async function () {
     const treasury = await viem.deployContract("Treasury", [owner.account.address]);
     const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    const bragNFT = await viem.deployContract("BragNFT", [
+    const nexus = await viem.deployContract("Nexus", [
       owner.account.address,
       treasury.address,
       parseEther("0.1")
     ]);
-    const bragToken = await viem.deployContract("BragToken", [
+    const nexusToken = await viem.deployContract("NexusToken", [
       owner.account.address,
       0n,
       parseEther("1000")
     ]);
 
-    return { owner, attacker, other, treasury, registry, receipt, bragNFT, bragToken };
+    return { owner, attacker, other, treasury, registry, receipt, nexus, nexusToken };
   }
 
-  describe("BragToken Access", () => {
+  describe("NexusToken Access", () => {
     it("Should fail to mint without MINTER_ROLE", async function () {
-      const { bragToken, attacker } = await setup();
+      const { nexusToken, attacker } = await setup();
       await assert.rejects(
-        bragToken.write.mint([attacker.account.address, 100n], { account: attacker.account }),
+        nexusToken.write.mint([attacker.account.address, 100n], { account: attacker.account }),
         /AccessControlUnauthorizedAccount/
       );
     });
@@ -58,19 +58,19 @@ describe("AccessControl Security Tests", async function () {
     });
   });
 
-  describe("BragNFT Access", () => {
+  describe("Nexus Access", () => {
     it("Should fail to setTreasury without ADMIN_ROLE", async function () {
-      const { bragNFT, attacker, other } = await setup();
+      const { nexus, attacker, other } = await setup();
       await assert.rejects(
-        bragNFT.write.setTreasury([other.account.address], { account: attacker.account }),
+        nexus.write.setTreasury([other.account.address], { account: attacker.account }),
         /AccessControlUnauthorizedAccount/
       );
     });
 
     it("Should fail to setMinimumDonation without ADMIN_ROLE", async function () {
-      const { bragNFT, attacker } = await setup();
+      const { nexus, attacker } = await setup();
       await assert.rejects(
-        bragNFT.write.setMinimumDonation([1n], { account: attacker.account }),
+        nexus.write.setMinimumDonation([1n], { account: attacker.account }),
         /AccessControlUnauthorizedAccount/
       );
     });
@@ -104,9 +104,9 @@ describe("AccessControl Security Tests", async function () {
     });
 
     it("Should fail to withdrawERC721 without TREASURY_ROLE", async function () {
-      const { treasury, attacker, bragNFT } = await setup();
+      const { treasury, attacker, nexus } = await setup();
       await assert.rejects(
-        treasury.write.withdrawERC721([bragNFT.address, 0n, attacker.account.address], { account: attacker.account }),
+        treasury.write.withdrawERC721([nexus.address, 0n, attacker.account.address], { account: attacker.account }),
         /AccessControlUnauthorizedAccount/
       );
     });
@@ -122,22 +122,22 @@ describe("AccessControl Security Tests", async function () {
 
   describe("Role Management", () => {
     it("Should allow ADMIN to grant and revoke roles", async function () {
-      const { owner, other, bragToken } = await setup();
+      const { owner, other, nexusToken } = await setup();
 
       // Grant MINTER_ROLE
-      await bragToken.write.grantRole([MINTER_ROLE, other.account.address], { account: owner.account });
-      assert.ok(await bragToken.read.hasRole([MINTER_ROLE, other.account.address]));
+      await nexusToken.write.grantRole([MINTER_ROLE, other.account.address], { account: owner.account });
+      assert.ok(await nexusToken.read.hasRole([MINTER_ROLE, other.account.address]));
 
       // Mint works now
-      await bragToken.write.mint([other.account.address, 50n], { account: other.account });
+      await nexusToken.write.mint([other.account.address, 50n], { account: other.account });
 
       // Revoke MINTER_ROLE
-      await bragToken.write.revokeRole([MINTER_ROLE, other.account.address], { account: owner.account });
-      assert.ok(!(await bragToken.read.hasRole([MINTER_ROLE, other.account.address])));
+      await nexusToken.write.revokeRole([MINTER_ROLE, other.account.address], { account: owner.account });
+      assert.ok(!(await nexusToken.read.hasRole([MINTER_ROLE, other.account.address])));
 
       // Mint fails again
       await assert.rejects(
-        bragToken.write.mint([other.account.address, 50n], { account: other.account }),
+        nexusToken.write.mint([other.account.address, 50n], { account: other.account }),
         /AccessControlUnauthorizedAccount/
       );
     });

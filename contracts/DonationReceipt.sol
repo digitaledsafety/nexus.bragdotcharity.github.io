@@ -8,7 +8,7 @@ import "./IDonationReceipt.sol";
 /**
  * @title DonationReceipt
  * @dev A Soulbound NFT that serves as a permanent, non-transferable record of a donation.
- * Uses AccessControl to manage minters (e.g., BragNFT).
+ * Uses AccessControl to manage minters (e.g., Nexus).
  */
 contract DonationReceipt is ERC721, AccessControl, IDonationReceipt {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -18,7 +18,7 @@ contract DonationReceipt is ERC721, AccessControl, IDonationReceipt {
     event ReceiptMinted(uint256 indexed tokenId, address indexed donor, uint256 amount);
 
     constructor(address _initialOwner)
-        ERC721("DonationReceipt", "BRAGRECEIPT")
+        ERC721("DonationReceipt", "NEXUSRECEIPT")
     {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
     }
@@ -40,7 +40,7 @@ contract DonationReceipt is ERC721, AccessControl, IDonationReceipt {
     }
 
     /**
-     * @dev Mint a new soulbound receipt. Only callable by authorized minters (e.g., BragNFT contract).
+     * @dev Mint a new soulbound receipt. Only callable by authorized minters (e.g., Nexus contract).
      */
     function mint(address to, uint256 amount, string calldata message) external onlyRole(MINTER_ROLE) returns (uint256) {
         uint256 tokenId = _nextTokenId++;
