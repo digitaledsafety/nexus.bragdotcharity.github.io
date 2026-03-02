@@ -7,10 +7,10 @@ let selectedUsdAmount = 0;
 const CAUSE_NAME = "Empowering STEM Education";
 const MISSION_DESC = "Providing modern STEM/STEAM education to underserved communities.";
 
-// Contract Addresses (Will be updated from CONTRACT_DATA if available)
-let ADDR_BRAG_NFT = "";
-let ADDR_TREASURY = "";
-let ADDR_BRAG_TOKEN = "";
+// Contract Addresses (Will be updated from CONTRACT_DATA or localStorage)
+let ADDR_BRAG_NFT = localStorage.getItem('addrBragNFT') || "";
+let ADDR_TREASURY = localStorage.getItem('addrTreasury') || "";
+let ADDR_BRAG_TOKEN = localStorage.getItem('addrBragToken') || "";
 
 async function init() {
     setupUIListeners();
@@ -50,15 +50,15 @@ async function connectWallet(silent = false) {
             document.getElementById('networkBadge').innerText = getNetworkName(network.chainId);
             document.getElementById('walletDisplay').classList.remove('hidden');
 
-            // Auto-detect addresses
+            // Auto-detect addresses, prioritizing localStorage if set by Manager
             const chainId = network.chainId.toString();
             const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
-            if (deps) {
-                ADDR_BRAG_NFT = deps.BragNFT;
-                ADDR_TREASURY = deps.Treasury;
-                ADDR_BRAG_TOKEN = deps.BragToken;
-                updateContractLinks();
-            }
+
+            if (!ADDR_BRAG_NFT) ADDR_BRAG_NFT = deps?.BragNFT || "";
+            if (!ADDR_TREASURY) ADDR_TREASURY = deps?.Treasury || "";
+            if (!ADDR_BRAG_TOKEN) ADDR_BRAG_TOKEN = deps?.BragToken || "";
+
+            updateContractLinks();
         }
     } catch (e) {
         console.error("Connection failed", e);
@@ -73,31 +73,55 @@ function getNetworkName(chainId) {
 function updateContractLinks() {
     const explorerUrl = network?.chainId === 11155111 ? "https://sepolia.etherscan.io/address/" : "https://etherscan.io/address/";
     const link = document.getElementById('contractLink');
-    link.innerText = ADDR_BRAG_NFT;
-    link.href = explorerUrl + ADDR_BRAG_NFT;
+    if (link) {
+        link.innerText = ADDR_BRAG_NFT || "0x...";
+        link.href = ADDR_BRAG_NFT ? explorerUrl + ADDR_BRAG_NFT : "#";
+    }
 }
 
 async function refreshStats() {
-    if (!ADDR_TREASURY || !ADDR_BRAG_NFT) return;
+    if (!ADDR_BRAG_NFT) {
+        console.warn("BragNFT address not set, skipping stats refresh");
+        return;
+    }
 
     try {
-        const publicProvider = provider || new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545"); // Fallback to local for dev
+        const publicProvider = provider || new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
+        const bragNFT = new ethers.Contract(ADDR_BRAG_NFT, CONTRACT_DATA.contracts.BragNFT.abi, publicProvider);
 
-        // Total Raised (Balance of Treasury)
-        const balance = await publicProvider.getBalance(ADDR_TREASURY);
-        const ethVal = parseFloat(ethers.utils.formatEther(balance));
-        const usdVal = ethVal * ethPrice;
+        // Auto-detect treasury address if not explicitly set
+        if (!ADDR_TREASURY) {
+            try {
+                ADDR_TREASURY = await bragNFT.treasury();
+            } catch (e) {
+                console.error("Could not fetch treasury from contract", e);
+            }
+        }
 
-        document.getElementById('totalRaisedETH').innerText = ethVal.toFixed(4);
-        document.getElementById('totalRaisedUSD').innerText = `$${usdVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (ADDR_TREASURY) {
+            // Total Raised (Balance of Treasury)
+            try {
+                const balance = await publicProvider.getBalance(ADDR_TREASURY);
+                const ethVal = parseFloat(ethers.utils.formatEther(balance));
+                const usdVal = ethVal * ethPrice;
+
+                document.getElementById('totalRaisedETH').innerText = ethVal.toFixed(4);
+                document.getElementById('totalRaisedUSD').innerText = `$${usdVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            } catch (e) {
+                console.error("Failed to fetch treasury balance", e);
+            }
+        }
 
         // Supply Remaining
-        const bragNFT = new ethers.Contract(ADDR_BRAG_NFT, CONTRACT_DATA.contracts.BragNFT.abi, publicProvider);
-        const total = await bragNFT.maxSupply();
-        const current = await bragNFT.totalSupply();
+        try {
+            const total = await bragNFT.maxSupply();
+            const current = await bragNFT.totalSupply();
 
-        document.getElementById('nftsTotal').innerText = total.toString();
-        document.getElementById('nftsRemaining').innerText = (total.sub(current)).toString();
+            document.getElementById('nftsTotal').innerText = total.toString();
+            document.getElementById('nftsRemaining').innerText = (total.sub(current)).toString();
+        } catch (e) {
+            console.error("Failed to fetch supply stats", e);
+        }
     } catch (e) {
         console.error("Failed to refresh stats", e);
     }
@@ -152,13 +176,19 @@ async function donateETH() {
         return;
     }
 
+    if (!ADDR_BRAG_NFT) {
+        alert("BragNFT address not set. Please use the Manager to set contract addresses.");
+        return;
+    }
+
     const ethValue = ethers.utils.parseEther((selectedUsdAmount / ethPrice).toFixed(18));
     const bragNFT = new ethers.Contract(ADDR_BRAG_NFT, CONTRACT_DATA.contracts.BragNFT.abi, signer);
 
     try {
         showModal("Minting in Progress", "Please confirm the transaction in your wallet and wait for blockchain confirmation.");
 
-        const tx = await bragNFT["donate(string,string)"]("Landing Page Donation", "", { value: ethValue });
+        // Using the 3-arg donate function: donate(string message, string media, bool onChain)
+        const tx = await bragNFT["donate(string,string,bool)"]("Landing Page Donation", "", false, { value: ethValue });
 
         document.getElementById('statusDesc').innerText = "Transaction sent! Waiting for block confirmation...";
         const receipt = await tx.wait();

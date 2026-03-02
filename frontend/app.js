@@ -28,7 +28,7 @@ function log(message, type = 'info') {
 }
 
 // Persistent addresses
-const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrMarketplace'];
+const addressFields = ['addrBragNFT', 'addrTreasury', 'addrBragToken', 'addrExhibitRegistry', 'addrMarketplace'];
 addressFields.forEach(id => {
     const saved = localStorage.getItem(id);
     if (saved) document.getElementById(id).value = saved;

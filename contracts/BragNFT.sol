@@ -21,6 +21,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     using Strings for uint256;
 
     uint256 private _nextTokenId;
+    uint256 public maxSupply;
     address public treasury;
     uint256 public minimumDonation;
     IDonationReceipt public receiptContract;
@@ -40,6 +41,15 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
         minimumDonation = _minimumDonation;
+        maxSupply = 10000; // Default max supply
+    }
+
+    function totalSupply() public view returns (uint256) {
+        return _nextTokenId;
+    }
+
+    function setMaxSupply(uint256 _maxSupply) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        maxSupply = _maxSupply;
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721URIStorage, AccessControl) returns (bool) {
@@ -112,6 +122,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     function _donate(address recipient, string memory message, string memory media, bool onChain) internal {
         require(address(receiptContract) != address(0), "Receipt contract not set");
         require(msg.value >= minimumDonation, "Donation below minimum");
+        require(_nextTokenId < maxSupply, "Max supply reached");
 
         uint256 nftTokenId = _nextTokenId++;
 

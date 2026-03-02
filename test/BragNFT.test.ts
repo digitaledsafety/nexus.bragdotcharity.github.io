@@ -226,4 +226,41 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an SVG fallback");
     assert.equal(json.attributes[0].value, message);
   });
+
+  it("Should track supply correctly", async function () {
+    const { bragNFT, donor, owner } = await deployContracts();
+
+    const initialTotalSupply = await bragNFT.read.totalSupply();
+    assert.equal(initialTotalSupply, 0n);
+
+    const initialMaxSupply = await bragNFT.read.maxSupply();
+    assert.equal(initialMaxSupply, 10000n);
+
+    await bragNFT.write.donate(["Donation 1", ""], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    assert.equal(await bragNFT.read.totalSupply(), 1n);
+
+    // Test setMaxSupply
+    await bragNFT.write.setMaxSupply([2n], { account: owner.account });
+    assert.equal(await bragNFT.read.maxSupply(), 2n);
+
+    await bragNFT.write.donate(["Donation 2", ""], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    assert.equal(await bragNFT.read.totalSupply(), 2n);
+
+    // Should fail on third donation
+    await assert.rejects(
+        bragNFT.write.donate(["Donation 3", ""], {
+            account: donor.account,
+            value: parseEther("0.1")
+        }),
+        /Max supply reached/
+    );
+  });
 });
