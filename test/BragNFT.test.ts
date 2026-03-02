@@ -226,4 +226,30 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an SVG fallback");
     assert.equal(json.attributes[0].value, message);
   });
+
+  it("Should correctly escape special characters in SVG and JSON", async function () {
+    const { bragNFT, donor } = await deployContracts();
+    const message = 'Message with < > & " and \\ characters';
+
+    await bragNFT.write.donate([message, ""], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const tokenId = 0n;
+    const uri = await bragNFT.read.tokenURI([tokenId]);
+
+    // Check JSON parsing (proves _escapeJSON works)
+    const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+    assert.equal(json.attributes[0].value, message);
+    assert.ok(json.description.includes(message));
+
+    // Check SVG content (proves _escapeSVG works)
+    const svgBase64 = json.image.split(",")[1];
+    const svg = Buffer.from(svgBase64, "base64").toString();
+
+    assert.ok(svg.includes("&lt; &gt; &amp;"), "SVG should contain escaped characters");
+    assert.ok(!svg.includes("< > &"), "SVG should not contain unescaped < > &");
+    assert.ok(svg.includes('"'), "SVG should contain double quotes (not escaped in SVG, but okay in text)");
+  });
 });
