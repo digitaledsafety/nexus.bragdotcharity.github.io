@@ -424,8 +424,8 @@ async function initProduct() {
         }
 
         // Marketplace Info & Price History
-        if (marketplace) {
-            const offer = await marketplace.offers(contractAddr, tokenId);
+        if (marketplace && userAddress) {
+            const offer = await marketplace.offers(contractAddr, tokenId, userAddress);
             if (offer.buyer !== ethers.constants.AddressZero) {
                 document.getElementById('noOffer').classList.add('hidden');
                 document.getElementById('offerExists').classList.remove('hidden');
