@@ -226,4 +226,30 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an SVG fallback");
     assert.equal(json.attributes[0].value, message);
   });
+
+  it("Should track supply correctly", async function () {
+    const { bragNFT, donor, recipient } = await deployContracts();
+
+    assert.equal(await bragNFT.read.maxSupply(), 10000n);
+    assert.equal(await bragNFT.read.totalSupply(), 0n);
+
+    await bragNFT.write.donate(["Supply test", "ipfs://uri"], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    assert.equal(await bragNFT.read.totalSupply(), 1n);
+
+    await bragNFT.write.setMaxSupply([1n], { account: (await viem.getWalletClients())[0].account });
+    assert.equal(await bragNFT.read.maxSupply(), 1n);
+
+    // Should fail to donate when supply is full
+    await assert.rejects(
+        bragNFT.write.donate(["Fail test", "ipfs://uri"], {
+            account: donor.account,
+            value: parseEther("0.1")
+        }),
+        /Max supply reached/
+    );
+  });
 });
