@@ -425,7 +425,11 @@ async function initProduct() {
 
         // Marketplace Info & Price History
         if (marketplace) {
-            const offer = await marketplace.offers(contractAddr, tokenId);
+            const [offer, listing] = await Promise.all([
+                marketplace.offers(contractAddr, tokenId),
+                marketplace.listings(contractAddr, tokenId)
+            ]);
+
             if (offer.buyer !== ethers.constants.AddressZero) {
                 document.getElementById('noOffer').classList.add('hidden');
                 document.getElementById('offerExists').classList.remove('hidden');
@@ -438,6 +442,38 @@ async function initProduct() {
                 if (histItem) {
                     histItem.classList.remove('hidden');
                     document.getElementById('histOfferPrice').textContent = priceFormatted;
+                }
+            }
+
+            if (listing.active) {
+                const buySection = document.getElementById('buyNowSection');
+                if (buySection) {
+                    buySection.classList.remove('hidden');
+                    const priceFormatted = `${ethers.utils.formatEther(listing.price)} BRAG`;
+                    document.getElementById('buyNowPrice').textContent = priceFormatted;
+                    document.getElementById('btnBuyNow').onclick = async () => {
+                        try {
+                            const bragTokenAddr = getDeploymentAddress('BragToken');
+                            const bragToken = getContract('BragToken', bragTokenAddr);
+                            const price = listing.price;
+
+                            // Check allowance
+                            const allowance = await bragToken.allowance(userAddress, marketplaceAddr);
+                            if (allowance.lt(price)) {
+                                const approveTx = await bragToken.approve(marketplaceAddr, price);
+                                alert('Approval transaction submitted! Please wait...');
+                                await approveTx.wait();
+                            }
+
+                            const tx = await marketplace.buyNFT(contractAddr, tokenId);
+                            alert('Purchase submitted! Awaiting confirmation...');
+                            await tx.wait();
+                            alert('Purchase confirmed!');
+                            window.location.reload();
+                        } catch (e) {
+                            alert('Purchase failed: ' + (e.reason || e.message));
+                        }
+                    };
                 }
             }
         }

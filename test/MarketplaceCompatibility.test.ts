@@ -53,7 +53,8 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     // Verify results
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
-    assert.equal(await bragToken.read.balanceOf([seller.account.address]), offerPrice);
+    // Royalty is 5% of 1 BRAG = 0.05 BRAG. Seller gets 0.95 BRAG.
+    assert.equal(await bragToken.read.balanceOf([seller.account.address]), parseEther("0.95"));
   });
 
   it("Should handle ERC1155 offers and acceptance", async function () {
