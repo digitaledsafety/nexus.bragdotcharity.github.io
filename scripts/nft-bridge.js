@@ -136,7 +136,7 @@ function getContractAddress(contractName) {
     return deployments[`AppModule#${contractName}`];
 }
 
-const NEXUS_ABI = [
+const BRAG_ABI = [
     { "inputs": [{ "name": "owner", "type": "address" }], "name": "balanceOf", "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
 ];
 
@@ -196,11 +196,11 @@ async function handleStatusChange(address) {
 }
 
 async function setupEventListeners() {
-    const nexusAddress = getContractAddress('Nexus');
-    if (nexusAddress) {
-        console.log(`Setting up event listener for Nexus at ${nexusAddress}`);
+    const bragAddress = getContractAddress('BragNFT');
+    if (bragAddress) {
+        console.log(`Setting up event listener for BragNFT at ${bragAddress}`);
         publicClient.watchEvent({
-            address: nexusAddress,
+            address: bragAddress,
             event: parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)'),
             polling: true,
             onLogs: (logs) => {
@@ -343,21 +343,21 @@ async function fetchWithRetry(fn, label, maxRetries = 3) {
 
 async function fetchCurrentStatus(address) {
     console.log(`Fetching current on-chain status for ${address}...`);
-    const nexusAddress = getContractAddress('Nexus');
+    const bragAddress = getContractAddress('BragNFT');
     let walletNfts = [];
 
     // Check Wallet
-    if (nexusAddress) {
+    if (bragAddress) {
         try {
             const balance = await fetchWithRetry(() => publicClient.readContract({
-                address: nexusAddress,
-                abi: NEXUS_ABI,
+                address: bragAddress,
+                abi: BRAG_ABI,
                 functionName: 'balanceOf',
                 args: [address]
             }), `balanceOf(${address})`);
 
             if (balance > 0n) {
-                walletNfts.push({ tokenId: "any", location: "Wallet", nftContract: nexusAddress });
+                walletNfts.push({ tokenId: "any", location: "Wallet", nftContract: bragAddress });
             }
         } catch (e) {
             console.error(`Error checking balance for ${address}:`, e.message);
@@ -371,7 +371,7 @@ async function fetchCurrentStatus(address) {
         vaults[vaultAddr] = [];
 
         try {
-            // Check for exhibited Nexuss in this vault
+            // Check for exhibited BragNFTs in this vault
             // We use getLogs to find tokens the user has exhibited
             const logs = await fetchWithRetry(() => publicClient.getLogs({
                 address: vaultAddr,

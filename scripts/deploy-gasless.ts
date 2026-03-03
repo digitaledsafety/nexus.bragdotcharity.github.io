@@ -149,12 +149,12 @@ async function main() {
 
     const exhibitRegistry = await deploy("ExhibitRegistry", [scaAddress]);
     const donationReceipt = await deploy("DonationReceipt", [scaAddress]);
-    const nexus = await deploy("Nexus", [scaAddress, treasury.address, minimumDonation]);
+    const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation]);
 
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
-    const nexusToken = await deploy("NexusToken", [scaAddress, initialSupply, maxSupply]);
-    const marketplace = await deploy("NFTMarketplace", [refundPeriod, nexusToken.address]);
+    const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
+    const marketplace = await deploy("NFTMarketplace", [refundPeriod, bragToken.address]);
 
     // --- Batch Setup Transactions ---
     console.log("Batching setup and ownership transfer...");
@@ -164,31 +164,31 @@ async function main() {
             data: encodeFunctionData({
                 abi: donationReceipt.abi,
                 functionName: "grantRole",
-                args: [MINTER_ROLE, nexus.address]
+                args: [MINTER_ROLE, bragNFT.address]
             })
         },
         {
-            to: nexus.address,
+            to: bragNFT.address,
             data: encodeFunctionData({
-                abi: nexus.abi,
+                abi: bragNFT.abi,
                 functionName: "setReceiptContract",
                 args: [donationReceipt.address]
             })
         },
         {
-            to: nexus.address,
+            to: bragNFT.address,
             data: encodeFunctionData({
-                abi: nexus.abi,
-                functionName: "setNexusToken",
-                args: [nexusToken.address]
+                abi: bragNFT.abi,
+                functionName: "setBragToken",
+                args: [bragToken.address]
             })
         },
         {
-            to: nexusToken.address,
+            to: bragToken.address,
             data: encodeFunctionData({
-                abi: nexusToken.abi,
+                abi: bragToken.abi,
                 functionName: "grantRole",
-                args: [MINTER_ROLE, nexus.address]
+                args: [MINTER_ROLE, bragNFT.address]
             })
         }
     ];
@@ -196,8 +196,8 @@ async function main() {
     // Grant Admin Roles to EOA
     const contractsToTransfer = [
         { name: "DonationReceipt", contract: donationReceipt },
-        { name: "Nexus", contract: nexus },
-        { name: "NexusToken", contract: nexusToken }
+        { name: "BragNFT", contract: bragNFT },
+        { name: "BragToken", contract: bragToken }
     ];
 
     for (const item of contractsToTransfer) {
@@ -267,8 +267,8 @@ async function main() {
     }
 
     const deployedAddresses = {
-        "AppModule#Nexus": nexus.address,
-        "AppModule#NexusToken": nexusToken.address,
+        "AppModule#BragNFT": bragNFT.address,
+        "AppModule#BragToken": bragToken.address,
         "AppModule#DonationReceipt": donationReceipt.address,
         "AppModule#ExhibitRegistry": exhibitRegistry.address,
         "AppModule#NFTMarketplace": marketplace.address,

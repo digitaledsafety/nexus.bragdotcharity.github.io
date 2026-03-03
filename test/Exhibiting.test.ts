@@ -20,58 +20,58 @@ describe("Exhibiting System", async function () {
     await registry.write.verifyVault([vault2.address, 0, "Roblox Vault", "Vault for Roblox"]);
 
     // Deploy mock NFTs
-    const nexus = await viem.deployContract("Nexus", [
+    const bragNFT = await viem.deployContract("BragNFT", [
         owner.account.address,
         owner.account.address,
         parseEther("0.1")
     ]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    await receipt.write.grantRole([MINTER_ROLE, nexus.address]);
-    await nexus.write.setReceiptContract([receipt.address]);
+    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
+    await bragNFT.write.setReceiptContract([receipt.address]);
 
     const mock1155 = await viem.deployContract("MockERC1155", []);
 
-    return { registry, vault1, vault2, nexus, mock1155, owner, user, user2, admin };
+    return { registry, vault1, vault2, bragNFT, mock1155, owner, user, user2, admin };
   }
 
   it("Should exhibit ERC721 to a vault and withdraw it", async function () {
-    const { nexus, vault1, user } = await deployContracts();
+    const { bragNFT, vault1, user } = await deployContracts();
 
     // Mint NFT to user
-    await nexus.write.donate(["test", ""], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["test", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
     // Exhibit: Transfer to vault
-    await nexus.write.safeTransferFrom([user.account.address, vault1.address, tokenId], { account: user.account });
+    await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId], { account: user.account });
 
     // Verify ownership in vault
-    assert.equal(await nexus.read.ownerOf([tokenId]), getAddress(vault1.address));
-    assert.equal(await vault1.read.owner721([nexus.address, tokenId]), getAddress(user.account.address));
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(vault1.address));
+    assert.equal(await vault1.read.owner721([bragNFT.address, tokenId]), getAddress(user.account.address));
 
     // Withdraw from vault
-    await vault1.write.withdraw721([nexus.address, tokenId], { account: user.account });
+    await vault1.write.withdraw721([bragNFT.address, tokenId], { account: user.account });
 
     // Verify ownership returned to user
-    assert.equal(await nexus.read.ownerOf([tokenId]), getAddress(user.account.address));
-    assert.equal(await vault1.read.owner721([nexus.address, tokenId]), getAddress("0x0000000000000000000000000000000000000000"));
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(user.account.address));
+    assert.equal(await vault1.read.owner721([bragNFT.address, tokenId]), getAddress("0x0000000000000000000000000000000000000000"));
   });
 
   it("Should exhibit ERC721 with duration and enforce time-lock", async function () {
-    const { nexus, vault1, user } = await deployContracts();
+    const { bragNFT, vault1, user } = await deployContracts();
     const publicClient = await viem.getPublicClient();
 
-    await nexus.write.donate(["timed exhibit", ""], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["timed exhibit", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
     // Exhibit for 1 hour (3600 seconds)
     const duration = 3600n;
     const data = encodeAbiParameters(parseAbiParameters('uint256'), [duration]);
-    await nexus.write.safeTransferFrom([user.account.address, vault1.address, tokenId, data], { account: user.account });
+    await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId, data], { account: user.account });
 
     // Should fail to withdraw early
     await assert.rejects(
-        vault1.write.withdraw721([nexus.address, tokenId], { account: user.account }),
+        vault1.write.withdraw721([bragNFT.address, tokenId], { account: user.account }),
         /Exhibition not yet expired/
     );
 
@@ -80,8 +80,8 @@ describe("Exhibiting System", async function () {
     await publicClient.request({ method: "evm_mine" as any, params: [] });
 
     // Should succeed now
-    await vault1.write.withdraw721([nexus.address, tokenId], { account: user.account });
-    assert.equal(await nexus.read.ownerOf([tokenId]), getAddress(user.account.address));
+    await vault1.write.withdraw721([bragNFT.address, tokenId], { account: user.account });
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(user.account.address));
   });
 
   it("Should exhibit ERC1155 with duration and enforce time-lock", async function () {
@@ -113,22 +113,22 @@ describe("Exhibiting System", async function () {
   });
 
   it("Should move ERC721 with duration", async function () {
-    const { nexus, vault1, vault2, user } = await deployContracts();
+    const { bragNFT, vault1, vault2, user } = await deployContracts();
     const publicClient = await viem.getPublicClient();
 
-    await nexus.write.donate(["move timed", ""], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["move timed", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
     // Summon to Vault 1
-    await nexus.write.safeTransferFrom([user.account.address, vault1.address, tokenId], { account: user.account });
+    await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId], { account: user.account });
 
     // Move to Vault 2 with 1 hour duration
     const duration = 3600n;
-    await vault1.write.move721WithDuration([nexus.address, tokenId, vault2.address, duration], { account: user.account });
+    await vault1.write.move721WithDuration([bragNFT.address, tokenId, vault2.address, duration], { account: user.account });
 
     // Should be locked in Vault 2
     await assert.rejects(
-        vault2.write.withdraw721([nexus.address, tokenId], { account: user.account }),
+        vault2.write.withdraw721([bragNFT.address, tokenId], { account: user.account }),
         /Exhibition not yet expired/
     );
 
@@ -136,21 +136,21 @@ describe("Exhibiting System", async function () {
     await publicClient.request({ method: "evm_increaseTime" as any, params: [3601] });
     await publicClient.request({ method: "evm_mine" as any, params: [] });
 
-    await vault2.write.withdraw721([nexus.address, tokenId], { account: user.account });
-    assert.equal(await nexus.read.ownerOf([tokenId]), getAddress(user.account.address));
+    await vault2.write.withdraw721([bragNFT.address, tokenId], { account: user.account });
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(user.account.address));
   });
 
   it("Should NOT allow moving to unverified vault", async function () {
-    const { nexus, vault1, user, user2 } = await deployContracts();
+    const { bragNFT, vault1, user, user2 } = await deployContracts();
 
-    await nexus.write.donate(["unverified test", ""], { account: user.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["unverified test", ""], { account: user.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
-    await nexus.write.safeTransferFrom([user.account.address, vault1.address, tokenId], { account: user.account });
+    await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId], { account: user.account });
 
     // user2's address is NOT a verified vault
     await assert.rejects(
-        vault1.write.move721([nexus.address, tokenId, user2.account.address], { account: user.account }),
+        vault1.write.move721([bragNFT.address, tokenId, user2.account.address], { account: user.account }),
         /Destination not verified/
     );
   });

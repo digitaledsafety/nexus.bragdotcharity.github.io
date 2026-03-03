@@ -8,16 +8,16 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./IDonationReceipt.sol";
 
-interface INexusToken {
+interface IBragToken {
     function mint(address to, uint256 amount) external;
 }
 
 /**
- * @title Nexus
+ * @title BragNFT
  * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
  * Uses AccessControl for flexible permissions.
  */
-contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
+contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     using Strings for uint256;
 
     uint256 private _nextTokenId;
@@ -25,9 +25,9 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
     address public treasury;
     uint256 public minimumDonation;
     IDonationReceipt public receiptContract;
-    INexusToken public nexusToken;
+    IBragToken public bragToken;
 
-    // Link between Nexus tokenId and DonationReceipt tokenId
+    // Link between BragNFT tokenId and DonationReceipt tokenId
     mapping(uint256 => uint256) public nftToReceipt;
 
     // Optional on-chain media storage
@@ -36,7 +36,7 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
     event Donated(address indexed donor, uint256 amount, uint256 nftTokenId, uint256 receiptTokenId, string message);
 
     constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
-        ERC721("Nexus", "NEXUS")
+        ERC721("BragNFT", "BRAGNFT")
     {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
@@ -69,12 +69,12 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
         receiptContract = IDonationReceipt(_receiptContract);
     }
 
-    function setNexusToken(address _nexusToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        nexusToken = INexusToken(_nexusToken);
+    function setBragToken(address _bragToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        bragToken = IBragToken(_bragToken);
     }
 
     /**
-     * @dev Mint a new Nexus by donating ETH. Also mints a soulbound DonationReceipt.
+     * @dev Mint a new BragNFT by donating ETH. Also mints a soulbound DonationReceipt.
      * @param message A message to include with the donation receipt.
      * @param tokenURI_ The URI for the NFT media.
      */
@@ -83,7 +83,7 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @dev Mint a new Nexus by donating ETH with optional on-chain media.
+     * @dev Mint a new BragNFT by donating ETH with optional on-chain media.
      * @param message A message to include with the donation receipt.
      * @param media The URI or raw media content.
      * @param onChain Whether to store the media directly on-chain.
@@ -93,8 +93,8 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @dev Mint a new Nexus by donating ETH to a specific recipient.
-     * @param recipient The address to receive the transferable Nexus NFT.
+     * @dev Mint a new BragNFT by donating ETH to a specific recipient.
+     * @param recipient The address to receive the transferable BragNFT.
      * @param message A message to include with the donation receipt.
      * @param tokenURI_ The URI for the NFT media.
      */
@@ -103,7 +103,7 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @dev Mint a new Nexus by donating ETH to a recipient with optional on-chain media.
+     * @dev Mint a new BragNFT by donating ETH to a recipient with optional on-chain media.
      */
     function donateTo(address recipient, string calldata message, string calldata media, bool onChain) external payable nonReentrant {
         _donate(recipient, message, media, onChain);
@@ -140,12 +140,12 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
         // 3. Link them (Effect)
         nftToReceipt[nftTokenId] = receiptTokenId;
 
-        // 4. Mint the transferable Nexus NFT to the specified recipient (Interaction - may call onERC721Received)
+        // 4. Mint the transferable BragNFT to the specified recipient (Interaction - may call onERC721Received)
         _safeMint(recipient, nftTokenId);
 
-        // 5. Mint Nexus Tokens (Interaction - if token contract is set)
-        if (address(nexusToken) != address(0)) {
-            nexusToken.mint(msg.sender, msg.value);
+        // 5. Mint Brag Tokens (Interaction - if token contract is set)
+        if (address(bragToken) != address(0)) {
+            bragToken.mint(msg.sender, msg.value);
         }
 
         // 6. Transfer to treasury (Interaction)
@@ -208,9 +208,9 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
             bytes(
                 string(
                     abi.encodePacked(
-                        '{"name": "Nexus #',
+                        '{"name": "BragNFT #',
                         tokenId.toString(),
-                        '", "description": "Nexus Donation NFT',
+                        '", "description": "Brag.Charity Donation NFT',
                         bytes(message).length > 0 ? string(abi.encodePacked(": ", _escapeJSON(message))) : "",
                         '", "image": "',
                         imageURI,
@@ -240,7 +240,7 @@ contract Nexus is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @dev Generates a simple SVG image with the donation message.
      */
     function _generateSVG(uint256 tokenId, string memory message) internal pure returns (string memory) {
-        string memory displayText = bytes(message).length > 0 ? message : string(abi.encodePacked("Nexus #", tokenId.toString()));
+        string memory displayText = bytes(message).length > 0 ? message : string(abi.encodePacked("BragNFT #", tokenId.toString()));
         // Note: Basic SVG escaping could be added here if needed, but for simplicity we keep it as is.
         return string(abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',

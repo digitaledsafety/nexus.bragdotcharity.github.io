@@ -8,9 +8,9 @@ const CAUSE_NAME = "Empowering STEM Education";
 const MISSION_DESC = "Providing modern STEM/STEAM education to underserved communities.";
 
 // Contract Addresses (Will be updated from CONTRACT_DATA or localStorage)
-let ADDR_NEXUS = localStorage.getItem('addrNexus') || "";
+let ADDR_BRAG_NFT = localStorage.getItem('addrBragNFT') || "";
 let ADDR_TREASURY = localStorage.getItem('addrTreasury') || "";
-let ADDR_NEXUS_TOKEN = localStorage.getItem('addrNexusToken') || "";
+let ADDR_BRAG_TOKEN = localStorage.getItem('addrBragToken') || "";
 
 async function init() {
     setupUIListeners();
@@ -54,9 +54,9 @@ async function connectWallet(silent = false) {
             const chainId = network.chainId.toString();
             const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
 
-            if (!ADDR_NEXUS) ADDR_NEXUS = deps?.Nexus || "";
+            if (!ADDR_BRAG_NFT) ADDR_BRAG_NFT = deps?.BragNFT || "";
             if (!ADDR_TREASURY) ADDR_TREASURY = deps?.Treasury || "";
-            if (!ADDR_NEXUS_TOKEN) ADDR_NEXUS_TOKEN = deps?.NexusToken || "";
+            if (!ADDR_BRAG_TOKEN) ADDR_BRAG_TOKEN = deps?.BragToken || "";
 
             updateContractLinks();
         }
@@ -74,25 +74,46 @@ function updateContractLinks() {
     const explorerUrl = network?.chainId === 11155111 ? "https://sepolia.etherscan.io/address/" : "https://etherscan.io/address/";
     const link = document.getElementById('contractLink');
     if (link) {
-        link.innerText = ADDR_NEXUS || "0x...";
-        link.href = ADDR_NEXUS ? explorerUrl + ADDR_NEXUS : "#";
+        link.innerText = ADDR_BRAG_NFT || "0x...";
+        link.href = ADDR_BRAG_NFT ? explorerUrl + ADDR_BRAG_NFT : "#";
     }
 }
 
 async function refreshStats() {
-    if (!ADDR_NEXUS) {
-        console.warn("Nexus address not set, skipping stats refresh");
-        return;
-    }
-
     try {
         const publicProvider = provider || new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
-        const nexus = new ethers.Contract(ADDR_NEXUS, CONTRACT_DATA.contracts.Nexus.abi, publicProvider);
+
+        if (!network) {
+            try {
+                network = await publicProvider.getNetwork();
+            } catch (e) {
+                console.error("Failed to detect network", e);
+            }
+        }
+
+        // Auto-detect addresses from CONTRACT_DATA if not set
+        if (network) {
+            const chainId = network.chainId.toString();
+            const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
+
+            if (!ADDR_BRAG_NFT) ADDR_BRAG_NFT = deps?.BragNFT || "";
+            if (!ADDR_TREASURY) ADDR_TREASURY = deps?.Treasury || "";
+            if (!ADDR_BRAG_TOKEN) ADDR_BRAG_TOKEN = deps?.BragToken || "";
+
+            updateContractLinks();
+        }
+
+        if (!ADDR_BRAG_NFT) {
+            console.warn("BragNFT address not set, skipping stats refresh");
+            return;
+        }
+
+        const bragNFT = new ethers.Contract(ADDR_BRAG_NFT, CONTRACT_DATA.contracts.BragNFT.abi, publicProvider);
 
         // Auto-detect treasury address if not explicitly set
         if (!ADDR_TREASURY) {
             try {
-                ADDR_TREASURY = await nexus.treasury();
+                ADDR_TREASURY = await bragNFT.treasury();
             } catch (e) {
                 console.error("Could not fetch treasury from contract", e);
             }
@@ -114,8 +135,8 @@ async function refreshStats() {
 
         // Supply Remaining
         try {
-            const total = await nexus.maxSupply();
-            const current = await nexus.totalSupply();
+            const total = await bragNFT.maxSupply();
+            const current = await bragNFT.totalSupply();
 
             document.getElementById('nftsTotal').innerText = total.toString();
             document.getElementById('nftsRemaining').innerText = (total.sub(current)).toString();
@@ -176,19 +197,19 @@ async function donateETH() {
         return;
     }
 
-    if (!ADDR_NEXUS) {
-        alert("Nexus address not set. Please use the Manager to set contract addresses.");
+    if (!ADDR_BRAG_NFT) {
+        alert("BragNFT address not set. Please use the Manager to set contract addresses.");
         return;
     }
 
     const ethValue = ethers.utils.parseEther((selectedUsdAmount / ethPrice).toFixed(18));
-    const nexus = new ethers.Contract(ADDR_NEXUS, CONTRACT_DATA.contracts.Nexus.abi, signer);
+    const bragNFT = new ethers.Contract(ADDR_BRAG_NFT, CONTRACT_DATA.contracts.BragNFT.abi, signer);
 
     try {
         showModal("Minting in Progress", "Please confirm the transaction in your wallet and wait for blockchain confirmation.");
 
         // Using the 3-arg donate function: donate(string message, string media, bool onChain)
-        const tx = await nexus["donate(string,string,bool)"]("Landing Page Donation", "", false, { value: ethValue });
+        const tx = await bragNFT["donate(string,string,bool)"]("Landing Page Donation", "", false, { value: ethValue });
 
         document.getElementById('statusDesc').innerText = "Transaction sent! Waiting for block confirmation...";
         const receipt = await tx.wait();
@@ -199,7 +220,7 @@ async function donateETH() {
         console.error(e);
         showModal("Donation Failed", e.reason || e.message || "Transaction was cancelled or failed.");
         document.getElementById('statusIcon').innerHTML = '<i class="fas fa-times"></i>';
-        document.getElementById('statusIcon').classList.replace('nexus-gradient', 'bg-red-500');
+        document.getElementById('statusIcon').classList.replace('brag-gradient', 'bg-red-500');
     }
 }
 
@@ -208,7 +229,7 @@ function showModal(title, desc) {
     document.getElementById('statusTitle').innerText = title;
     document.getElementById('statusDesc').innerText = desc;
     document.getElementById('statusIcon').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    document.getElementById('statusIcon').classList.add('nexus-gradient');
+    document.getElementById('statusIcon').classList.add('brag-gradient');
     document.getElementById('statusIcon').classList.remove('bg-red-500', 'bg-green-500');
     document.getElementById('statusActions').classList.add('hidden');
 }
@@ -220,7 +241,7 @@ function handleSuccess(receipt) {
     document.getElementById('statusTitle').innerText = "Donation Successful!";
     document.getElementById('statusDesc').innerText = "Thank you for your generous contribution! Your NFT has been minted.";
     document.getElementById('statusIcon').innerHTML = '<i class="fas fa-check"></i>';
-    document.getElementById('statusIcon').classList.replace('nexus-gradient', 'bg-green-500');
+    document.getElementById('statusIcon').classList.replace('brag-gradient', 'bg-green-500');
 
     document.getElementById('statusActions').classList.remove('hidden');
 
@@ -277,7 +298,7 @@ async function generatePDF() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
     doc.text("NFT Received:", 20, 155);
-    doc.text(`Contract: ${ADDR_NEXUS}`, 20, 165);
+    doc.text(`Contract: ${ADDR_BRAG_NFT}`, 20, 165);
 
     doc.line(20, 180, 190, 180);
 

@@ -8,7 +8,7 @@ describe("BatchGrant", function () {
     const [owner, recipient1, recipient2] = await viem.getWalletClients();
 
     const mockUsdc = await viem.deployContract("MockUSDC");
-    const nexusToken = await viem.deployContract("NexusToken", [
+    const bragToken = await viem.deployContract("BragToken", [
       owner.account.address,
       0n,
       1000000000000000000000000000n
@@ -22,7 +22,7 @@ describe("BatchGrant", function () {
       recipient2,
       batchGrant,
       mockUsdc,
-      nexusToken,
+      bragToken,
     };
   }
 
@@ -55,29 +55,29 @@ describe("BatchGrant", function () {
       assert.equal(balance2, 200n);
     });
 
-    it("should distribute NexusToken to multiple recipients", async function () {
-        const { owner, recipient1, recipient2, batchGrant, nexusToken } = await setup();
+    it("should distribute BragToken to multiple recipients", async function () {
+        const { owner, recipient1, recipient2, batchGrant, bragToken } = await setup();
 
         const ownerAddress = owner.account.address;
         const recipient1Address = recipient1.account.address;
         const recipient2Address = recipient2.account.address;
 
-        // Mint some NexusToken to the owner
-        await nexusToken.write.mint([ownerAddress, 1000n], { account: owner.account });
+        // Mint some BragToken to the owner
+        await bragToken.write.mint([ownerAddress, 1000n], { account: owner.account });
 
-        // Approve the BatchGrant contract to spend the owner's NexusToken
-        await nexusToken.write.approve([batchGrant.address, 1000n], { account: owner.account });
+        // Approve the BatchGrant contract to spend the owner's BragToken
+        await bragToken.write.approve([batchGrant.address, 1000n], { account: owner.account });
 
-        // Distribute the NexusToken
+        // Distribute the BragToken
         const recipients = [recipient1Address, recipient2Address];
         const amounts = [150n, 250n];
-        await batchGrant.write.distribute([nexusToken.address, recipients, amounts], {
+        await batchGrant.write.distribute([bragToken.address, recipients, amounts], {
           account: owner.account,
         });
 
         // Check the balances
-        const balance1 = await nexusToken.read.balanceOf([recipient1Address]);
-        const balance2 = await nexusToken.read.balanceOf([recipient2Address]);
+        const balance1 = await bragToken.read.balanceOf([recipient1Address]);
+        const balance2 = await bragToken.read.balanceOf([recipient2Address]);
 
         assert.equal(balance1, 150n);
         assert.equal(balance2, 250n);

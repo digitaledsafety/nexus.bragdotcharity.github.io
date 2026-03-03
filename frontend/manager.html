@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Manager</title>
+    <title>BragNFT Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.2.0/ethers.umd.min.js" type="application/javascript"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -12,10 +12,10 @@
             background-color: #0f172a;
             color: #f8fafc;
         }
-        .nexus-gradient {
+        .brag-gradient {
             background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
         }
-        .nexus-card {
+        .brag-card {
             background-color: #1e293b;
             border: 1px solid #334155;
         }
@@ -63,7 +63,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
                 <div class="flex items-center cursor-pointer" onclick="window.location.href='index.html'">
-                    <span class="text-2xl font-bold bg-clip-text text-transparent nexus-gradient">nexus</span>
+                    <span class="text-2xl font-bold bg-clip-text text-transparent brag-gradient">brag</span>
                     <span class="text-2xl font-light">.charity</span>
                     <span class="ml-2 px-2 py-0.5 text-[10px] font-bold bg-slate-800 text-purple-400 border border-purple-500/30 rounded-full uppercase tracking-wider">Beta</span>
                 </div>
@@ -82,23 +82,15 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <!-- Contract Settings -->
-        <section class="mb-8 nexus-card rounded-xl p-6">
+        <section class="mb-8 brag-card rounded-xl p-6">
             <div class="flex justify-between items-center mb-4 border-b-2 border-slate-700 pb-2">
                 <h2 class="text-xl font-bold text-slate-300">Contract Settings</h2>
                 <button id="btnAutofill" class="btn-secondary text-xs">Auto-fill From Deployment</button>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm mb-1">Nexus Address</label>
-                    <input type="text" id="addrNexus" class="input-field" placeholder="0x...">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Treasury Address</label>
-                    <input type="text" id="addrTreasury" class="input-field" placeholder="0x...">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">NexusToken Address</label>
-                    <input type="text" id="addrNexusToken" class="input-field" placeholder="0x...">
+                    <label class="block text-sm mb-1">BragNFT Address</label>
+                    <input type="text" id="addrBragNFT" class="input-field" placeholder="0x...">
                 </div>
                 <div>
                     <label class="block text-sm mb-1">ExhibitRegistry Address</label>
@@ -114,8 +106,8 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
             <!-- Minting Section -->
-            <section class="nexus-card rounded-xl p-6">
-                <h2 class="section-title"><i class="fas fa-plus-circle mr-2"></i>Mint Nexus</h2>
+            <section class="brag-card rounded-xl p-6">
+                <h2 class="section-title"><i class="fas fa-plus-circle mr-2"></i>Mint BragNFT</h2>
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm mb-1">Donation Amount (ETH)</label>
@@ -148,7 +140,7 @@
             </section>
 
             <!-- Vault Management -->
-            <section class="nexus-card rounded-xl p-6">
+            <section class="brag-card rounded-xl p-6">
                 <h2 class="section-title"><i class="fas fa-vault mr-2"></i>Vault Management</h2>
                 <div class="space-y-6">
                     <div>
@@ -175,7 +167,7 @@
             </section>
 
             <!-- Exhibition Actions -->
-            <section class="nexus-card rounded-xl p-6 lg:col-span-2">
+            <section class="brag-card rounded-xl p-6 lg:col-span-2">
                 <h2 class="section-title"><i class="fas fa-magic mr-2"></i>Exhibition</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- Exhibit from Wallet -->
@@ -225,7 +217,7 @@
             </section>
 
              <!-- Marketplace -->
-             <section class="nexus-card rounded-xl p-6 lg:col-span-2">
+             <section class="brag-card rounded-xl p-6 lg:col-span-2">
                 <h2 class="section-title"><i class="fas fa-shopping-cart mr-2"></i>Marketplace</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
@@ -235,7 +227,7 @@
                             <input type="text" id="offTokenId" class="input-field" placeholder="Token ID">
                         </div>
                         <div class="grid grid-cols-2 gap-2 mb-2">
-                            <input type="number" id="offPrice" class="input-field" placeholder="Price (NEXUS)" step="0.001">
+                            <input type="number" id="offPrice" class="input-field" placeholder="Price (BRAG)" step="0.001">
                             <input type="number" id="offAmount" class="input-field" placeholder="Amount" value="1">
                         </div>
                         <button id="btnCreateOffer" class="btn-primary w-full">Create Offer</button>
@@ -257,7 +249,7 @@
         </div>
 
         <!-- Wallet Verification -->
-        <section class="mt-8 nexus-card rounded-xl p-6">
+        <section class="mt-8 brag-card rounded-xl p-6">
             <h2 class="section-title"><i class="fas fa-user-check mr-2"></i>Wallet Verification (SIWE Best Practice)</h2>
             <div class="space-y-4">
                 <p class="text-sm text-slate-400">Verifying your wallet proves you own the private key for your address without sending a transaction. This is the industry standard for secure Web3 authentication.</p>
@@ -269,11 +261,11 @@
                         <input type="text" id="linkToken" class="input-field text-sm" placeholder="e.g. A1B2C3D4">
                     </div>
 
-                    <textarea id="siweMessage" class="input-field h-24 mb-3 font-mono text-xs" readonly>Welcome to nexus.charity!
+                    <textarea id="siweMessage" class="input-field h-24 mb-3 font-mono text-xs" readonly>Welcome to brag.charity!
 
 Click to sign in and accept the Terms of Service.
 
-Domain: nexus.charity
+Domain: brag.charity
 Statement: Securely verify wallet ownership.
 Nonce: [auto-generated]</textarea>
 
@@ -290,7 +282,7 @@ Nonce: [auto-generated]</textarea>
         </section>
 
         <!-- Contract Explorer (Dynamic) -->
-        <section class="mt-8 nexus-card rounded-xl p-6">
+        <section class="mt-8 brag-card rounded-xl p-6">
             <h2 class="section-title"><i class="fas fa-code mr-2"></i>Contract Explorer (Auto-Generated)</h2>
             <p class="text-sm text-slate-400 mb-4">This section automatically updates when you change your smart contracts.</p>
 
@@ -304,7 +296,7 @@ Nonce: [auto-generated]</textarea>
         </section>
 
         <!-- Logs -->
-        <section class="mt-8 nexus-card rounded-xl p-6">
+        <section class="mt-8 brag-card rounded-xl p-6">
             <h2 class="section-title">Activity Log</h2>
             <div id="logs" class="bg-slate-900 rounded p-4 h-64 overflow-y-auto font-mono text-sm text-green-400">
                 <div>> Application started. Please connect wallet.</div>
@@ -314,7 +306,7 @@ Nonce: [auto-generated]</textarea>
     </main>
 
     <footer class="mt-12 py-8 border-t border-slate-800 text-center text-slate-500 text-sm">
-        &copy; 2026. All Rights Reserved - nexus.charity is a Digital Education & Safety Foundation Inc. Property
+        &copy; 2026. All Rights Reserved - brag.charity is a Digital Education & Safety Foundation Inc. Property
     </footer>
 
     <script src="contracts.js"></script>

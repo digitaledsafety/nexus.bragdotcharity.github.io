@@ -117,7 +117,7 @@ function parseMetadata(tokenURI) {
 let cart = [];
 
 function loadCart() {
-    const saved = localStorage.getItem('nexus_cart');
+    const saved = localStorage.getItem('brag_cart');
     if (saved) {
         try {
             cart = JSON.parse(saved);
@@ -129,7 +129,7 @@ function loadCart() {
 }
 
 function saveCart() {
-    localStorage.setItem('nexus_cart', JSON.stringify(cart));
+    localStorage.setItem('brag_cart', JSON.stringify(cart));
     updateCartUI();
 }
 
@@ -204,28 +204,28 @@ async function initDiscovery() {
     const { network: net } = await connectWallet(true) || {};
     if (!net) return;
 
-    const nexusAddr = getDeploymentAddress('Nexus');
-    if (!nexusAddr) {
-        console.warn("Nexus address not found.");
+    const bragNFTAddr = getDeploymentAddress('BragNFT');
+    if (!bragNFTAddr) {
+        console.warn("BragNFT address not found.");
         nftGrid.innerHTML = '';
         emptyState.classList.remove('hidden');
         return;
     }
 
-    const nexus = getContract('Nexus', nexusAddr);
-    console.log("Fetching events for Nexus at:", nexusAddr);
+    const bragNFT = getContract('BragNFT', bragNFTAddr);
+    console.log("Fetching events for BragNFT at:", bragNFTAddr);
 
     try {
         let events = [];
         try {
-            const filter = nexus.filters.Donated();
+            const filter = bragNFT.filters.Donated();
             // Try last 10000 blocks first
-            events = await nexus.queryFilter(filter, -10000);
+            events = await bragNFT.queryFilter(filter, -10000);
         } catch (e) {
             console.warn("Could not fetch events from last 10000 blocks, trying from block 0", e);
             try {
-                const filter = nexus.filters.Donated();
-                events = await nexus.queryFilter(filter, 0);
+                const filter = bragNFT.filters.Donated();
+                events = await bragNFT.queryFilter(filter, 0);
             } catch (e2) {
                 console.error("Failed to fetch events even from block 0", e2);
             }
@@ -237,7 +237,7 @@ async function initDiscovery() {
             nftGrid.innerHTML = '';
             // Add a demo card
             const demoCard = document.createElement('div');
-            demoCard.className = 'nexus-card rounded-xl overflow-hidden cursor-pointer';
+            demoCard.className = 'brag-card rounded-xl overflow-hidden cursor-pointer';
             demoCard.onclick = () => window.location.href = 'product.html?id=demo';
             demoCard.innerHTML = `
                 <div class="h-64 bg-slate-800 flex items-center justify-center overflow-hidden">
@@ -267,7 +267,7 @@ async function initDiscovery() {
 
         for (const event of sortedEvents) {
             const tokenId = event.args.nftTokenId.toString();
-            renderNFTCard(nexus, tokenId).catch(err => {
+            renderNFTCard(bragNFT, tokenId).catch(err => {
                 console.error(`Failed to render NFT card for token ${tokenId}:`, err);
             });
         }
@@ -275,7 +275,7 @@ async function initDiscovery() {
         console.error('Error in Discovery Gallery:', e);
         nftGrid.innerHTML = '';
         for (let i = 0; i < 8; i++) {
-            renderNFTCard(nexus, i.toString());
+            renderNFTCard(bragNFT, i.toString());
         }
     }
 }
@@ -288,7 +288,7 @@ async function renderNFTCard(contract, tokenId) {
         if (!metadata) return;
 
         const card = document.createElement('div');
-        card.className = 'nexus-card rounded-xl overflow-hidden cursor-pointer';
+        card.className = 'brag-card rounded-xl overflow-hidden cursor-pointer';
         card.onclick = () => window.location.href = `product.html?id=${tokenId}&addr=${contract.address}`;
 
         const isAudio = metadata.animation_url && metadata.animation_url.includes('audio');
@@ -354,7 +354,7 @@ async function initProduct() {
     if (!net) return;
 
     try {
-        const nexus = getContract('Nexus', contractAddr);
+        const bragNFT = getContract('BragNFT', contractAddr);
         const marketplaceAddr = getDeploymentAddress('NFTMarketplace');
         const marketplace = getContract('NFTMarketplace', marketplaceAddr);
         const registryAddr = getDeploymentAddress('ExhibitRegistry');
@@ -364,7 +364,7 @@ async function initProduct() {
         let isERC1155 = false;
 
         try {
-            isERC1155 = await nexus.supportsInterface('0xd9b67a26');
+            isERC1155 = await bragNFT.supportsInterface('0xd9b67a26');
         } catch (e) {
             console.warn("Interface detection failed, assuming ERC721");
         }
@@ -383,9 +383,9 @@ async function initProduct() {
             receiptId = 0;
         } else {
             [tokenURI, owner, receiptId] = await Promise.all([
-                nexus.tokenURI(tokenId).catch(() => ""),
-                nexus.ownerOf(tokenId).catch(() => ethers.constants.AddressZero),
-                nexus.nftToReceipt(tokenId).catch(() => 0)
+                bragNFT.tokenURI(tokenId).catch(() => ""),
+                bragNFT.ownerOf(tokenId).catch(() => ethers.constants.AddressZero),
+                bragNFT.nftToReceipt(tokenId).catch(() => 0)
             ]);
         }
 
@@ -405,7 +405,7 @@ async function initProduct() {
         document.getElementById('dispMessage').textContent = messageAttr ? `"${messageAttr.value}"` : 'No message.';
 
         // Populate Receipt Link
-        const receiptContractAddr = await nexus.receiptContract();
+        const receiptContractAddr = await bragNFT.receiptContract();
         const dispReceipt = document.getElementById('dispReceipt');
         if (dispReceipt && receiptContractAddr !== ethers.constants.AddressZero) {
             dispReceipt.textContent = receiptId.toString();
@@ -429,7 +429,7 @@ async function initProduct() {
             if (offer.buyer !== ethers.constants.AddressZero) {
                 document.getElementById('noOffer').classList.add('hidden');
                 document.getElementById('offerExists').classList.remove('hidden');
-                const priceFormatted = `${ethers.utils.formatEther(offer.price)} NEXUS`;
+                const priceFormatted = `${ethers.utils.formatEther(offer.price)} BRAG`;
                 document.getElementById('highestOfferPrice').textContent = priceFormatted;
                 document.getElementById('highestOfferBuyer').textContent = `by ${offer.buyer.substring(0, 6)}...${offer.buyer.substring(38)}`;
 
@@ -468,14 +468,14 @@ async function initProduct() {
             }
 
             try {
-                const nexusTokenAddr = getDeploymentAddress('NexusToken');
-                const nexusToken = getContract('NexusToken', nexusTokenAddr);
+                const bragTokenAddr = getDeploymentAddress('BragToken');
+                const bragToken = getContract('BragToken', bragTokenAddr);
                 const price = ethers.utils.parseEther(priceStr);
 
                 // Check allowance
-                const allowance = await nexusToken.allowance(userAddress, marketplaceAddr);
+                const allowance = await bragToken.allowance(userAddress, marketplaceAddr);
                 if (allowance.lt(price)) {
-                    const approveTx = await nexusToken.approve(marketplaceAddr, price);
+                    const approveTx = await bragToken.approve(marketplaceAddr, price);
                     alert('Approval transaction submitted! Please wait...');
                     await approveTx.wait();
                 }
@@ -511,7 +511,7 @@ async function initProduct() {
         }
 
         // Related Items
-        loadRelatedItems(nexus, tokenId);
+        loadRelatedItems(bragNFT, tokenId);
 
     } catch (e) {
         console.error(e);
@@ -542,7 +542,7 @@ async function renderNFTCardSmall(contract, tokenId, container) {
     if (!metadata) return;
 
     const card = document.createElement('div');
-    card.className = 'nexus-card rounded-xl overflow-hidden cursor-pointer text-sm';
+    card.className = 'brag-card rounded-xl overflow-hidden cursor-pointer text-sm';
     card.onclick = () => window.location.href = `product.html?id=${tokenId}&addr=${contract.address}`;
 
     const mediaContainer = document.createElement('div');
