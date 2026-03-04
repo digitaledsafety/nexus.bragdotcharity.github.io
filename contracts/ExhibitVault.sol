@@ -63,13 +63,17 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256 duration = 0;
 
         if (data.length == 32) {
-            if (registry.isVerified(from)) {
+            if (registry.isVerified(from) || registry.isVerified(operator)) {
                 actualOwner = abi.decode(data, (address));
             } else {
                 duration = abi.decode(data, (uint256));
             }
         } else if (data.length == 64) {
-            (actualOwner, duration) = abi.decode(data, (address, uint256));
+            if (registry.isVerified(from) || registry.isVerified(operator)) {
+                (actualOwner, duration) = abi.decode(data, (address, uint256));
+            } else {
+                revert("Unauthorized actualOwner override");
+            }
         }
 
         owner721[msg.sender][tokenId] = actualOwner;
@@ -96,13 +100,17 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256 duration = 0;
 
         if (data.length == 32) {
-            if (registry.isVerified(from)) {
+            if (registry.isVerified(from) || registry.isVerified(operator)) {
                 actualOwner = abi.decode(data, (address));
             } else {
                 duration = abi.decode(data, (uint256));
             }
         } else if (data.length == 64) {
-            (actualOwner, duration) = abi.decode(data, (address, uint256));
+            if (registry.isVerified(from) || registry.isVerified(operator)) {
+                (actualOwner, duration) = abi.decode(data, (address, uint256));
+            } else {
+                revert("Unauthorized actualOwner override");
+            }
         }
 
         balances1155[msg.sender][id][actualOwner] += value;
@@ -126,13 +134,17 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256 duration = 0;
 
         if (data.length == 32) {
-            if (registry.isVerified(from)) {
+            if (registry.isVerified(from) || registry.isVerified(operator)) {
                 actualOwner = abi.decode(data, (address));
             } else {
                 duration = abi.decode(data, (uint256));
             }
         } else if (data.length == 64) {
-            (actualOwner, duration) = abi.decode(data, (address, uint256));
+            if (registry.isVerified(from) || registry.isVerified(operator)) {
+                (actualOwner, duration) = abi.decode(data, (address, uint256));
+            } else {
+                revert("Unauthorized actualOwner override");
+            }
         }
 
         uint256 expiry = duration > 0 ? block.timestamp + duration : 0;
