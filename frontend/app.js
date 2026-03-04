@@ -28,7 +28,7 @@ function log(message, type = 'info') {
 }
 
 // Persistent addresses
-const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrMarketplace'];
+const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrMarketplace', 'addrTreasury', 'addrBragToken'];
 addressFields.forEach(id => {
     const saved = localStorage.getItem(id);
     if (saved) document.getElementById(id).value = saved;
@@ -90,6 +90,8 @@ async function connectWallet(silent = false) {
             if (deps.ExhibitRegistry && !document.getElementById('addrExhibitRegistry').value) document.getElementById('addrExhibitRegistry').value = deps.ExhibitRegistry;
             const mpAddr = deps.NFTMarketplace || deps.Marketplace;
             if (mpAddr && !document.getElementById('addrMarketplace').value) document.getElementById('addrMarketplace').value = mpAddr;
+            if (deps.Treasury && !document.getElementById('addrTreasury').value) document.getElementById('addrTreasury').value = deps.Treasury;
+            if (deps.BragToken && !document.getElementById('addrBragToken').value) document.getElementById('addrBragToken').value = deps.BragToken;
         }
 
         window.ethereum.on('accountsChanged', (newAccounts) => {
@@ -169,6 +171,31 @@ document.getElementById('btnMint').addEventListener('click', async () => {
     } else {
         await txHandler(contract["donate(string,string,bool)"](message, tokenURI, onChain, { value: val }), 'NFT Minted');
     }
+});
+
+// BragNFT Config
+document.getElementById('btnSetTreasury').addEventListener('click', async () => {
+    const nftAddr = document.getElementById('addrBragNFT').value;
+    const newTreasury = document.getElementById('cfgTreasuryAddr').value;
+    const contract = getContract('BragNFT', nftAddr);
+    await txHandler(contract.setTreasury(newTreasury), 'Treasury updated');
+    // Update local settings too for persistence
+    localStorage.setItem('addrTreasury', newTreasury);
+    document.getElementById('addrTreasury').value = newTreasury;
+});
+
+document.getElementById('btnSetMinDonation').addEventListener('click', async () => {
+    const nftAddr = document.getElementById('addrBragNFT').value;
+    const minVal = document.getElementById('cfgMinDonation').value;
+    const contract = getContract('BragNFT', nftAddr);
+    await txHandler(contract.setMinimumDonation(ethers.utils.parseEther(minVal)), 'Minimum donation updated');
+});
+
+document.getElementById('btnSetMaxSupply').addEventListener('click', async () => {
+    const nftAddr = document.getElementById('addrBragNFT').value;
+    const maxSupply = document.getElementById('cfgMaxSupply').value;
+    const contract = getContract('BragNFT', nftAddr);
+    await txHandler(contract.setMaxSupply(maxSupply), 'Max supply updated');
 });
 
 document.getElementById('btnDeployVault').addEventListener('click', async () => {
