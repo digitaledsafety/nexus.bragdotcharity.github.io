@@ -7,9 +7,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract NFTMarketplace is ReentrancyGuard {
+contract NFTMarketplace is ReentrancyGuard, AccessControl {
     using SafeERC20 for IERC20;
+
+    bytes32 public constant FEE_MANAGER_ROLE = keccak256("FEE_MANAGER_ROLE");
 
     struct Offer {
         address buyer;
@@ -21,17 +24,30 @@ contract NFTMarketplace is ReentrancyGuard {
     // Mapping from NFT contract -> Token ID -> Offer
     mapping(address => mapping(uint256 => Offer)) public offers;
 
-    uint256 public immutable refundPeriod;
     IERC20 public immutable paymentToken;
+
+    uint256 public feeBps;
+    address public feeRecipient;
 
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
-    event RefundRequested(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 amount);
+    event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed seller, address buyer, uint256 amount);
 
-    constructor(uint256 _refundPeriod, address _paymentToken) {
-        refundPeriod = _refundPeriod;
+    constructor(address _paymentToken, address _initialOwner) {
         paymentToken = IERC20(_paymentToken);
+        _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
+        _grantRole(FEE_MANAGER_ROLE, _initialOwner);
+    }
+
+    function setFeeBps(uint256 _feeBps) external onlyRole(FEE_MANAGER_ROLE) {
+        require(_feeBps <= 1000, "Fee too high (max 10%)");
+        feeBps = _feeBps;
+    }
+
+    function setFeeRecipient(address _feeRecipient) external onlyRole(FEE_MANAGER_ROLE) {
+        require(_feeRecipient != address(0), "Invalid fee recipient");
+        feeRecipient = _feeRecipient;
     }
 
     /**
@@ -92,8 +108,17 @@ contract NFTMarketplace is ReentrancyGuard {
             revert("Unsupported NFT type");
         }
 
+        // Calculate and pay protocol fee
+        uint256 fee = 0;
+        if (feeBps > 0 && feeRecipient != address(0)) {
+            fee = (offer.price * feeBps) / 10000;
+            if (fee > 0) {
+                paymentToken.safeTransfer(feeRecipient, fee);
+            }
+        }
+
         // Pay the seller
-        paymentToken.safeTransfer(msg.sender, offer.price);
+        paymentToken.safeTransfer(msg.sender, offer.price - fee);
 
         emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
     }
@@ -117,21 +142,29 @@ contract NFTMarketplace is ReentrancyGuard {
     }
 
     /**
-     * @notice Request a refund for an offer within the refund period
+     * @notice Reject an offer for your NFT
      * @param nftContract Address of the NFT contract
-     * @param tokenId ID of the token for which the refund is requested
+     * @param tokenId ID of the token being sold
      */
-    function requestRefund(address nftContract, uint256 tokenId) external nonReentrant {
+    function rejectOffer(address nftContract, uint256 tokenId) external nonReentrant {
         Offer memory offer = offers[nftContract][tokenId];
-        require(offer.buyer == msg.sender, "You did not make this offer");
-        require(block.timestamp <= offer.timestamp + refundPeriod, "Refund period has expired");
+        require(offer.buyer != address(0), "No valid offer exists");
+
+        // Check ownership/access
+        if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
+            require(IERC721(nftContract).ownerOf(tokenId) == msg.sender, "You do not own this NFT");
+        } else if (IERC165(nftContract).supportsInterface(0xd9b67a26)) { // IERC1155
+            require(IERC1155(nftContract).balanceOf(msg.sender, tokenId) > 0, "You do not own this NFT");
+        } else {
+            revert("Unsupported NFT type");
+        }
 
         // Clear the offer first (CEI)
         delete offers[nftContract][tokenId];
 
         // Refund the buyer
-        paymentToken.safeTransfer(msg.sender, offer.price);
+        paymentToken.safeTransfer(offer.buyer, offer.price);
 
-        emit RefundRequested(nftContract, tokenId, msg.sender, offer.price);
+        emit OfferRejected(nftContract, tokenId, msg.sender, offer.buyer, offer.price);
     }
 }

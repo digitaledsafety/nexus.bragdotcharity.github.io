@@ -240,8 +240,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @dev Generates a simple SVG image with the donation message.
      */
     function _generateSVG(uint256 tokenId, string memory message) internal pure returns (string memory) {
-        string memory displayText = bytes(message).length > 0 ? message : string(abi.encodePacked("BragNFT #", tokenId.toString()));
-        // Note: Basic SVG escaping could be added here if needed, but for simplicity we keep it as is.
+        string memory displayText = bytes(message).length > 0 ? _escapeSVG(message) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
         return string(abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
             '<style>.base { fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold; }</style>',
@@ -253,7 +252,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @dev Escape double quotes and backslashes for JSON compatibility.
+     * @dev Escape double quotes, backslashes, and control characters for JSON compatibility.
      */
     function _escapeJSON(string memory input) internal pure returns (string memory) {
         bytes memory inputBytes = bytes(input);
@@ -261,8 +260,52 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         uint256 extraLength = 0;
 
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
+            bytes1 b = inputBytes[i];
+            if (b == '"' || b == '\\') {
                 extraLength++;
+            } else if (b < 0x20) {
+                extraLength += 5; // e.g., \u0001
+            }
+        }
+
+        if (extraLength == 0) return input;
+
+        bytes memory outputBytes = new bytes(length + extraLength);
+        bytes memory hexChars = "0123456789abcdef";
+        uint256 j = 0;
+        for (uint256 i = 0; i < length; i++) {
+            bytes1 b = inputBytes[i];
+            if (b == '"' || b == '\\') {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = b;
+            } else if (b < 0x20) {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = 'u';
+                outputBytes[j++] = '0';
+                outputBytes[j++] = '0';
+                outputBytes[j++] = hexChars[uint8(b) >> 4];
+                outputBytes[j++] = hexChars[uint8(b) & 0x0f];
+            } else {
+                outputBytes[j++] = b;
+            }
+        }
+        return string(outputBytes);
+    }
+
+    /**
+     * @dev Escape special characters for SVG compatibility.
+     */
+    function _escapeSVG(string memory input) internal pure returns (string memory) {
+        bytes memory inputBytes = bytes(input);
+        uint256 length = inputBytes.length;
+        uint256 extraLength = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            bytes1 b = inputBytes[i];
+            if (b == '<' || b == '>') {
+                extraLength += 3; // &lt; or &gt;
+            } else if (b == '&') {
+                extraLength += 4; // &amp;
             }
         }
 
@@ -271,10 +314,26 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         bytes memory outputBytes = new bytes(length + extraLength);
         uint256 j = 0;
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
-                outputBytes[j++] = '\\';
+            bytes1 b = inputBytes[i];
+            if (b == '<') {
+                outputBytes[j++] = '&';
+                outputBytes[j++] = 'l';
+                outputBytes[j++] = 't';
+                outputBytes[j++] = ';';
+            } else if (b == '>') {
+                outputBytes[j++] = '&';
+                outputBytes[j++] = 'g';
+                outputBytes[j++] = 't';
+                outputBytes[j++] = ';';
+            } else if (b == '&') {
+                outputBytes[j++] = '&';
+                outputBytes[j++] = 'a';
+                outputBytes[j++] = 'm';
+                outputBytes[j++] = 'p';
+                outputBytes[j++] = ';';
+            } else {
+                outputBytes[j++] = b;
             }
-            outputBytes[j++] = inputBytes[i];
         }
         return string(outputBytes);
     }
