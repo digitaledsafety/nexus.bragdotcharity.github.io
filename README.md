@@ -2,218 +2,128 @@
 
 [![CI](https://github.com/digitaledsafety/smart-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/digitaledsafety/smart-contracts/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Status: Beta](https://img.shields.io/badge/status-beta-orange.svg)
 
-This project showcases a Hardhat 3 Beta project using the native Node.js test runner (`node:test`) and the `viem` library for Ethereum interactions.
+Brag is a next-generation NFT ecosystem designed to bridge the gap between blockchain assets and real-world utility—starting with Minecraft. It features gasless transactions, dynamic on-chain metadata, and a secure "Verification Handshake" that lets players bring their digital collections into any game environment.
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+Whether you're building a decentralized gallery, a cross-platform gaming reward system, or a high-fidelity NFT marketplace, Brag provides the tools to make it happen.
 
-## Project Overview
+---
 
-This example project includes:
+## What's Inside?
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using [`node:test`](nodejs.org/api/test.html), the new Node.js native test runner, and [`viem`](https://viem.sh/).
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+1.  **Gasless Experience:** Built-in support for Alchemy Smart Accounts and Paymasters, allowing users to interact with your ecosystem without needing to hold native gas tokens.
+2.  **On-Chain Art & Receipts:** `DonationReceipt.sol` generates beautiful, dynamic SVG artwork directly on the blockchain, providing a visual and immutable record of every contribution.
+3.  **The "Verification Handshake":** A secure, off-chain identity mapping system (SIWE) that connects Minecraft XUIDs to Ethereum wallets without ever exposing private keys.
+4.  **Exhibit Vaults:** Purpose-built smart contracts for escrowing NFTs. Use them to "display" items in virtual galleries, lock them for in-game perks, or manage them across different web platforms.
+5.  **Multi-Offer Marketplace:** A flexible NFT marketplace that supports multiple simultaneous offers on a single item, including built-in refund protections and token-based trading (`BragToken`).
+6.  **High-Fidelity Frontend:** A complete e-commerce experience including a discovery gallery, detailed product pages with media support (images/audio), and a comprehensive admin manager.
 
-## Local Development
+---
 
-You can run a local Ethereum network to test the contracts and addons without deploying to a public testnet.
+## 1. Prerequisites
+
+*   **Node.js and npm:** The project runs on Node.js (v18+ recommended).
+*   **Hardhat 3 Beta:** This project utilizes the latest Hardhat 3 features for faster development and testing.
+*   **Alchemy API Key:** Required for gasless features and Sepolia deployments.
+
+---
+
+## 2. Application Setup (Local Development)
+
+You can run the entire Brag ecosystem locally to test contracts, the bridge, and the frontend without spending real ETH.
 
 ### 1. Start the Local Node
 In a separate terminal, start the Hardhat network:
 ```shell
 npm run node
 ```
-This will start a JSON-RPC server at `http://127.0.0.1:8545`.
 
 ### 2. Deploy Contracts Locally
-Deploy the contracts to your local node and export the ABIs/addresses for the frontend:
+Deploy the smart contracts and automatically export ABIs for the frontend:
 ```shell
 npm run deploy:local
 ```
 
-### 3. Start the NFT Bridge
-The bridge coordinates between Minecraft and your local blockchain.
+### 3. Start the Minecraft Bridge
+The bridge coordinates between the game and the blockchain, handling the Verification Handshake.
 ```shell
 npm run bridge
 ```
-The bridge listens on port 9000. It handles the **Verification Handshake** (SIWE) and persists identity mappings in `mappings.json`.
 
 ### 4. Serve the Frontend
-To use the SIWE verification features locally, serve the `frontend` directory on port 3000:
+Open the interactive gallery and manager:
 ```shell
-# You can use any static server, e.g.:
 npx serve frontend -p 3000
 ```
 Then visit `http://localhost:3000` in your browser.
 
-## Seeding Test Data
+---
 
-You can automate the creation of test data (minting NFTs, creating vaults, making marketplace offers) using the seeding script.
+## 3. Seeding Test Data
 
-### 1. Seed Local Data
-After starting the local node and deploying contracts, run:
+Jumpstart your local environment with realistic data (minted NFTs, active vaults, and marketplace offers).
+
+### Local Seeding
+After your local node is running, execute:
 ```shell
 npm run seed:local
 ```
-This script will:
-- Mint a BragNFT.
-- Deploy and register 5 Exhibit Vaults (`minecraft-server-1`, etc.).
-- Exhibit, move, and withdraw the NFT to test vault logic.
-- Create and accept a marketplace offer using `BragToken`.
+This script automates the creation of 5 `ExhibitVault` instances (e.g., `server-1`, `gallery-1`), mints a BragNFT, and creates a sample marketplace offer.
 
-### 2. Seed Sepolia Data
-To seed data on Sepolia using gasless transactions (via Alchemy Paymaster):
+### Sepolia Seeding (Gasless)
+To test the full account abstraction flow on the Sepolia testnet:
 ```shell
-# Set required environment variables
+# Set your environment variables
 export SEPOLIA_RPC_URL="your-rpc-url"
-export SEPOLIA_PRIVATE_KEY="your-owner-private-key"
-export SEPOLIA_BUYER_PRIVATE_KEY="another-private-key-for-offers"
 export ALCHEMY_API_KEY="your-alchemy-api-key"
 export ALCHEMY_GAS_POLICY_ID="your-gas-manager-policy-id"
 
 npm run seed:sepolia
 ```
-*Note: The script uses Alchemy Smart Accounts to cover gas fees on Sepolia.*
 
-## Usage
+---
 
-### Running Tests
+## 4. Testing
 
-To run all the tests in the project, execute the following command:
+Brag uses the native Node.js test runner (`node:test`) alongside `viem` for lightning-fast, type-safe integration tests.
 
+To run the full test suite:
 ```shell
 npx hardhat test
 ```
 
-You can also selectively run the Solidity or `node:test` tests:
-
-```shell
-npx hardhat test solidity
-npx hardhat test nodejs
-```
-
-### Make a deployment to Sepolia
-
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
-
-To run the deployment to a local chain:
-
-```shell
-npx hardhat ignition deploy ignition/modules/App.ts
-```
-
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
-
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
-
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
-```
-
-After setting the variable, you can run the deployment with the Sepolia network:
-
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/App.ts
-```
-
-## CI/CD and Deployment Workflow
-
-This project uses GitHub Actions for continuous testing and manual deployments.
-
-### Continuous Integration
-
-On every push and pull request to the `main` branch:
-1. **Run Tests**: Executes the full test suite using `npx hardhat test`.
-2. **Verify Local Deployment**: Ensures that the Ignition deployment modules are valid by performing a dry-run deployment against a local Hardhat network.
-
-### Manual Sepolia Deployment
-
-You can manually trigger a deployment to the Sepolia network via the **Actions** tab in GitHub:
-
-1. Go to the **Actions** tab.
-2. Select the **Deploy to Sepolia** workflow.
-3. Click **Run workflow**.
-
-#### Required GitHub Secrets
-
-To use the Sepolia deployment workflow, you must configure the following [GitHub Repository Secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions):
-
-- `SEPOLIA_RPC_URL`: Your Sepolia RPC endpoint (e.g., from Alchemy or Infura).
-- `SEPOLIA_PRIVATE_KEY`: The private key of the account used for deployment and as the initial owner.
-- `SEPOLIA_BUYER_PRIVATE_KEY`: A second private key used by the seeding script to create marketplace offers.
-- `ALCHEMY_API_KEY`: Your Alchemy API Key for Account Abstraction features.
-- `ALCHEMY_GAS_POLICY_ID`: Your Alchemy Gas Manager Policy ID to enable gasless seeding.
-- `TREASURY_ADDRESS`: (Optional) An external ETH address to receive donations. If provided, the deployment of a new `Treasury` contract will be skipped.
-
-### Treasury Contract
-
-This project includes a `Treasury.sol` contract. It is a simple, secure vault designed to:
-- **Receive ETH**: It has a `receive()` function to handle donations from `BragNFT`.
-- **Receive NFTs**: It implements `ERC721Holder` and `ERC1155Holder`, making it compatible with all NFT types.
-- **Owner Control**: Only the contract owner can withdraw ETH or manage assets within the treasury.
-
-By default, the deployment module will create a new instance of this `Treasury` contract during deployment.
-
-## BragNFT E-commerce Landing Page
-
-This project includes a high-fidelity e-commerce experience for discovering and trading NFTs.
-
-### 1. NFT Discovery Gallery (`index.html`)
-A dedicated page for browsing all minted NFTs. It listens for blockchain events to populate the grid dynamically.
-
-### 2. Product Detail Page (`product.html`)
-An optimized product landing page for individual NFTs, featuring:
-- **Media Support**: High-resolution display for images and on-chain audio NFTs.
-- **Ownership Verification**: Clearly highlights if you own the item or if it's exhibited in a verified vault.
-- **Marketplace Logic**: Integrated "Make Offer" functionality and price history tracking.
-- **Shopping Cart**: A persistent cart system for tracking items of interest.
-
-### 3. Interactive Demo Mode
-You can explore the full e-commerce UI without a local blockchain by visiting:
-`frontend/product.html?id=demo`
+You can also target specific areas:
+- `npx hardhat test solidity`: Run Foundry-compatible unit tests.
+- `npx hardhat test nodejs`: Run the TypeScript integration tests.
 
 ---
 
-## BragNFT Manager (Web Interface)
+## 5. Core Features & Possibilities
 
-This project includes a built-in web-based manager that allows you to interact with all the smart contracts through a user-friendly interface.
+### The Verification Handshake (SIWE)
+Brag demonstrates how to verify wallet ownership across platforms where the user doesn't have a private key (like a game console or a chat bot).
+1.  **Request:** A player requests a linking token in-game.
+2.  **Sign:** The player signs a "Sign-In with Ethereum" message on the Brag Manager website.
+3.  **Map:** The bridge verifies the signature and maps the player's identity to their wallet address.
+4.  **Utility:** The game now knows exactly which NFTs the player owns on-chain.
 
-- **URL**: Once deployed to GitHub Pages, it is typically available at `https://your-username.github.io/your-repo-name/`.
-- **Local Access**: You can also open `frontend/manager.html` directly in your browser.
+### Exhibit Vaults
+Vaults aren't just for storage—they are the key to utility. By moving an NFT into an `ExhibitVault`, a user can "check-in" to a specific server or gallery. This proves intent and allows platform owners to grant specific permissions or display the item safely.
 
-### Key Features:
-- **Minting**: Donate ETH to mint BragNFTs.
-- **Exhibition**: Deploy and manage "Exhibit Vaults" for your NFTs across games, galleries, and websites.
-- **Marketplace**: Create, accept, and cancel offers on NFTs.
-- **Contract Explorer**: A dynamic section that automatically generates a UI for **every function** in your smart contracts.
+### On-Chain SVG Receipts
+Every donation triggers the creation of a `DonationReceipt`. Because the SVG is generated on-chain, the receipt's appearance (donor name, amount, timestamp) is guaranteed by the blockchain itself, ensuring it will always be viewable as long as the network exists.
 
-### Auto-Updating ABIs
-The interface is powered by a GitHub Action that automatically updates the contract ABIs and deployment addresses whenever you push changes to the `main` branch. This means your web interface is always in sync with your latest Solidity code.
+---
 
-## Cross-Platform Wallet Verification (Best Practices)
+## 6. Deployment Workflow (CI/CD)
 
-This project demonstrates the industry-standard method for verifying wallet ownership across platforms (like Minecraft, Discord, or Websites) where the user does not have their private key directly available.
+This project uses GitHub Actions for continuous testing and automated deployments to Sepolia.
 
-### The Architecture: "The Verification Handshake"
+*   **Continuous Integration:** Every PR is tested against a local Hardhat node to ensure contract integrity.
+*   **Manual Deployment:** Trigger a "Deploy to Sepolia" workflow from the Actions tab. This will deploy the `BragNFT`, `Treasury`, and `NFTMarketplace` contracts using deterministic addresses.
+*   **Auto-Updating ABIs:** Pushing to `main` automatically updates the frontend with the latest contract ABIs and addresses.
 
-1.  **Identity Request (In-Game):** The player types `!register` in Minecraft. The game requests a short-lived **Linking Token** from the Bridge.
-2.  **Web Proof (Off-Game):** The player visits the BragNFT Manager website and enters the Linking Token.
-3.  **Cryptographic Signature (SIWE):** The player signs a "Sign-In with Ethereum" (EIP-4361) message. This proves they own the wallet address without sending a transaction.
-4.  **Persistent Mapping (Off-Chain):** The bridge verifies the signature, recovers the address, and **stores the relationship** (e.g., `Minecraft_XUID` -> `Wallet_Address`) in a database.
-5.  **Seamless Access:** Every time the player spawns, the game sends their XUID to the bridge. The bridge looks up the mapped wallet and checks for NFTs on-chain.
+---
 
-### Why this method?
--   **Security:** Users never expose their private keys to the game client or the bridge.
--   **Cost-Effective:** Verifying a signature and storing a mapping off-chain is free, whereas storing this relationship on-chain would cost Gas.
--   **UX:** The user only has to "link" once. Afterward, their perks are available automatically.
-
-#### Tracking Deployed Addresses
-
-After a successful manual deployment, you can find the contract addresses by:
-1. Opening the specific workflow run.
-2. Downloading the `sepolia-deployment` artifact.
-3. Inspecting the `deployed_addresses.json` file within the artifact.
+Have fun building with Brag!
