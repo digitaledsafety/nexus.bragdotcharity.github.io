@@ -16,6 +16,11 @@
                     ],
                     "client_sync": true,
                     "default": "temperate"
+                },
+                "minecraft:sound_variant": {
+                    "type": "string",
+                    "client_sync": true,
+                    "default": "default"
                 }
             }
         },
