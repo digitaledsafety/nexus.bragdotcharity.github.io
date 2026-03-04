@@ -100,6 +100,14 @@
                     <label class="block text-sm mb-1">Marketplace Address</label>
                     <input type="text" id="addrMarketplace" class="input-field" placeholder="0x...">
                 </div>
+                <div>
+                    <label class="block text-sm mb-1">Treasury Address</label>
+                    <input type="text" id="addrTreasury" class="input-field" placeholder="0x...">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">BragToken Address</label>
+                    <input type="text" id="addrBragToken" class="input-field" placeholder="0x...">
+                </div>
             </div>
         </section>
 
@@ -211,6 +219,34 @@
                                 <button id="btnWithdraw721" class="btn-primary w-full mb-2">Withdraw ERC721</button>
                                 <button id="btnWithdraw1155" class="btn-secondary w-full">Withdraw ERC1155</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BragNFT Administration -->
+            <section class="brag-card rounded-xl p-6 lg:col-span-2">
+                <h2 class="section-title"><i class="fas fa-tools mr-2"></i>BragNFT Administration</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Treasury</h3>
+                        <div class="space-y-2">
+                            <input type="text" id="cfgTreasuryAddr" class="input-field" placeholder="New Treasury Address">
+                            <button id="btnSetTreasury" class="btn-primary w-full">Set Treasury</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Donation Limits</h3>
+                        <div class="space-y-2">
+                            <input type="number" id="cfgMinDonation" class="input-field" placeholder="Min Donation (ETH)" step="0.0001">
+                            <button id="btnSetMinDonation" class="btn-primary w-full">Set Minimum</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Supply</h3>
+                        <div class="space-y-2">
+                            <input type="number" id="cfgMaxSupply" class="input-field" placeholder="Max Supply">
+                            <button id="btnSetMaxSupply" class="btn-primary w-full">Set Max Supply</button>
                         </div>
                     </div>
                 </div>
