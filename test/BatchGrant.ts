@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
+import { parseEther } from "viem";
 
 describe("BatchGrant", function () {
   async function setup() {
@@ -14,9 +15,11 @@ describe("BatchGrant", function () {
       1000000000000000000000000000n
     ]);
     const batchGrant = await viem.deployContract("BatchGrant");
+    const publicClient = await viem.getPublicClient();
 
     return {
       viem,
+      publicClient,
       owner,
       recipient1,
       recipient2,
@@ -115,6 +118,74 @@ describe("BatchGrant", function () {
       } catch (e: any) {
         assert.ok(e.message.includes("ERC20InsufficientAllowance"));
       }
+    });
+  });
+
+  describe("distributeETH", function () {
+    it("should distribute ETH to multiple recipients", async function () {
+      const { publicClient, owner, recipient1, recipient2, batchGrant } = await setup();
+
+      const recipient1Address = recipient1.account.address;
+      const recipient2Address = recipient2.account.address;
+
+      const balance1Before = await publicClient.getBalance({ address: recipient1Address });
+      const balance2Before = await publicClient.getBalance({ address: recipient2Address });
+
+      const recipients = [recipient1Address, recipient2Address];
+      const amounts = [parseEther("1"), parseEther("2")];
+      const total = parseEther("3");
+
+      await batchGrant.write.distributeETH([recipients, amounts], {
+        account: owner.account,
+        value: total,
+      });
+
+      const balance1After = await publicClient.getBalance({ address: recipient1Address });
+      const balance2After = await publicClient.getBalance({ address: recipient2Address });
+
+      assert.equal(balance1After - balance1Before, parseEther("1"));
+      assert.equal(balance2After - balance2Before, parseEther("2"));
+    });
+
+    it("should refund excess ETH", async function () {
+      const { publicClient, owner, recipient1, batchGrant } = await setup();
+
+      const recipientAddress = recipient1.account.address;
+      const recipients = [recipientAddress];
+      const amounts = [parseEther("1")];
+      const sent = parseEther("2");
+
+      const balanceBefore = await publicClient.getBalance({ address: owner.account.address });
+
+      const hash = await batchGrant.write.distributeETH([recipients, amounts], {
+        account: owner.account,
+        value: sent,
+      });
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      const gasUsed = receipt.gasUsed * receipt.effectiveGasPrice;
+
+      const balanceAfter = await publicClient.getBalance({ address: owner.account.address });
+
+      // After distribution, owner should have spent 1 ETH + gas
+      assert.equal(balanceBefore - balanceAfter, parseEther("1") + gasUsed);
+    });
+
+    it("should revert if insufficient ETH is sent", async function () {
+        const { owner, recipient1, batchGrant } = await setup();
+        const recipients = [recipient1.account.address];
+        const amounts = [parseEther("2")];
+        const sent = parseEther("1");
+
+        try {
+          await batchGrant.write.distributeETH([recipients, amounts], {
+            account: owner.account,
+            value: sent,
+          });
+          assert.fail("The transaction should have reverted");
+        } catch (e: any) {
+          assert.ok(e.message.includes("Insufficient ETH sent"));
+        }
     });
   });
 });

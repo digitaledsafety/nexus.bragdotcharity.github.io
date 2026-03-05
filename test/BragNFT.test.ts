@@ -204,6 +204,40 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.ok(json.description.includes(message));
   });
 
+  it("Should handle and escape special characters in metadata", async function () {
+    const { bragNFT, donor } = await deployContracts();
+    // Message with: JSON control chars (newline), JSON escape chars (quote, backslash), and SVG escape chars (<, >, &)
+    const message = 'Line 1\nLine 2 with "quotes", \\backslashes\\ and <tags> & symbols';
+
+    await bragNFT.write.donate([message, "", true], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const tokenId = 0n;
+    const uri = await bragNFT.read.tokenURI([tokenId]);
+
+    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
+
+    // Decode and check content
+    const base64Content = uri.split(",")[1];
+    const jsonStr = Buffer.from(base64Content, "base64").toString();
+
+    // The JSON string should be valid
+    const json = JSON.parse(jsonStr);
+
+    assert.equal(json.attributes[0].value, message);
+
+    // Check SVG content for proper escaping
+    const svgBase64 = json.image.split(",")[1];
+    const svg = Buffer.from(svgBase64, "base64").toString();
+
+    // Special characters in message should be escaped in SVG
+    assert.ok(!svg.includes("<tags>"), "SVG should not include raw <tags>");
+    assert.ok(svg.includes("&lt;tags&gt;"), "SVG should include escaped &lt;tags&gt;");
+    assert.ok(svg.includes("&amp;"), "SVG should include escaped &amp;");
+  });
+
   it("Should support audio NFTs with animation_url", async function () {
     const { bragNFT, donor } = await deployContracts();
     const message = "Audio NFT Test";
