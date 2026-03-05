@@ -86,11 +86,11 @@ describe("Treasury Management", async function () {
             {
                 name: 'acceptOffer',
                 type: 'function',
-                inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }],
+                inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'buyer', type: 'address' }],
                 outputs: [],
             }
         ],
-        args: [bragNFT.address, tokenId]
+        args: [bragNFT.address, tokenId, buyer.account.address]
     });
 
     const initialTreasuryBalance = await bragToken.read.balanceOf([treasury.address]);
