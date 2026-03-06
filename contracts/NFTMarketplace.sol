@@ -28,7 +28,7 @@ contract NFTMarketplace is ReentrancyGuard {
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount, address buyer);
     event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
-    event RefundRequested(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 amount);
+    event RefundRequested(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price);
 
     constructor(uint256 _refundPeriod, address _paymentToken) {
         refundPeriod = _refundPeriod;
