@@ -234,9 +234,12 @@
                     </div>
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
                         <h3 class="text-sm font-bold mb-2 uppercase text-slate-400">Accept / Cancel Offer</h3>
-                        <div class="grid grid-cols-2 gap-2 mb-2">
-                            <input type="text" id="accNFTContract" class="input-field" placeholder="NFT Contract">
-                            <input type="text" id="accTokenId" class="input-field" placeholder="Token ID">
+                        <div class="grid grid-cols-1 gap-2 mb-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" id="accNFTContract" class="input-field" placeholder="NFT Contract">
+                                <input type="text" id="accTokenId" class="input-field" placeholder="Token ID">
+                            </div>
+                            <input type="text" id="accBuyer" class="input-field" placeholder="Buyer Address (required for Accept)">
                         </div>
                         <div class="flex space-x-2">
                             <button id="btnAcceptOffer" class="btn-primary flex-1">Accept</button>
