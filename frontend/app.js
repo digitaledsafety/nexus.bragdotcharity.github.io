@@ -328,6 +328,12 @@ document.getElementById('btnAcceptOffer').addEventListener('click', async () => 
     const addr = document.getElementById('addrMarketplace').value;
     const nft = document.getElementById('accNFTContract').value;
     const id = document.getElementById('accTokenId').value;
+    const buyer = document.getElementById('accBuyerAddr').value;
+
+    if (!buyer || !ethers.utils.isAddress(buyer)) {
+        log('Please enter a valid buyer address', 'error');
+        return;
+    }
 
     // Detect NFT type for proper approval
     const genericNFT = new ethers.Contract(nft, ["function supportsInterface(bytes4) view returns (bool)"], signer);
@@ -349,7 +355,7 @@ document.getElementById('btnAcceptOffer').addEventListener('click', async () => 
     }
 
     const contract = getContract('NFTMarketplace', addr);
-    await txHandler(contract.acceptOffer(nft, id), 'Offer Accepted');
+    await txHandler(contract.acceptOffer(nft, id, buyer), 'Offer Accepted');
 });
 
 document.getElementById('btnCancelOffer').addEventListener('click', async () => {

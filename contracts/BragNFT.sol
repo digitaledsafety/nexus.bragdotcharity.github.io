@@ -201,7 +201,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
 
         string memory animationPart = "";
         if (bytes(animationURL).length > 0) {
-            animationPart = string(abi.encodePacked('", "animation_url": "', animationURL));
+            animationPart = string(abi.encodePacked('", "animation_url": "', _escapeJSON(animationURL)));
         }
 
         string memory json = Base64.encode(
@@ -213,7 +213,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
                         '", "description": "Brag.Charity Donation NFT',
                         bytes(message).length > 0 ? string(abi.encodePacked(": ", _escapeJSON(message))) : "",
                         '", "image": "',
-                        imageURI,
+                        _escapeJSON(imageURI),
                         animationPart,
                         '", "attributes": [{"trait_type": "Message", "value": "',
                         _escapeJSON(message),
@@ -240,8 +240,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @dev Generates a simple SVG image with the donation message.
      */
     function _generateSVG(uint256 tokenId, string memory message) internal pure returns (string memory) {
-        string memory displayText = bytes(message).length > 0 ? message : string(abi.encodePacked("BragNFT #", tokenId.toString()));
-        // Note: Basic SVG escaping could be added here if needed, but for simplicity we keep it as is.
+        string memory displayText = bytes(message).length > 0 ? _escapeSVG(message) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
         return string(abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
             '<style>.base { fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold; }</style>',
@@ -250,6 +249,48 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
             displayText,
             '</text></svg>'
         ));
+    }
+
+    /**
+     * @dev Escape special characters for SVG compatibility.
+     */
+    function _escapeSVG(string memory input) internal pure returns (string memory) {
+        bytes memory inputBytes = bytes(input);
+        uint256 length = inputBytes.length;
+        uint256 extraLength = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '<' || inputBytes[i] == '>') {
+                extraLength += 3; // &lt; or &gt;
+            } else if (inputBytes[i] == '&') {
+                extraLength += 4; // &amp;
+            } else if (inputBytes[i] == '"') {
+                extraLength += 5; // &quot;
+            } else if (inputBytes[i] == '\'') {
+                extraLength += 4; // &#39;
+            }
+        }
+
+        if (extraLength == 0) return input;
+
+        bytes memory outputBytes = new bytes(length + extraLength);
+        uint256 j = 0;
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '<') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'l'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '>') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'g'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '&') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'm'; outputBytes[j++] = 'p'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '"') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'q'; outputBytes[j++] = 'u'; outputBytes[j++] = 'o'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '\'') {
+                outputBytes[j++] = '&'; outputBytes[j++] = '#'; outputBytes[j++] = '3'; outputBytes[j++] = '9'; outputBytes[j++] = ';';
+            } else {
+                outputBytes[j++] = inputBytes[i];
+            }
+        }
+        return string(outputBytes);
     }
 
     /**
