@@ -49,7 +49,7 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     // Seller approves and accepts
     await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
-    await marketplace.write.acceptOffer([bragNFT.address, tokenId], { account: seller.account });
+    await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
 
     // Verify results
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
@@ -74,7 +74,7 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     // Seller approves and accepts
     await mock1155.write.setApprovalForAll([marketplace.address, true], { account: seller.account });
-    await marketplace.write.acceptOffer([mock1155.address, tokenId], { account: seller.account });
+    await marketplace.write.acceptOffer([mock1155.address, tokenId, buyer.account.address], { account: seller.account });
 
     // Verify results
     assert.equal(await mock1155.read.balanceOf([buyer.account.address, tokenId]), amount);
@@ -97,7 +97,7 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
     await assert.rejects(
-        marketplace.write.acceptOffer([bragNFT.address, tokenId], { account: seller.account }),
+        marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account }),
         /ERC721 offer must have amount 1/
     );
   });
@@ -118,7 +118,7 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     await mock1155.write.setApprovalForAll([marketplace.address, true], { account: seller.account });
     await assert.rejects(
-        marketplace.write.acceptOffer([mock1155.address, tokenId], { account: seller.account }),
+        marketplace.write.acceptOffer([mock1155.address, tokenId, buyer.account.address], { account: seller.account }),
         /Insufficient balance/
     );
   });
