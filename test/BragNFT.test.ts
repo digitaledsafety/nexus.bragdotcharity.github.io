@@ -227,6 +227,33 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.equal(json.attributes[0].value, message);
   });
 
+  it("Should escape XML and JSON special characters in metadata", async function () {
+    const { bragNFT, donor } = await deployContracts();
+    const message = "Special characters: < > & \" ' \n \r \t";
+
+    await bragNFT.write.donate([message, ""], {
+        account: donor.account,
+        value: parseEther("0.1")
+    });
+
+    const tokenId = 0n;
+    const uri = await bragNFT.read.tokenURI([tokenId]);
+    const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+
+    // Check JSON escaping (handled by JSON.parse)
+    assert.equal(json.attributes[0].value, message);
+
+    // Check SVG content for XML escaping
+    const svgBase64 = json.image.split(",")[1];
+    const svg = Buffer.from(svgBase64, "base64").toString();
+
+    assert.ok(svg.includes("&lt;"), "SVG should escape <");
+    assert.ok(svg.includes("&gt;"), "SVG should escape >");
+    assert.ok(svg.includes("&amp;"), "SVG should escape &");
+    assert.ok(svg.includes("&quot;"), "SVG should escape \"");
+    assert.ok(svg.includes("&apos;"), "SVG should escape '");
+  });
+
   it("Should track supply correctly", async function () {
     const { bragNFT, donor, recipient } = await deployContracts();
 

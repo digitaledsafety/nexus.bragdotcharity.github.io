@@ -240,8 +240,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @dev Generates a simple SVG image with the donation message.
      */
     function _generateSVG(uint256 tokenId, string memory message) internal pure returns (string memory) {
-        string memory displayText = bytes(message).length > 0 ? message : string(abi.encodePacked("BragNFT #", tokenId.toString()));
-        // Note: Basic SVG escaping could be added here if needed, but for simplicity we keep it as is.
+        string memory displayText = bytes(message).length > 0 ? _escapeXML(message) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
         return string(abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
             '<style>.base { fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold; }</style>',
@@ -263,6 +262,8 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         for (uint256 i = 0; i < length; i++) {
             if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
                 extraLength++;
+            } else if (uint8(inputBytes[i]) < 0x20) {
+                extraLength += 5; // \u00xx
             }
         }
 
@@ -271,10 +272,64 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         bytes memory outputBytes = new bytes(length + extraLength);
         uint256 j = 0;
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
+            uint8 b = uint8(inputBytes[i]);
+            if (b == 0x22 || b == 0x5c) { // '"' or '\'
                 outputBytes[j++] = '\\';
+                outputBytes[j++] = inputBytes[i];
+            } else if (b < 0x20) {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = 'u';
+                outputBytes[j++] = '0';
+                outputBytes[j++] = '0';
+                bytes1 hex1 = bytes1(b >> 4);
+                bytes1 hex2 = bytes1(b & 0x0f);
+                outputBytes[j++] = hex1 < 0x0a ? bytes1(uint8(hex1) + 48) : bytes1(uint8(hex1) + 87);
+                outputBytes[j++] = hex2 < 0x0a ? bytes1(uint8(hex2) + 48) : bytes1(uint8(hex2) + 87);
+            } else {
+                outputBytes[j++] = inputBytes[i];
             }
-            outputBytes[j++] = inputBytes[i];
+        }
+        return string(outputBytes);
+    }
+
+    /**
+     * @dev Escape characters for XML (SVG) compatibility.
+     */
+    function _escapeXML(string memory input) internal pure returns (string memory) {
+        bytes memory inputBytes = bytes(input);
+        uint256 length = inputBytes.length;
+        uint256 extraLength = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '<' || inputBytes[i] == '>') {
+                extraLength += 3; // &lt; or &gt;
+            } else if (inputBytes[i] == '&') {
+                extraLength += 4; // &amp;
+            } else if (inputBytes[i] == '"') {
+                extraLength += 5; // &quot;
+            } else if (inputBytes[i] == '\'') {
+                extraLength += 5; // &apos;
+            }
+        }
+
+        if (extraLength == 0) return input;
+
+        bytes memory outputBytes = new bytes(length + extraLength);
+        uint256 j = 0;
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '<') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'l'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '>') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'g'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '&') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'm'; outputBytes[j++] = 'p'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '"') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'q'; outputBytes[j++] = 'u'; outputBytes[j++] = 'o'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (inputBytes[i] == '\'') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'p'; outputBytes[j++] = 'o'; outputBytes[j++] = 's'; outputBytes[j++] = ';';
+            } else {
+                outputBytes[j++] = inputBytes[i];
+            }
         }
         return string(outputBytes);
     }

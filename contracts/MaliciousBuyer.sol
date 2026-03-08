@@ -28,7 +28,7 @@ contract MaliciousBuyer is IERC721Receiver {
         bytes calldata
     ) external override returns (bytes4) {
         // Re-enter to cancel the offer while it's being accepted!
-        marketplace.cancelOffer(nftContract, tokenId);
+        marketplace.cancelOffer(nftContract, tokenId, address(this));
         return this.onERC721Received.selector;
     }
 

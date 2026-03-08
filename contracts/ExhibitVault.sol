@@ -43,6 +43,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
     event Exhibited1155(address indexed nftContract, uint256 indexed tokenId, address indexed owner, uint256 amount, string location, uint256 expiry);
     event Withdrawn721(address indexed nftContract, uint256 indexed tokenId, address indexed owner);
     event Withdrawn1155(address indexed nftContract, uint256 indexed tokenId, address indexed owner, uint256 amount);
+    event WithdrawnBatch1155(address indexed nftContract, uint256[] ids, address indexed owner, uint256[] amounts);
     event Moved721(address indexed nftContract, uint256 indexed tokenId, address indexed owner, address destinationVault);
     event Moved1155(address indexed nftContract, uint256 indexed tokenId, address indexed owner, uint256 amount, address destinationVault);
 
@@ -174,6 +175,29 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         IERC1155(nftContract).safeTransferFrom(address(this), msg.sender, tokenId, amount, "");
 
         emit Withdrawn1155(nftContract, tokenId, msg.sender, amount);
+    }
+
+    /**
+     * @dev Withdraw multiple ERC1155 tokens in a single batch.
+     */
+    function withdrawBatch1155(address nftContract, uint256[] calldata ids, uint256[] calldata amounts) external nonReentrant {
+        require(ids.length == amounts.length, "Mismatched arrays");
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            uint256 id = ids[i];
+            uint256 amount = amounts[i];
+            require(balances1155[nftContract][id][msg.sender] >= amount, "Insufficient balance");
+            require(block.timestamp >= expiry1155[nftContract][id][msg.sender], "Exhibition not yet expired");
+
+            balances1155[nftContract][id][msg.sender] -= amount;
+            if (balances1155[nftContract][id][msg.sender] == 0) {
+                expiry1155[nftContract][id][msg.sender] = 0;
+            }
+        }
+
+        IERC1155(nftContract).safeBatchTransferFrom(address(this), msg.sender, ids, amounts, "");
+
+        emit WithdrawnBatch1155(nftContract, ids, msg.sender, amounts);
     }
 
     /**
