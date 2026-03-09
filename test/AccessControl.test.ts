@@ -26,8 +26,13 @@ describe("AccessControl Security Tests", async function () {
       0n,
       parseEther("1000")
     ]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [
+        owner.account.address,
+        0n,
+        bragToken.address
+    ]);
 
-    return { owner, attacker, other, treasury, registry, receipt, bragNFT, bragToken };
+    return { owner, attacker, other, treasury, registry, receipt, bragNFT, bragToken, marketplace };
   }
 
   describe("BragToken Access", () => {
@@ -117,6 +122,24 @@ describe("AccessControl Security Tests", async function () {
         treasury.write.execute([other.account.address, 0n, "0x"], { account: attacker.account }),
         /AccessControlUnauthorizedAccount/
       );
+    });
+  });
+
+  describe("Marketplace Access", () => {
+    it("Should fail to setProtocolFee without ADMIN_ROLE", async function () {
+        const { marketplace, attacker } = await setup();
+        await assert.rejects(
+            marketplace.write.setProtocolFee([500n], { account: attacker.account }),
+            /AccessControlUnauthorizedAccount/
+        );
+    });
+
+    it("Should fail to setFeeRecipient without ADMIN_ROLE", async function () {
+        const { marketplace, attacker, other } = await setup();
+        await assert.rejects(
+            marketplace.write.setFeeRecipient([other.account.address], { account: attacker.account }),
+            /AccessControlUnauthorizedAccount/
+        );
     });
   });
 
