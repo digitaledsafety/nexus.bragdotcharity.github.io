@@ -69,7 +69,11 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
                 duration = abi.decode(data, (uint256));
             }
         } else if (data.length == 64) {
-            (actualOwner, duration) = abi.decode(data, (address, uint256));
+            if (registry.isVerified(from)) {
+                (actualOwner, duration) = abi.decode(data, (address, uint256));
+            } else {
+                duration = abi.decode(data, (uint256));
+            }
         }
 
         owner721[msg.sender][tokenId] = actualOwner;
@@ -102,7 +106,11 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
                 duration = abi.decode(data, (uint256));
             }
         } else if (data.length == 64) {
-            (actualOwner, duration) = abi.decode(data, (address, uint256));
+            if (registry.isVerified(from)) {
+                (actualOwner, duration) = abi.decode(data, (address, uint256));
+            } else {
+                duration = abi.decode(data, (uint256));
+            }
         }
 
         balances1155[msg.sender][id][actualOwner] += value;
@@ -132,7 +140,11 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
                 duration = abi.decode(data, (uint256));
             }
         } else if (data.length == 64) {
-            (actualOwner, duration) = abi.decode(data, (address, uint256));
+            if (registry.isVerified(from)) {
+                (actualOwner, duration) = abi.decode(data, (address, uint256));
+            } else {
+                duration = abi.decode(data, (uint256));
+            }
         }
 
         uint256 expiry = duration > 0 ? block.timestamp + duration : 0;

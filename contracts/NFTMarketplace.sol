@@ -7,31 +7,37 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract NFTMarketplace is ReentrancyGuard {
+contract NFTMarketplace is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     struct Offer {
-        address buyer;
         uint256 price;
         uint256 amount;    // Number of tokens (usually 1 for ERC721)
         uint256 timestamp; // When the offer was created
     }
 
-    // Mapping from NFT contract -> Token ID -> Offer
-    mapping(address => mapping(uint256 => Offer)) public offers;
+    // Mapping from NFT contract -> Token ID -> Buyer -> Offer
+    mapping(address => mapping(uint256 => mapping(address => Offer))) public offers;
 
     uint256 public immutable refundPeriod;
     IERC20 public immutable paymentToken;
 
+    uint256 public protocolFeeBps; // e.g., 250 for 2.5%
+    address public feeRecipient;
+
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
-    event RefundRequested(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 amount);
+    event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller);
+    event FeeRecipientUpdated(address indexed newRecipient);
+    event ProtocolFeeUpdated(uint256 newFeeBps);
 
-    constructor(uint256 _refundPeriod, address _paymentToken) {
+    constructor(uint256 _refundPeriod, address _paymentToken) Ownable(msg.sender) {
         refundPeriod = _refundPeriod;
         paymentToken = IERC20(_paymentToken);
+        feeRecipient = msg.sender;
     }
 
     /**
@@ -44,14 +50,13 @@ contract NFTMarketplace is ReentrancyGuard {
     function createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price) external nonReentrant {
         require(price > 0, "Offer price must be greater than 0");
         require(amount > 0, "Amount must be greater than 0");
-        require(offers[nftContract][tokenId].buyer == address(0), "Offer already exists");
+        require(offers[nftContract][tokenId][msg.sender].price == 0, "Offer already exists");
 
         // Transfer tokens from buyer to this contract
         paymentToken.safeTransferFrom(msg.sender, address(this), price);
 
         // Save the offer
-        offers[nftContract][tokenId] = Offer({
-            buyer: msg.sender,
+        offers[nftContract][tokenId][msg.sender] = Offer({
             price: price,
             amount: amount,
             timestamp: block.timestamp
@@ -64,13 +69,14 @@ contract NFTMarketplace is ReentrancyGuard {
      * @notice Accept an offer for your NFT
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token being sold
+     * @param buyer The address of the buyer whose offer is being accepted
      */
-    function acceptOffer(address nftContract, uint256 tokenId) external nonReentrant {
-        Offer memory offer = offers[nftContract][tokenId];
-        require(offer.buyer != address(0), "No valid offer exists");
+    function acceptOffer(address nftContract, uint256 tokenId, address buyer) external nonReentrant {
+        Offer memory offer = offers[nftContract][tokenId][buyer];
+        require(offer.price > 0, "No valid offer exists");
 
         // CEI: Clear the offer first
-        delete offers[nftContract][tokenId];
+        delete offers[nftContract][tokenId][buyer];
 
         if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
             require(offer.amount == 1, "ERC721 offer must have amount 1");
@@ -81,19 +87,25 @@ contract NFTMarketplace is ReentrancyGuard {
                 "Contract not approved to transfer NFT"
             );
             // Transfer the NFT to the buyer
-            nft.safeTransferFrom(msg.sender, offer.buyer, tokenId);
+            nft.safeTransferFrom(msg.sender, buyer, tokenId);
         } else if (IERC165(nftContract).supportsInterface(0xd9b67a26)) { // IERC1155
             IERC1155 nft = IERC1155(nftContract);
             require(nft.balanceOf(msg.sender, tokenId) >= offer.amount, "Insufficient balance");
             require(nft.isApprovedForAll(msg.sender, address(this)), "Contract not approved to transfer NFT");
             // Transfer the NFT to the buyer
-            nft.safeTransferFrom(msg.sender, offer.buyer, tokenId, offer.amount, "");
+            nft.safeTransferFrom(msg.sender, buyer, tokenId, offer.amount, "");
         } else {
             revert("Unsupported NFT type");
         }
 
-        // Pay the seller
-        paymentToken.safeTransfer(msg.sender, offer.price);
+        // Pay the seller and handle fees
+        uint256 fee = (offer.price * protocolFeeBps) / 10000;
+        uint256 sellerProceeds = offer.price - fee;
+
+        if (fee > 0 && feeRecipient != address(0)) {
+            paymentToken.safeTransfer(feeRecipient, fee);
+        }
+        paymentToken.safeTransfer(msg.sender, sellerProceeds);
 
         emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
     }
@@ -104,11 +116,11 @@ contract NFTMarketplace is ReentrancyGuard {
      * @param tokenId ID of the token for which the offer was made
      */
     function cancelOffer(address nftContract, uint256 tokenId) external nonReentrant {
-        Offer memory offer = offers[nftContract][tokenId];
-        require(offer.buyer == msg.sender, "You did not make this offer");
+        Offer memory offer = offers[nftContract][tokenId][msg.sender];
+        require(offer.price > 0, "You did not make this offer");
 
         // Clear the offer first (CEI)
-        delete offers[nftContract][tokenId];
+        delete offers[nftContract][tokenId][msg.sender];
 
         // Refund the buyer
         paymentToken.safeTransfer(msg.sender, offer.price);
@@ -117,21 +129,42 @@ contract NFTMarketplace is ReentrancyGuard {
     }
 
     /**
-     * @notice Request a refund for an offer within the refund period
+     * @notice Reject an offer for your NFT
      * @param nftContract Address of the NFT contract
-     * @param tokenId ID of the token for which the refund is requested
+     * @param tokenId ID of the token being sold
+     * @param buyer The address of the buyer whose offer is being rejected
      */
-    function requestRefund(address nftContract, uint256 tokenId) external nonReentrant {
-        Offer memory offer = offers[nftContract][tokenId];
-        require(offer.buyer == msg.sender, "You did not make this offer");
-        require(block.timestamp <= offer.timestamp + refundPeriod, "Refund period has expired");
+    function rejectOffer(address nftContract, uint256 tokenId, address buyer) external nonReentrant {
+        Offer memory offer = offers[nftContract][tokenId][buyer];
+        require(offer.price > 0, "No valid offer exists");
+
+        // Verify ownership
+        if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
+            require(IERC721(nftContract).ownerOf(tokenId) == msg.sender, "You do not own this NFT");
+        } else if (IERC165(nftContract).supportsInterface(0xd9b67a26)) { // IERC1155
+            require(IERC1155(nftContract).balanceOf(msg.sender, tokenId) >= offer.amount, "Insufficient balance");
+        } else {
+            revert("Unsupported NFT type");
+        }
 
         // Clear the offer first (CEI)
-        delete offers[nftContract][tokenId];
+        delete offers[nftContract][tokenId][buyer];
 
         // Refund the buyer
-        paymentToken.safeTransfer(msg.sender, offer.price);
+        paymentToken.safeTransfer(buyer, offer.price);
 
-        emit RefundRequested(nftContract, tokenId, msg.sender, offer.price);
+        emit OfferRejected(nftContract, tokenId, buyer, msg.sender);
+    }
+
+    function setProtocolFee(uint256 _feeBps) external onlyOwner {
+        require(_feeBps <= 1000, "Fee cannot exceed 10%");
+        protocolFeeBps = _feeBps;
+        emit ProtocolFeeUpdated(_feeBps);
+    }
+
+    function setFeeRecipient(address _recipient) external onlyOwner {
+        require(_recipient != address(0), "Invalid address");
+        feeRecipient = _recipient;
+        emit FeeRecipientUpdated(_recipient);
     }
 }
