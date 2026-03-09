@@ -253,7 +253,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @dev Escape double quotes and backslashes for JSON compatibility.
+     * @dev Escape double quotes, backslashes and control characters for JSON compatibility.
      */
     function _escapeJSON(string memory input) internal pure returns (string memory) {
         bytes memory inputBytes = bytes(input);
@@ -263,6 +263,8 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         for (uint256 i = 0; i < length; i++) {
             if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
                 extraLength++;
+            } else if (uint8(inputBytes[i]) < 0x20) {
+                extraLength += 5; // \uXXXX
             }
         }
 
@@ -271,10 +273,21 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         bytes memory outputBytes = new bytes(length + extraLength);
         uint256 j = 0;
         for (uint256 i = 0; i < length; i++) {
-            if (inputBytes[i] == '"' || inputBytes[i] == '\\') {
+            uint8 b = uint8(inputBytes[i]);
+            if (b == 0x22 || b == 0x5C) { // " or \
                 outputBytes[j++] = '\\';
+                outputBytes[j++] = bytes1(b);
+            } else if (b < 0x20) {
+                outputBytes[j++] = '\\';
+                outputBytes[j++] = 'u';
+                outputBytes[j++] = '0';
+                outputBytes[j++] = '0';
+                bytes memory hexAlphabet = "0123456789abcdef";
+                outputBytes[j++] = hexAlphabet[b >> 4];
+                outputBytes[j++] = hexAlphabet[b & 0x0f];
+            } else {
+                outputBytes[j++] = bytes1(b);
             }
-            outputBytes[j++] = inputBytes[i];
         }
         return string(outputBytes);
     }

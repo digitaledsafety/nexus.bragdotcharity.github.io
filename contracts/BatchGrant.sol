@@ -23,4 +23,23 @@ contract BatchGrant {
             token.safeTransferFrom(msg.sender, recipients[i], amounts[i]);
         }
     }
+
+    /**
+     * @dev Distributes native ETH to multiple recipients.
+     * @param recipients Array of recipient addresses.
+     * @param amounts Array of amounts to transfer to each recipient.
+     */
+    function distributeETH(address[] calldata recipients, uint256[] calldata amounts) external payable {
+        require(recipients.length == amounts.length, "Mismatched arrays");
+        uint256 total = 0;
+        for (uint256 i = 0; i < recipients.length; i++) {
+            total += amounts[i];
+        }
+        require(msg.value == total, "Incorrect ETH amount sent");
+
+        for (uint256 i = 0; i < recipients.length; i++) {
+            (bool success, ) = recipients[i].call{value: amounts[i]}("");
+            require(success, "ETH transfer failed");
+        }
+    }
 }

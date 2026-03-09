@@ -117,4 +117,47 @@ describe("BatchGrant", function () {
       }
     });
   });
+
+  describe("distributeETH", function () {
+    it("should distribute ETH to multiple recipients", async function () {
+      const { viem, owner, recipient1, recipient2, batchGrant } = await setup();
+
+      const publicClient = await viem.getPublicClient();
+
+      const recipient1Address = recipient1.account.address;
+      const recipient2Address = recipient2.account.address;
+
+      const balance1Before = await publicClient.getBalance({ address: recipient1Address });
+      const balance2Before = await publicClient.getBalance({ address: recipient2Address });
+
+      const amounts = [100n, 200n];
+      const total = 300n;
+
+      await batchGrant.write.distributeETH([[recipient1Address, recipient2Address], amounts], {
+        account: owner.account,
+        value: total,
+      });
+
+      const balance1After = await publicClient.getBalance({ address: recipient1Address });
+      const balance2After = await publicClient.getBalance({ address: recipient2Address });
+
+      assert.equal(balance1After, balance1Before + 100n);
+      assert.equal(balance2After, balance2Before + 200n);
+    });
+
+    it("should revert if ETH amount is incorrect", async function () {
+      const { owner, recipient1, recipient2, batchGrant } = await setup();
+
+      const recipients = [recipient1.account.address, recipient2.account.address];
+      const amounts = [100n, 200n];
+
+      await assert.rejects(
+        batchGrant.write.distributeETH([recipients, amounts], {
+          account: owner.account,
+          value: 299n, // One wei short
+        }),
+        /Incorrect ETH amount sent/
+      );
+    });
+  });
 });
