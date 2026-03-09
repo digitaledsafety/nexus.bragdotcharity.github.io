@@ -154,7 +154,7 @@ async function main() {
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
-    const marketplace = await deploy("NFTMarketplace", [refundPeriod, bragToken.address]);
+    const marketplace = await deploy("NFTMarketplace", [scaAddress, refundPeriod, bragToken.address]);
 
     // --- Batch Setup Transactions ---
     console.log("Batching setup and ownership transfer...");
@@ -197,7 +197,8 @@ async function main() {
     const contractsToTransfer = [
         { name: "DonationReceipt", contract: donationReceipt },
         { name: "BragNFT", contract: bragNFT },
-        { name: "BragToken", contract: bragToken }
+        { name: "BragToken", contract: bragToken },
+        { name: "NFTMarketplace", contract: marketplace }
     ];
 
     for (const item of contractsToTransfer) {

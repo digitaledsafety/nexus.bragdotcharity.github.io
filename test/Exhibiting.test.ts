@@ -30,7 +30,7 @@ describe("Exhibiting System", async function () {
     await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setReceiptContract([receipt.address]);
 
-    const mock1155 = await viem.deployContract("MockERC1155", []);
+    const mock1155 = await viem.deployContract("MockERC1155", [owner.account.address]);
 
     return { registry, vault1, vault2, bragNFT, mock1155, owner, user, user2, admin };
   }

@@ -32,7 +32,7 @@ describe("BragNFT and DonationReceipt", async function () {
     await bragToken.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setBragToken([bragToken.address]);
 
-    const mock1155 = await viem.deployContract("MockERC1155", []);
+    const mock1155 = await viem.deployContract("MockERC1155", [owner.account.address]);
 
     return { registry, vault, bragNFT, receipt, bragToken, mock1155, owner, donor, treasury, recipient };
   }

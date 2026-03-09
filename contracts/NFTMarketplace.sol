@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract NFTMarketplace is ReentrancyGuard, Ownable {
+contract NFTMarketplace is ReentrancyGuard, AccessControl {
     using SafeERC20 for IERC20;
 
     struct Offer {
@@ -34,10 +34,15 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
 
-    constructor(uint256 _refundPeriod, address _paymentToken) Ownable(msg.sender) {
+    constructor(address _initialOwner, uint256 _refundPeriod, address _paymentToken) {
+        _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         refundPeriod = _refundPeriod;
         paymentToken = IERC20(_paymentToken);
-        feeRecipient = msg.sender;
+        feeRecipient = _initialOwner;
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 
     /**
@@ -118,6 +123,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     function cancelOffer(address nftContract, uint256 tokenId) external nonReentrant {
         Offer memory offer = offers[nftContract][tokenId][msg.sender];
         require(offer.price > 0, "You did not make this offer");
+        require(block.timestamp >= offer.timestamp + refundPeriod, "Refund period not yet elapsed");
 
         // Clear the offer first (CEI)
         delete offers[nftContract][tokenId][msg.sender];
@@ -156,13 +162,13 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         emit OfferRejected(nftContract, tokenId, buyer, msg.sender);
     }
 
-    function setProtocolFee(uint256 _feeBps) external onlyOwner {
+    function setProtocolFee(uint256 _feeBps) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_feeBps <= 1000, "Fee cannot exceed 10%");
         protocolFeeBps = _feeBps;
         emit ProtocolFeeUpdated(_feeBps);
     }
 
-    function setFeeRecipient(address _recipient) external onlyOwner {
+    function setFeeRecipient(address _recipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_recipient != address(0), "Invalid address");
         feeRecipient = _recipient;
         emit FeeRecipientUpdated(_recipient);
