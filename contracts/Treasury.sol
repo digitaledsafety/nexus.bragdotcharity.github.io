@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
@@ -13,6 +15,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * Uses AccessControl for secure administrative control.
  */
 contract Treasury is ERC721Holder, ERC1155Holder, AccessControl {
+    using SafeERC20 for IERC20;
     bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
 
     constructor(address _initialOwner) {
@@ -28,6 +31,13 @@ contract Treasury is ERC721Holder, ERC1155Holder, AccessControl {
      * @dev Allows the contract to receive ETH.
      */
     receive() external payable {}
+
+    /**
+     * @dev Allows addresses with TREASURY_ROLE to withdraw ERC20 tokens.
+     */
+    function withdrawERC20(address token, address to, uint256 amount) external onlyRole(TREASURY_ROLE) {
+        IERC20(token).safeTransfer(to, amount);
+    }
 
     /**
      * @dev Allows addresses with TREASURY_ROLE to withdraw ETH.

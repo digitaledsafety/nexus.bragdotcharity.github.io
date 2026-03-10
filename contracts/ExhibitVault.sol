@@ -189,6 +189,26 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
     }
 
     /**
+     * @dev Withdraw multiple ERC1155 tokens in a single transaction.
+     */
+    function withdrawBatch1155(address nftContract, uint256[] calldata ids, uint256[] calldata amounts) external nonReentrant {
+        require(ids.length == amounts.length, "Mismatched arrays");
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            require(balances1155[nftContract][ids[i]][msg.sender] >= amounts[i], "Insufficient balance");
+            require(block.timestamp >= expiry1155[nftContract][ids[i]][msg.sender], "Exhibition not yet expired");
+
+            balances1155[nftContract][ids[i]][msg.sender] -= amounts[i];
+            if (balances1155[nftContract][ids[i]][msg.sender] == 0) {
+                expiry1155[nftContract][ids[i]][msg.sender] = 0;
+            }
+            emit Withdrawn1155(nftContract, ids[i], msg.sender, amounts[i]);
+        }
+
+        IERC1155(nftContract).safeBatchTransferFrom(address(this), msg.sender, ids, amounts, "");
+    }
+
+    /**
      * @dev Move an ERC721 token directly to another verified vault.
      */
     function move721(address nftContract, uint256 tokenId, address destinationVault) external nonReentrant {
