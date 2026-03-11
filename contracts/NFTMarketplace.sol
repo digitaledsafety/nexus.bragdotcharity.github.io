@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -21,7 +22,6 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     // Mapping from NFT contract -> Token ID -> Buyer -> Offer
     mapping(address => mapping(uint256 => mapping(address => Offer))) public offers;
 
-    uint256 public immutable refundPeriod;
     IERC20 public immutable paymentToken;
 
     uint256 public protocolFeeBps; // e.g., 250 for 2.5%
@@ -34,8 +34,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
 
-    constructor(uint256 _refundPeriod, address _paymentToken) Ownable(msg.sender) {
-        refundPeriod = _refundPeriod;
+    constructor(address _paymentToken) Ownable(msg.sender) {
         paymentToken = IERC20(_paymentToken);
         feeRecipient = msg.sender;
     }
@@ -98,12 +97,23 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
             revert("Unsupported NFT type");
         }
 
-        // Pay the seller and handle fees
-        uint256 fee = (offer.price * protocolFeeBps) / 10000;
-        uint256 sellerProceeds = offer.price - fee;
+        // Pay the seller and handle fees/royalties
+        uint256 protocolFee = (offer.price * protocolFeeBps) / 10000;
+        uint256 royaltyFee = 0;
+        address royaltyRecipient;
 
-        if (fee > 0 && feeRecipient != address(0)) {
-            paymentToken.safeTransfer(feeRecipient, fee);
+        try IERC2981(nftContract).royaltyInfo(tokenId, offer.price) returns (address receiver, uint256 amount) {
+            royaltyFee = amount;
+            royaltyRecipient = receiver;
+        } catch {}
+
+        uint256 sellerProceeds = offer.price - protocolFee - royaltyFee;
+
+        if (protocolFee > 0 && feeRecipient != address(0)) {
+            paymentToken.safeTransfer(feeRecipient, protocolFee);
+        }
+        if (royaltyFee > 0 && royaltyRecipient != address(0)) {
+            paymentToken.safeTransfer(royaltyRecipient, royaltyFee);
         }
         paymentToken.safeTransfer(msg.sender, sellerProceeds);
 
