@@ -601,7 +601,9 @@ function initNavbarAuth() {
 
 // Initialize when page loads
 window.addEventListener('DOMContentLoaded', async () => {
-    await checkAuth();
+    if (window.location.pathname.endsWith('manager.html')) {
+        await checkAuth();
+    }
     initNavbarAuth();
     initContractExplorer();
 

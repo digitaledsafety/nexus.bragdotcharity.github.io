@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 const PORT = 9000;
 const WS_PORT = 9001;
 const CHAIN_ID = process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID) : 31337;
+const isMain = process.argv[1] && (path.resolve(process.argv[1]) === path.resolve('scripts/nft-bridge.js'));
 const MAPPINGS_FILE = path.join(process.cwd(), 'mappings.json');
 const CONFIG_FILE = path.join(process.cwd(), 'bridge-config.json');
 
@@ -54,8 +55,13 @@ function saveMappings() {
 }
 
 // --- WebSocket Server (Minecraft Bedrock Protocol) ---
-const wss = new WebSocketServer({ port: WS_PORT });
+let wss;
+if (isMain) {
+    wss = new WebSocketServer({ port: WS_PORT });
+    setupWss(wss);
+}
 
+function setupWss(wss) {
 wss.on('connection', (ws, req) => {
     console.log(`Minecraft server connected from ${req.socket.remoteAddress}`);
 
@@ -109,6 +115,7 @@ wss.on('connection', (ws, req) => {
     };
     ws.send(JSON.stringify(subscribeMsg));
 });
+}
 
 function sendMinecraftCommand(serverId, commandLine) {
     const ws = serverSockets.get(serverId);
@@ -150,15 +157,7 @@ const BRAG_ABI = [
 
 const chain = CHAIN_ID === 31337 ? localhost : sepolia;
 const RPC_URL = process.env.RPC_URL || (CHAIN_ID === 31337 ? 'http://127.0.0.1:8545' : undefined);
-console.log(`Bridge using RPC_URL: ${RPC_URL} for Chain ID: ${CHAIN_ID}`);
-const publicClient = createPublicClient({
-    chain: chain,
-    transport: viemHttp(RPC_URL, {
-        retryCount: 10,
-        retryDelay: 1000,
-    }),
-    pollingInterval: 500, // Faster polling for events
-});
+if (isMain) console.log(`Bridge using RPC_URL: ${RPC_URL} for Chain ID: ${CHAIN_ID}`);
 
 async function handleStatusChange(address) {
     if (!address || address === '0x0000000000000000000000000000000000000000') return;
@@ -205,6 +204,7 @@ async function handleStatusChange(address) {
 }
 
 async function setupEventListeners() {
+    if (!isMain) return;
     const bragAddress = getContractAddress('BragNFT');
     if (bragAddress) {
         console.log(`Setting up event listener for BragNFT at ${bragAddress}`);
@@ -243,7 +243,7 @@ async function setupEventListeners() {
 }
 
 // --- HTTP API ---
-const server = http.createServer(async (req, res) => {
+export const handleRequest = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -251,7 +251,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-    const url = new URL(req.url, `http://localhost:${PORT}`);
+    const url = new URL(req.url || '', `http://localhost:${PORT}`);
     const pathname = url.pathname;
     const searchParams = url.searchParams;
 
@@ -476,10 +476,16 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "Not found" }));
     } catch (error) {
         console.error(error);
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: error.message }));
+        if (!res.writableEnded) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: error.message }));
+        }
     }
-});
+};
+
+const server = http.createServer(handleRequest);
+
+export { sessions, nonces, pendingTokens, mappings, emailWallets };
 
 async function fetchWithRetry(fn, label, maxRetries = 3) {
     for (let i = 0; i < maxRetries; i++) {
@@ -578,8 +584,23 @@ async function fetchCurrentStatus(address) {
     return { walletNfts, vaults };
 }
 
-server.listen(PORT, async () => {
-    console.log(`HTTP Bridge: http://localhost:${PORT}`);
-    console.log(`WS Bridge: ws://localhost:${WS_PORT}`);
-    setupEventListeners().catch(console.error);
-});
+const publicClient = isMain ? createPublicClient({
+    chain: chain,
+    transport: viemHttp(RPC_URL, {
+        retryCount: 10,
+        retryDelay: 1000,
+    }),
+    pollingInterval: 500, // Faster polling for events
+}) : {
+    readContract: async () => 0n,
+    getLogs: async () => [],
+    watchEvent: () => {}
+};
+
+if (isMain) {
+    server.listen(PORT, async () => {
+        console.log(`HTTP Bridge: http://localhost:${PORT}`);
+        console.log(`WS Bridge: ws://localhost:${WS_PORT}`);
+        setupEventListeners().catch(console.error);
+    });
+}
