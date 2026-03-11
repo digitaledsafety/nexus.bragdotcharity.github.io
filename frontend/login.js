@@ -90,9 +90,25 @@ btnSiwe.addEventListener('click', async () => {
     }
 });
 
-// Initialize Linking UI
+// Initialize UI & Handle Callback Redirects
 window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
+
+    // Handle session returned in URL (from Google OAuth redirect)
+    const sessionId = urlParams.get('sessionId');
+    const address = urlParams.get('address');
+    const email = urlParams.get('email');
+
+    if (sessionId && address) {
+        localStorage.setItem('brag_session', sessionId);
+        localStorage.setItem('brag_address', address);
+        if (email) localStorage.setItem('brag_email', email);
+
+        // Clean up URL and redirect to manager
+        window.location.href = 'manager.html';
+        return;
+    }
+
     const token = urlParams.get('token');
     if (token) {
         document.getElementById('linkingStatus').classList.remove('hidden');
@@ -101,8 +117,15 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Google Login Logic
+const btnGoogle = document.getElementById('btnGoogle');
+btnGoogle.addEventListener('click', () => {
+    const redirectUri = window.location.origin + '/manager.html';
+    window.location.href = `${API_BASE}/auth/google?redirectUri=${encodeURIComponent(redirectUri)}`;
+});
+
 // Email Login Logic
-const emailForm = document.getElementById('emailSection');
+const emailForm = document.getElementById('emailForm');
 emailForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('email').value;

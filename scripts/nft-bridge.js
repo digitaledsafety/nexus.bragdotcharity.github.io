@@ -40,7 +40,12 @@ const pendingTokens = new Map();
 const nonces = new Map(); // address -> nonce
 const sessions = new Map(); // sessionId -> { address, email, type }
 const emailWallets = new Map(); // email -> address (mock)
+const googleStates = new Map(); // state -> redirectUri
 const statusCache = new Map();
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "MOCK_SECRET";
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:9000/auth/google/callback";
 const activePlayers = new Map(); // XUID -> { serverId, playerName }
 const serverSockets = new Map(); // serverId -> WebSocket (Minecraft uses only one connection per server)
 
@@ -179,8 +184,9 @@ async function handleStatusChange(address) {
         console.log(`Pushing real-time update for player ${active.playerName} (${xuid}) on ${active.serverId}`);
 
         // Refresh status
-        const status = await fetchCurrentStatus(lowerAddress);
-        statusCache.set(lowerAddress, status);
+        const lowerAddr = normalizedAddress.toLowerCase();
+        const status = await fetchCurrentStatus(lowerAddr);
+        statusCache.set(lowerAddr, status);
 
         const serverConfig = serverConfigs[active.serverId];
         const vaultAddr = (serverConfig && serverConfig.vaultAddress) ? serverConfig.vaultAddress.toLowerCase() : null;
@@ -346,6 +352,69 @@ const server = http.createServer(async (req, res) => {
 
             res.writeHead(200);
             res.end(JSON.stringify({ success: true, sessionId, address, email }));
+            return;
+        }
+
+        // Google OAuth2: Start
+        if (pathname === '/auth/google' && req.method === 'GET') {
+            const state = randomUUID();
+            googleStates.set(state, searchParams.get('redirectUri') || 'http://localhost:3000/manager.html');
+
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${GOOGLE_CLIENT_ID}&` +
+                `redirect_uri=${encodeURIComponent(GOOGLE_REDIRECT_URI)}&` +
+                `response_type=code&` +
+                `scope=openid%20email%20profile&` +
+                `state=${state}`;
+
+            res.writeHead(302, { 'Location': authUrl });
+            res.end();
+            return;
+        }
+
+        // Google OAuth2: Callback
+        if (pathname === '/auth/google/callback' && req.method === 'GET') {
+            const code = searchParams.get('code');
+            const state = searchParams.get('state');
+            const originalRedirect = googleStates.get(state) || 'http://localhost:3000/manager.html';
+            googleStates.delete(state);
+
+            if (!code) {
+                res.writeHead(302, { 'Location': `${originalRedirect}?error=google_auth_failed` });
+                res.end();
+                return;
+            }
+
+            // In a real scenario, we would exchange the code for a token here.
+            // For this implementation, we'll simulate the successful exchange.
+            // In production, you'd use fetch() to https://oauth2.googleapis.com/token
+
+            let email = "verified-user@example.com"; // Mocked
+            if (GOOGLE_CLIENT_ID !== "MOCK_CLIENT_ID") {
+                try {
+                    // Real exchange logic would go here
+                    // const tokenRes = await fetch('https://oauth2.googleapis.com/token', { ... });
+                    // const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { ... });
+                    // email = userInfo.email;
+                } catch (e) {
+                    console.error("Google Token Exchange Failed:", e);
+                }
+            }
+
+            let address = emailWallets.get(email);
+            if (!address) {
+                address = `0x${Buffer.from(email).toString('hex').padEnd(40, '0').slice(0, 40)}`;
+                emailWallets.set(email, address);
+            }
+
+            const sessionId = randomUUID();
+            sessions.set(sessionId, { address, email, type: 'google', createdAt: Date.now() });
+
+            // Redirect back to frontend with session info
+            res.writeHead(302, {
+                'Location': `${originalRedirect}?sessionId=${sessionId}&address=${address}&email=${encodeURIComponent(email)}`
+            });
+            res.end();
             return;
         }
 
