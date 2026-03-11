@@ -13,7 +13,7 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     const initialSupply = parseEther("1000000");
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
 
-    const marketplace = await viem.deployContract("NFTMarketplace", [7n * 24n * 3600n, bragToken.address]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [bragToken.address]);
 
     // ERC721
     const bragNFT = await viem.deployContract("BragNFT", [
@@ -53,7 +53,9 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     // Verify results
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
-    assert.equal(await bragToken.read.balanceOf([seller.account.address]), offerPrice);
+    // Default royalty is 5%
+    const expectedSellerProceeds = offerPrice - (offerPrice * 500n / 10000n);
+    assert.equal(await bragToken.read.balanceOf([seller.account.address]), expectedSellerProceeds);
   });
 
   it("Should handle ERC1155 offers and acceptance", async function () {
@@ -180,9 +182,11 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
 
     const fee = (offerPrice * 500n) / 10000n;
-    const expectedSellerProceeds = offerPrice - fee;
+    // Default royalty is 5% plus 5% protocol fee
+    const royaltyFee = (offerPrice * 500n) / 10000n;
+    const expectedSellerProceeds = offerPrice - fee - royaltyFee;
 
     assert.equal(await bragToken.read.balanceOf([seller.account.address]), expectedSellerProceeds);
-    assert.equal(await bragToken.read.balanceOf([feeRecipient]), balanceBefore + fee);
+    assert.equal(await bragToken.read.balanceOf([feeRecipient]), balanceBefore + fee + royaltyFee);
   });
 });

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
@@ -17,7 +18,7 @@ interface IBragToken {
  * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
  * Uses AccessControl for flexible permissions.
  */
-contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
+contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     using Strings for uint256;
 
     uint256 private _nextTokenId;
@@ -26,6 +27,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
     uint256 public minimumDonation;
     IDonationReceipt public receiptContract;
     IBragToken public bragToken;
+
+    // EIP-2981 Royalty Support
+    uint96 public royaltyFeeNumerator = 500; // 5% by default
 
     // Link between BragNFT tokenId and DonationReceipt tokenId
     mapping(uint256 => uint256) public nftToReceipt;
@@ -52,8 +56,21 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
         maxSupply = _maxSupply;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721URIStorage, AccessControl) returns (bool) {
-        return super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721URIStorage, AccessControl, IERC165) returns (bool) {
+        return interfaceId == type(IERC2981).interfaceId || super.supportsInterface(interfaceId);
+    }
+
+    function setRoyaltyFeeNumerator(uint96 _feeNumerator) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_feeNumerator <= 10000, "Fee cannot exceed 100%");
+        royaltyFeeNumerator = _feeNumerator;
+    }
+
+    /**
+     * @dev EIP-2981 royaltyInfo implementation.
+     */
+    function royaltyInfo(uint256, uint256 salePrice) external view override returns (address, uint256) {
+        uint256 royaltyAmount = (salePrice * royaltyFeeNumerator) / 10000;
+        return (treasury, royaltyAmount);
     }
 
     function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -240,8 +257,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
      * @dev Generates a simple SVG image with the donation message.
      */
     function _generateSVG(uint256 tokenId, string memory message) internal pure returns (string memory) {
-        string memory displayText = bytes(message).length > 0 ? message : string(abi.encodePacked("BragNFT #", tokenId.toString()));
-        // Note: Basic SVG escaping could be added here if needed, but for simplicity we keep it as is.
+        string memory displayText = bytes(message).length > 0 ? _escapeSVG(message) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
         return string(abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
             '<style>.base { fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold; }</style>',
@@ -250,6 +266,45 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard {
             displayText,
             '</text></svg>'
         ));
+    }
+
+    /**
+     * @dev Escape special characters for SVG text.
+     */
+    function _escapeSVG(string memory input) internal pure returns (string memory) {
+        bytes memory inputBytes = bytes(input);
+        uint256 length = inputBytes.length;
+        uint256 extraLength = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            if (inputBytes[i] == '&') extraLength += 4; // &amp;
+            else if (inputBytes[i] == '<') extraLength += 3; // &lt;
+            else if (inputBytes[i] == '>') extraLength += 3; // &gt;
+            else if (inputBytes[i] == '"') extraLength += 5; // &quot;
+            else if (inputBytes[i] == '\'') extraLength += 5; // &apos;
+        }
+
+        if (extraLength == 0) return input;
+
+        bytes memory outputBytes = new bytes(length + extraLength);
+        uint256 j = 0;
+        for (uint256 i = 0; i < length; i++) {
+            bytes1 b = inputBytes[i];
+            if (b == '&') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'm'; outputBytes[j++] = 'p'; outputBytes[j++] = ';';
+            } else if (b == '<') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'l'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (b == '>') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'g'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (b == '"') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'q'; outputBytes[j++] = 'u'; outputBytes[j++] = 'o'; outputBytes[j++] = 't'; outputBytes[j++] = ';';
+            } else if (b == '\'') {
+                outputBytes[j++] = '&'; outputBytes[j++] = 'a'; outputBytes[j++] = 'p'; outputBytes[j++] = 'o'; outputBytes[j++] = 's'; outputBytes[j++] = ';';
+            } else {
+                outputBytes[j++] = b;
+            }
+        }
+        return string(outputBytes);
     }
 
     /**
