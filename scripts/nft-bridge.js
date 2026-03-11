@@ -37,6 +37,9 @@ if (fs.existsSync(MAPPINGS_FILE)) {
 }
 
 const pendingTokens = new Map();
+const nonces = new Map(); // address -> nonce
+const sessions = new Map(); // sessionId -> { address, email, type }
+const emailWallets = new Map(); // email -> address (mock)
 const statusCache = new Map();
 const activePlayers = new Map(); // XUID -> { serverId, playerName }
 const serverSockets = new Map(); // serverId -> WebSocket (Minecraft uses only one connection per server)
@@ -276,6 +279,86 @@ const server = http.createServer(async (req, res) => {
             saveMappings();
             res.writeHead(200);
             res.end(JSON.stringify({ success: true, platformId: pending.platformId, address }));
+            return;
+        }
+
+        // SIWE: Get Nonce
+        if (pathname === '/auth/nonce' && req.method === 'GET') {
+            const address = searchParams.get('address');
+            if (!address) { res.writeHead(400); res.end(JSON.stringify({ error: "Address required" })); return; }
+            const nonce = randomUUID();
+            nonces.set(address.toLowerCase(), nonce);
+            res.writeHead(200);
+            res.end(JSON.stringify({ nonce }));
+            return;
+        }
+
+        // SIWE: Verify Signature
+        if (pathname === '/auth/verify' && req.method === 'POST') {
+            let body = '';
+            for await (const chunk of req) body += chunk;
+            const { message, signature, address } = JSON.parse(body);
+
+            const lowerAddr = address.toLowerCase();
+            const expectedNonce = nonces.get(lowerAddr);
+
+            if (!expectedNonce || !message.includes(expectedNonce)) {
+                res.writeHead(400); res.end(JSON.stringify({ error: "Invalid nonce or message" }));
+                return;
+            }
+
+            const isValid = await verifyMessage({ address, message, signature });
+            if (!isValid) {
+                res.writeHead(401); res.end(JSON.stringify({ error: "Invalid signature" }));
+                return;
+            }
+
+            const sessionId = randomUUID();
+            sessions.set(sessionId, { address: lowerAddr, type: 'wallet', createdAt: Date.now() });
+            nonces.delete(lowerAddr);
+
+            res.writeHead(200);
+            res.end(JSON.stringify({ success: true, sessionId, address: lowerAddr }));
+            return;
+        }
+
+        // Email Login (Mock)
+        if (pathname === '/auth/login-email' && req.method === 'POST') {
+            let body = '';
+            for await (const chunk of req) body += chunk;
+            const { email, password } = JSON.parse(body);
+
+            // Simple mock auth
+            if (!email || !password) {
+                res.writeHead(400); res.end(JSON.stringify({ error: "Email and password required" }));
+                return;
+            }
+
+            let address = emailWallets.get(email);
+            if (!address) {
+                // Create a mock address for this email
+                address = `0x${Buffer.from(email).toString('hex').padEnd(40, '0').slice(0, 40)}`;
+                emailWallets.set(email, address);
+            }
+
+            const sessionId = randomUUID();
+            sessions.set(sessionId, { address, email, type: 'email', createdAt: Date.now() });
+
+            res.writeHead(200);
+            res.end(JSON.stringify({ success: true, sessionId, address, email }));
+            return;
+        }
+
+        // Session Check
+        if (pathname === '/auth/session' && req.method === 'GET') {
+            const sessionId = searchParams.get('sessionId');
+            const session = sessions.get(sessionId);
+            if (!session) {
+                res.writeHead(401); res.end(JSON.stringify({ error: "Invalid session" }));
+                return;
+            }
+            res.writeHead(200);
+            res.end(JSON.stringify(session));
             return;
         }
 
