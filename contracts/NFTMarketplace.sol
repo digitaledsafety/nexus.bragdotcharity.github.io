@@ -107,7 +107,21 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
             royaltyRecipient = receiver;
         } catch {}
 
-        uint256 sellerProceeds = offer.price - protocolFee - royaltyFee;
+        uint256 totalFees = protocolFee + royaltyFee;
+        if (totalFees > offer.price) {
+            // Cap fees to the offer price to avoid underflow
+            // Prioritize royalty fee? For now, we'll scale both down proportionally or just cap royalty.
+            // Let's just cap them and reduce seller proceeds to 0.
+            totalFees = offer.price;
+            if (protocolFee > totalFees) {
+                protocolFee = totalFees;
+                royaltyFee = 0;
+            } else {
+                royaltyFee = totalFees - protocolFee;
+            }
+        }
+
+        uint256 sellerProceeds = offer.price - totalFees;
 
         if (protocolFee > 0 && feeRecipient != address(0)) {
             paymentToken.safeTransfer(feeRecipient, protocolFee);
@@ -115,7 +129,9 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         if (royaltyFee > 0 && royaltyRecipient != address(0)) {
             paymentToken.safeTransfer(royaltyRecipient, royaltyFee);
         }
-        paymentToken.safeTransfer(msg.sender, sellerProceeds);
+        if (sellerProceeds > 0) {
+            paymentToken.safeTransfer(msg.sender, sellerProceeds);
+        }
 
         emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
     }
