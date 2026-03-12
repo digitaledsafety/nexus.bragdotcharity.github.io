@@ -248,39 +248,6 @@
 
         </div>
 
-        <!-- Wallet Verification -->
-        <section class="mt-8 brag-card rounded-xl p-6">
-            <h2 class="section-title"><i class="fas fa-user-check mr-2"></i>Wallet Verification (SIWE Best Practice)</h2>
-            <div class="space-y-4">
-                <p class="text-sm text-slate-400">Verifying your wallet proves you own the private key for your address without sending a transaction. This is the industry standard for secure Web3 authentication.</p>
-
-                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                    <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Message to Sign</label>
-                    <div class="mb-3">
-                        <label class="block text-[10px] text-slate-500 mb-1">Minecraft / Platform Link Token (Optional)</label>
-                        <input type="text" id="linkToken" class="input-field text-sm" placeholder="e.g. A1B2C3D4">
-                    </div>
-
-                    <textarea id="siweMessage" class="input-field h-24 mb-3 font-mono text-xs" readonly>Welcome to brag.charity!
-
-Click to sign in and accept the Terms of Service.
-
-Domain: brag.charity
-Statement: Securely verify wallet ownership.
-Nonce: [auto-generated]</textarea>
-
-                    <div class="flex space-x-2">
-                        <button id="btnSignSIWE" class="btn-primary flex-1">Sign Verification Message</button>
-                        <button id="btnVerifySIWE" class="btn-secondary flex-1">Verify Locally</button>
-                    </div>
-                </div>
-
-                <div id="siweResult" class="hidden p-3 rounded text-sm font-mono border">
-                    <!-- Result will be shown here -->
-                </div>
-            </div>
-        </section>
-
         <!-- Contract Explorer (Dynamic) -->
         <section class="mt-8 brag-card rounded-xl p-6">
             <h2 class="section-title"><i class="fas fa-code mr-2"></i>Contract Explorer (Auto-Generated)</h2>
