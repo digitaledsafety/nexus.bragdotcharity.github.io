@@ -160,4 +160,48 @@ describe("BatchGrant", function () {
       );
     });
   });
+
+  describe("distributeFromBalance", function () {
+    it("should distribute USDC from its own balance", async function () {
+      const { owner, recipient1, recipient2, batchGrant, mockUsdc } = await setup();
+
+      const recipient1Address = recipient1.account.address;
+      const recipient2Address = recipient2.account.address;
+
+      // Send USDC to BatchGrant first
+      await mockUsdc.write.mint([batchGrant.address, 1000n], { account: owner.account });
+
+      // Distribute the USDC from BatchGrant's balance
+      const recipients = [recipient1Address, recipient2Address];
+      const amounts = [100n, 200n];
+      await batchGrant.write.distributeFromBalance([mockUsdc.address, recipients, amounts], {
+        account: owner.account,
+      });
+
+      // Check the balances
+      const balance1 = await mockUsdc.read.balanceOf([recipient1Address]);
+      const balance2 = await mockUsdc.read.balanceOf([recipient2Address]);
+
+      assert.equal(balance1, 100n);
+      assert.equal(balance2, 200n);
+    });
+
+    it("should revert if a non-owner calls distributeFromBalance", async function () {
+      const { recipient1, recipient2, batchGrant, mockUsdc } = await setup();
+
+      const recipient1Address = recipient1.account.address;
+      const recipient2Address = recipient2.account.address;
+
+      const recipients = [recipient1Address, recipient2Address];
+      const amounts = [100n, 200n];
+
+      // Use recipient1 (non-owner) to call it
+      await assert.rejects(
+        batchGrant.write.distributeFromBalance([mockUsdc.address, recipients, amounts], {
+          account: recipient1.account,
+        }),
+        /OwnableUnauthorizedAccount/
+      );
+    });
+  });
 });
