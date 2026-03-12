@@ -1,12 +1,12 @@
-# Brag
+# brag.charity
 
 [![CI](https://github.com/digitaledsafety/smart-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/digitaledsafety/smart-contracts/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Status: Beta](https://img.shields.io/badge/status-beta-orange.svg)
 
-Brag is a next-generation NFT ecosystem designed to bridge the gap between blockchain assets and real-world utility—starting with Minecraft. It features gasless transactions, dynamic on-chain metadata, and a secure "Verification Handshake" that lets players bring their digital collections into any game environment.
+brag.charity is a next-generation NFT ecosystem designed to bridge the gap between blockchain assets and real-world utility—starting with Minecraft. It features gasless transactions, dynamic on-chain metadata, and a secure "Verification Handshake" that lets players bring their digital collections into any game environment.
 
-Whether you're building a decentralized gallery, a cross-platform gaming reward system, or a high-fidelity NFT marketplace, Brag provides the tools to make it happen.
+Whether you're building a decentralized gallery, a cross-platform gaming reward system, or a high-fidelity NFT marketplace, brag.charity provides the tools to make it happen.
 
 ---
 
@@ -31,7 +31,7 @@ Whether you're building a decentralized gallery, a cross-platform gaming reward 
 
 ## 2. Application Setup (Local Development)
 
-You can run the entire Brag ecosystem locally to test contracts, the bridge, and the frontend without spending real ETH.
+You can run the entire brag.charity ecosystem locally to test contracts, the bridge, and the frontend without spending real ETH.
 
 ### 1. Start the Local Node
 In a separate terminal, start the Hardhat network:
@@ -86,7 +86,7 @@ npm run seed:sepolia
 
 ## 4. Testing
 
-Brag uses the native Node.js test runner (`node:test`) alongside `viem` for lightning-fast, type-safe integration tests.
+brag.charity uses the native Node.js test runner (`node:test`) alongside `viem` for lightning-fast, type-safe integration tests.
 
 To run the full test suite:
 ```shell
@@ -102,9 +102,9 @@ You can also target specific areas:
 ## 5. Core Features & Possibilities
 
 ### The Verification Handshake (SIWE)
-Brag demonstrates how to verify wallet ownership across platforms where the user doesn't have a private key (like a game console or a chat bot).
+brag.charity demonstrates how to verify wallet ownership across platforms where the user doesn't have a private key (like a game console or a chat bot).
 1.  **Request:** A player requests a linking token in-game.
-2.  **Sign:** The player signs a "Sign-In with Ethereum" message on the Brag Manager website.
+2.  **Sign:** The player signs a "Sign-In with Ethereum" message on the brag.charity Manager website.
 3.  **Map:** The bridge verifies the signature and maps the player's identity to their wallet address.
 4.  **Utility:** The game now knows exactly which NFTs the player owns on-chain.
 
@@ -126,4 +126,4 @@ This project uses GitHub Actions for continuous testing and automated deployment
 
 ---
 
-Have fun building with Brag!
+Have fun building with brag.charity!
