@@ -321,7 +321,7 @@ document.getElementById('btnCreateOffer').addEventListener('click', async () => 
         log('Approval confirmed', 'success');
     }
 
-    await txHandler(marketplace.createOffer(nft, id, amount, price), 'Offer Created');
+    await txHandler(marketplace.createOffer(nft, id, amount, price, 0), 'Offer Created');
 });
 
 document.getElementById('btnAcceptOffer').addEventListener('click', async () => {
