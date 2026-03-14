@@ -481,7 +481,8 @@ async function initProduct() {
                 }
 
                 // Defaulting amount to 1 for now as UI doesn't have an amount field for buying multiple
-                const tx = await marketplace.createOffer(contractAddr, tokenId, 1, price);
+                // Passing 0 for duration (no expiry)
+                const tx = await marketplace.createOffer(contractAddr, tokenId, 1, price, 0);
                 alert('Offer submitted! Awaiting confirmation...');
                 await tx.wait();
                 alert('Offer confirmed!');

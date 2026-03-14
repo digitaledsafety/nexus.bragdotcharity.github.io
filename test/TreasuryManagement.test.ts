@@ -62,7 +62,7 @@ describe("Treasury Management", async function () {
     // 2. Buyer creates an offer on marketplace
     const offerPrice = parseEther("1.0");
     await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], {
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice, 0n], {
         account: buyer.account
     });
 
