@@ -80,7 +80,7 @@ function stopService(name) {
 
 async function checkManagerStatus() {
     try {
-        const res = await fetch(`${MANAGER_API_URL}/status`);
+        const res = await fetch(`${MANAGER_API_URL}/api/status`);
         return res.ok;
     } catch (e) {
         return false;
@@ -187,7 +187,29 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ success: true, message: 'Initialization started' }));
     } else if (url.pathname === '/minecraft/start' && req.method === 'POST') {
         console.log(`Requesting Minecraft server start via ${MANAGER_API_URL}`);
-        fetch(`${MANAGER_API_URL}/start`, { method: 'POST' })
+        fetch(`${MANAGER_API_URL}/api/start`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                res.writeHead(200);
+                res.end(JSON.stringify(data));
+            }).catch(err => {
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: err.message }));
+            });
+    } else if (url.pathname === '/minecraft/stop' && req.method === 'POST') {
+        console.log(`Requesting Minecraft server stop via ${MANAGER_API_URL}`);
+        fetch(`${MANAGER_API_URL}/api/stop`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                res.writeHead(200);
+                res.end(JSON.stringify(data));
+            }).catch(err => {
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: err.message }));
+            });
+    } else if (url.pathname === '/minecraft/restart' && req.method === 'POST') {
+        console.log(`Requesting Minecraft server restart via ${MANAGER_API_URL}`);
+        fetch(`${MANAGER_API_URL}/api/restart`, { method: 'POST' })
             .then(r => r.json())
             .then(data => {
                 res.writeHead(200);
@@ -201,8 +223,7 @@ const server = http.createServer((req, res) => {
         const addonPath = path.join(ROOT, 'addons', 'minecraft-bedrock-addon');
         console.log(`Injecting addon from ${addonPath} to ${MANAGER_API_URL}`);
 
-        // This is a placeholder for the actual API call to bedrock-server-manager
-        fetch(`${MANAGER_API_URL}/inject`, {
+        fetch(`${MANAGER_API_URL}/api/inject`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: addonPath })

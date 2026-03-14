@@ -116,6 +116,34 @@ document.getElementById('btnMcStart').addEventListener('click', async () => {
     }
 });
 
+document.getElementById('btnMcStop').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/stop`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Minecraft servers stopping...');
+        } else {
+            alert('Failed to stop Minecraft servers: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager');
+    }
+});
+
+document.getElementById('btnMcRestart').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/restart`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Minecraft servers restarting...');
+        } else {
+            alert('Failed to restart Minecraft servers: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager');
+    }
+});
+
 document.getElementById('btnInjectAddon').addEventListener('click', async () => {
     try {
         const res = await fetch(`${ENV_API}/minecraft/inject`, { method: 'POST' });

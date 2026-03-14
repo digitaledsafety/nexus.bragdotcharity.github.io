@@ -3,9 +3,9 @@ Starting bridge...
 Starting frontend...
 Environment Manager running at http://localhost:9002
 [BRIDGE] Bridge using RPC_URL: http://127.0.0.1:8545 for Chain ID: 31337
-[BRIDGE] HTTP Bridge: http://localhost:9000
-[BRIDGE] WS Bridge: ws://localhost:9001
-[FRONTEND] [45m[1m INFO [22m[49m Accepting connections at http://localhost:45521
+HTTP Bridge: http://localhost:9000
+WS Bridge: ws://localhost:9001
+[FRONTEND] [45m[1m INFO [22m[49m Accepting connections at http://localhost:3000
 [HARDHAT] [32mStarted HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/[39m
 [HARDHAT] Accounts
 ========
