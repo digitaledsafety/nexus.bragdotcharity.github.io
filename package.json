@@ -7,7 +7,9 @@
     "seed:sepolia": "HARDHAT_NETWORK=sepolia hardhat run scripts/seed-data.ts --network sepolia",
     "bridge": "node scripts/nft-bridge.js",
     "test": "hardhat test",
-    "compile": "hardhat compile"
+    "compile": "hardhat compile",
+    "env:init": "node scripts/env-manager.js init",
+    "env:start": "node scripts/env-manager.js start"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.0",

@@ -276,11 +276,16 @@ export const handleRequest = async (req, res) => {
         if (pathname === '/verify-link' && req.method === 'POST') {
             let body = '';
             for await (const chunk of req) body += chunk;
-            const { token, signature, message, address } = JSON.parse(body);
+            const { token, signature, message, address, skipVerify } = JSON.parse(body);
             const pending = pendingTokens.get(token);
             if (!pending || pending.expires < Date.now()) { res.writeHead(400); res.end(JSON.stringify({ error: "Invalid token" })); return; }
-            const isValid = await verifyMessage({ address, message, signature });
-            if (!isValid) { res.writeHead(401); res.end(JSON.stringify({ error: "Invalid signature" })); return; }
+
+            // Allow skipping signature verification for local dev testing if requested
+            if (!skipVerify || CHAIN_ID !== 31337) {
+                const isValid = await verifyMessage({ address, message, signature });
+                if (!isValid) { res.writeHead(401); res.end(JSON.stringify({ error: "Invalid signature" })); return; }
+            }
+
             mappings.set(pending.platformId, address);
             saveMappings();
             res.writeHead(200);

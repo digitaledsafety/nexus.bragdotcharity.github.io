@@ -81,6 +81,32 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+        <!-- Environment Control -->
+        <section class="mb-8 brag-card rounded-xl p-6">
+            <div class="flex justify-between items-center mb-4 border-b-2 border-slate-700 pb-2">
+                <h2 class="text-xl font-bold text-slate-300">Environment Control</h2>
+                <div class="space-x-2">
+                    <button id="btnEnvInit" class="btn-secondary text-xs">Full Init (Deploy & Seed)</button>
+                    <button id="btnEnvStatus" class="btn-secondary text-xs"><i class="fas fa-sync-alt"></i></button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="envServiceStatus">
+                <!-- Service cards will be injected here -->
+            </div>
+
+            <div class="mt-6 border-t border-slate-700 pt-4">
+                <h3 class="text-md font-semibold mb-2 text-slate-400 uppercase text-xs">Minecraft Integration</h3>
+                <div class="flex items-center space-x-4">
+                    <div id="mcStatus" class="flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                        <span class="text-sm text-slate-400">Server Manager Offline</span>
+                    </div>
+                    <button id="btnMcStart" class="btn-secondary text-xs">Start MC Servers</button>
+                    <button id="btnInjectAddon" class="btn-primary text-xs">Inject Addon</button>
+                </div>
+            </div>
+        </section>
+
         <!-- Contract Settings -->
         <section class="mb-8 brag-card rounded-xl p-6">
             <div class="flex justify-between items-center mb-4 border-b-2 border-slate-700 pb-2">
@@ -278,5 +304,6 @@
 
     <script src="contracts.js"></script>
     <script src="app.js"></script>
+    <script src="env-control.js"></script>
 </body>
 </html>
