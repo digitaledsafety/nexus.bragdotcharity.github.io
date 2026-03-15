@@ -13,7 +13,7 @@ describe("BatchGrant", function () {
       0n,
       1000000000000000000000000000n
     ]);
-    const batchGrant = await viem.deployContract("BatchGrant");
+    const batchGrant = await viem.deployContract("BatchGrant", [owner.account.address]);
 
     return {
       viem,
@@ -157,6 +157,46 @@ describe("BatchGrant", function () {
           value: 299n, // One wei short
         }),
         /Incorrect ETH amount sent/
+      );
+    });
+  });
+
+  describe("distributeFromBalance", function () {
+    it("should distribute tokens from the contract's balance (onlyOwner)", async function () {
+      const { owner, recipient1, recipient2, batchGrant, bragToken } = await setup();
+
+      const recipient1Address = recipient1.account.address;
+      const recipient2Address = recipient2.account.address;
+
+      // Mint some BragToken directly to the BatchGrant contract
+      await bragToken.write.mint([batchGrant.address, 1000n], { account: owner.account });
+
+      // Distribute from the contract balance
+      const recipients = [recipient1Address, recipient2Address];
+      const amounts = [300n, 400n];
+      await batchGrant.write.distributeFromBalance([bragToken.address, recipients, amounts], {
+        account: owner.account,
+      });
+
+      // Check the balances
+      const balance1 = await bragToken.read.balanceOf([recipient1Address]);
+      const balance2 = await bragToken.read.balanceOf([recipient2Address]);
+
+      assert.equal(balance1, 300n);
+      assert.equal(balance2, 400n);
+    });
+
+    it("should revert if called by non-owner", async function () {
+      const { recipient1, recipient2, batchGrant, bragToken } = await setup();
+
+      const recipients = [recipient2.account.address];
+      const amounts = [100n];
+
+      await assert.rejects(
+        batchGrant.write.distributeFromBalance([bragToken.address, recipients, amounts], {
+          account: recipient1.account,
+        }),
+        /OwnableUnauthorizedAccount/
       );
     });
   });
