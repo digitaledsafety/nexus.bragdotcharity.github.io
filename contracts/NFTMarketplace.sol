@@ -28,7 +28,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     address public feeRecipient;
 
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
-    event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
+    event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 price, uint256 amount);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
     event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller);
     event FeeRecipientUpdated(address indexed newRecipient);
@@ -107,6 +107,16 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
             royaltyRecipient = receiver;
         } catch {}
 
+        // Cap fees at offer price to prevent underflow
+        if (protocolFee + royaltyFee > offer.price) {
+            if (protocolFee > offer.price) {
+                protocolFee = offer.price;
+                royaltyFee = 0;
+            } else {
+                royaltyFee = offer.price - protocolFee;
+            }
+        }
+
         uint256 sellerProceeds = offer.price - protocolFee - royaltyFee;
 
         if (protocolFee > 0 && feeRecipient != address(0)) {
@@ -115,9 +125,11 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         if (royaltyFee > 0 && royaltyRecipient != address(0)) {
             paymentToken.safeTransfer(royaltyRecipient, royaltyFee);
         }
-        paymentToken.safeTransfer(msg.sender, sellerProceeds);
+        if (sellerProceeds > 0) {
+            paymentToken.safeTransfer(msg.sender, sellerProceeds);
+        }
 
-        emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
+        emit OfferAccepted(nftContract, tokenId, buyer, msg.sender, offer.price, offer.amount);
     }
 
     /**
