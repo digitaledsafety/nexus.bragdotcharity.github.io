@@ -17,6 +17,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         uint256 price;
         uint256 amount;    // Number of tokens (usually 1 for ERC721)
         uint256 timestamp; // When the offer was created
+        uint256 expiry;    // When the offer expires (0 for never)
     }
 
     // Mapping from NFT contract -> Token ID -> Buyer -> Offer
@@ -45,8 +46,20 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
      * @param tokenId ID of the token being offered on
      * @param amount Number of tokens to buy (should be 1 for ERC721)
      * @param price Total price in payment tokens
+     * @param duration Duration in seconds for which the offer is valid (0 for no expiry)
+     */
+    function createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price, uint256 duration) external nonReentrant {
+        _createOffer(nftContract, tokenId, amount, price, duration);
+    }
+
+    /**
+     * @notice Legacy createOffer for backward compatibility
      */
     function createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price) external nonReentrant {
+        _createOffer(nftContract, tokenId, amount, price, 0);
+    }
+
+    function _createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price, uint256 duration) internal {
         require(price > 0, "Offer price must be greater than 0");
         require(amount > 0, "Amount must be greater than 0");
         require(offers[nftContract][tokenId][msg.sender].price == 0, "Offer already exists");
@@ -54,11 +67,14 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         // Transfer tokens from buyer to this contract
         paymentToken.safeTransferFrom(msg.sender, address(this), price);
 
+        uint256 expiry = duration > 0 ? block.timestamp + duration : 0;
+
         // Save the offer
         offers[nftContract][tokenId][msg.sender] = Offer({
             price: price,
             amount: amount,
-            timestamp: block.timestamp
+            timestamp: block.timestamp,
+            expiry: expiry
         });
 
         emit OfferCreated(nftContract, tokenId, msg.sender, price, amount);
@@ -73,6 +89,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     function acceptOffer(address nftContract, uint256 tokenId, address buyer) external nonReentrant {
         Offer memory offer = offers[nftContract][tokenId][buyer];
         require(offer.price > 0, "No valid offer exists");
+        require(offer.expiry == 0 || block.timestamp <= offer.expiry, "Offer expired");
 
         // CEI: Clear the offer first
         delete offers[nftContract][tokenId][buyer];
@@ -103,8 +120,10 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         address royaltyRecipient;
 
         try IERC2981(nftContract).royaltyInfo(tokenId, offer.price) returns (address receiver, uint256 amount) {
-            royaltyFee = amount;
-            royaltyRecipient = receiver;
+            if (receiver != address(0)) {
+                royaltyFee = amount;
+                royaltyRecipient = receiver;
+            }
         } catch {}
 
         uint256 sellerProceeds = offer.price - protocolFee - royaltyFee;
@@ -112,7 +131,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         if (protocolFee > 0 && feeRecipient != address(0)) {
             paymentToken.safeTransfer(feeRecipient, protocolFee);
         }
-        if (royaltyFee > 0 && royaltyRecipient != address(0)) {
+        if (royaltyFee > 0) {
             paymentToken.safeTransfer(royaltyRecipient, royaltyFee);
         }
         paymentToken.safeTransfer(msg.sender, sellerProceeds);
@@ -147,6 +166,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     function rejectOffer(address nftContract, uint256 tokenId, address buyer) external nonReentrant {
         Offer memory offer = offers[nftContract][tokenId][buyer];
         require(offer.price > 0, "No valid offer exists");
+        // No expiry check here, seller should be able to reject even expired offers to return funds
 
         // Verify ownership
         if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
