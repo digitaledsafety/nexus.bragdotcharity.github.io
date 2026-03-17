@@ -3,13 +3,21 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title BatchGrant
  * @dev A simple utility to distribute ERC20 tokens to multiple recipients in a single transaction.
  */
-contract BatchGrant {
+contract BatchGrant is Ownable {
     using SafeERC20 for IERC20;
+
+    constructor(address initialOwner) Ownable(initialOwner) {}
+
+    /**
+     * @dev Allows the contract to receive ETH.
+     */
+    receive() external payable {}
 
     /**
      * @dev Distributes any ERC20 token to multiple recipients.
@@ -35,8 +43,32 @@ contract BatchGrant {
         for (uint256 i = 0; i < recipients.length; i++) {
             total += amounts[i];
         }
+        // Explicitly check that msg.value matches total to avoid draining contract balance
         require(msg.value == total, "Incorrect ETH amount sent");
 
+        for (uint256 i = 0; i < recipients.length; i++) {
+            (bool success, ) = recipients[i].call{value: amounts[i]}("");
+            require(success, "ETH transfer failed");
+        }
+    }
+
+    /**
+     * @dev Distributes ERC20 tokens already held by this contract to multiple recipients.
+     * Restricted to the owner.
+     */
+    function distributeFromBalance(IERC20 token, address[] calldata recipients, uint256[] calldata amounts) external onlyOwner {
+        require(recipients.length == amounts.length, "Mismatched arrays");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            token.safeTransfer(recipients[i], amounts[i]);
+        }
+    }
+
+    /**
+     * @dev Distributes ETH already held by this contract to multiple recipients.
+     * Restricted to the owner.
+     */
+    function distributeETHFromBalance(address[] calldata recipients, uint256[] calldata amounts) external onlyOwner {
+        require(recipients.length == amounts.length, "Mismatched arrays");
         for (uint256 i = 0; i < recipients.length; i++) {
             (bool success, ) = recipients[i].call{value: amounts[i]}("");
             require(success, "ETH transfer failed");

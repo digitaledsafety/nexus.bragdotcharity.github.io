@@ -13,7 +13,7 @@ describe("BatchGrant", function () {
       0n,
       1000000000000000000000000000n
     ]);
-    const batchGrant = await viem.deployContract("BatchGrant");
+    const batchGrant = await viem.deployContract("BatchGrant", [owner.account.address]);
 
     return {
       viem,
@@ -158,6 +158,61 @@ describe("BatchGrant", function () {
         }),
         /Incorrect ETH amount sent/
       );
+    });
+  });
+
+  describe("distributeFromBalance", function () {
+    it("should distribute tokens from contract balance", async function () {
+      const { owner, recipient1, recipient2, batchGrant, mockUsdc } = await setup();
+      const recipients = [recipient1.account.address, recipient2.account.address];
+      const amounts = [100n, 200n];
+
+      await mockUsdc.write.mint([batchGrant.address, 300n], { account: owner.account });
+
+      await batchGrant.write.distributeFromBalance([mockUsdc.address, recipients, amounts], {
+        account: owner.account,
+      });
+
+      assert.equal(await mockUsdc.read.balanceOf([recipient1.account.address]), 100n);
+      assert.equal(await mockUsdc.read.balanceOf([recipient2.account.address]), 200n);
+    });
+
+    it("should revert if not owner", async function () {
+      const { recipient1, recipient2, batchGrant, mockUsdc } = await setup();
+      const recipients = [recipient2.account.address];
+      const amounts = [100n];
+
+      await assert.rejects(
+        batchGrant.write.distributeFromBalance([mockUsdc.address, recipients, amounts], {
+          account: recipient1.account,
+        }),
+        /OwnableUnauthorizedAccount/
+      );
+    });
+  });
+
+  describe("distributeETHFromBalance", function () {
+    it("should distribute ETH from contract balance", async function () {
+      const { viem, owner, recipient1, recipient2, batchGrant } = await setup();
+      const recipients = [recipient1.account.address, recipient2.account.address];
+      const amounts = [100n, 200n];
+
+      // Send ETH to contract
+      await owner.sendTransaction({
+        to: batchGrant.address,
+        value: 300n,
+      });
+
+      const publicClient = await viem.getPublicClient();
+      const balance1Before = await publicClient.getBalance({ address: recipient1.account.address });
+      const balance2Before = await publicClient.getBalance({ address: recipient2.account.address });
+
+      await batchGrant.write.distributeETHFromBalance([recipients, amounts], {
+        account: owner.account,
+      });
+
+      assert.equal(await publicClient.getBalance({ address: recipient1.account.address }), balance1Before + 100n);
+      assert.equal(await publicClient.getBalance({ address: recipient2.account.address }), balance2Before + 200n);
     });
   });
 });
