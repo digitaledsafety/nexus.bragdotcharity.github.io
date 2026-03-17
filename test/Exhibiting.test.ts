@@ -177,4 +177,41 @@ describe("Exhibiting System", async function () {
     );
   });
 
+  it("Should only increase expiry on subsequent deposits", async function () {
+    const { bragNFT, vault1, user } = await deployContracts();
+    const publicClient = await viem.getPublicClient();
+
+    await bragNFT.write.donate(["timed exhibit multi", ""], { account: user.account, value: parseEther("0.1") });
+    const tokenId = 0n;
+
+    // First deposit with 1 hour duration
+    const duration1 = 3600n;
+    const data1 = encodeAbiParameters(parseAbiParameters('uint256'), [duration1]);
+    await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId, data1], { account: user.account });
+
+    const expiry1 = await vault1.read.expiry721([bragNFT.address, tokenId]);
+    assert.ok(expiry1 > 0n);
+
+    // Increase time to past expiry1
+    await publicClient.request({ method: "evm_increaseTime" as any, params: [3601] });
+    await publicClient.request({ method: "evm_mine" as any, params: [] });
+
+    // Withdraw and deposit again with NO duration (0)
+    await vault1.write.withdraw721([bragNFT.address, tokenId], { account: user.account });
+    await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId, "0x"], { account: user.account });
+
+    const expiry2 = await vault1.read.expiry721([bragNFT.address, tokenId]);
+    // Should still be original expiry1 because 0 < expiry1
+    assert.equal(expiry2, expiry1);
+
+    // Deposit again with a NEW, longer duration
+    const duration3 = 7200n;
+    const data3 = encodeAbiParameters(parseAbiParameters('uint256'), [duration3]);
+    await vault1.write.withdraw721([bragNFT.address, tokenId], { account: user.account });
+    await bragNFT.write.safeTransferFrom([user.account.address, vault1.address, tokenId, data3], { account: user.account });
+
+    const expiry3 = await vault1.read.expiry721([bragNFT.address, tokenId]);
+    assert.ok(expiry3 > expiry1);
+  });
+
 });

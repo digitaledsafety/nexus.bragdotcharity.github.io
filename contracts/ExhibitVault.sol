@@ -77,11 +77,13 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         }
 
         owner721[msg.sender][tokenId] = actualOwner;
-        uint256 expiry = duration > 0 ? block.timestamp + duration : 0;
-        expiry721[msg.sender][tokenId] = expiry;
+        uint256 newExpiry = duration > 0 ? block.timestamp + duration : 0;
+        if (newExpiry > expiry721[msg.sender][tokenId]) {
+            expiry721[msg.sender][tokenId] = newExpiry;
+        }
 
         string memory location = registry.getVaultInfo(address(this)).name;
-        emit Exhibited721(msg.sender, tokenId, actualOwner, location, expiry);
+        emit Exhibited721(msg.sender, tokenId, actualOwner, location, expiry721[msg.sender][tokenId]);
 
         return super.onERC721Received(operator, from, tokenId, data);
     }
@@ -114,11 +116,13 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         }
 
         balances1155[msg.sender][id][actualOwner] += value;
-        uint256 expiry = duration > 0 ? block.timestamp + duration : 0;
-        expiry1155[msg.sender][id][actualOwner] = expiry;
+        uint256 newExpiry = duration > 0 ? block.timestamp + duration : 0;
+        if (newExpiry > expiry1155[msg.sender][id][actualOwner]) {
+            expiry1155[msg.sender][id][actualOwner] = newExpiry;
+        }
 
         string memory location = registry.getVaultInfo(address(this)).name;
-        emit Exhibited1155(msg.sender, id, actualOwner, value, location, expiry);
+        emit Exhibited1155(msg.sender, id, actualOwner, value, location, expiry1155[msg.sender][id][actualOwner]);
 
         return super.onERC1155Received(operator, from, id, value, data);
     }
@@ -147,13 +151,18 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
             }
         }
 
-        uint256 expiry = duration > 0 ? block.timestamp + duration : 0;
+        uint256 newExpiry = duration > 0 ? block.timestamp + duration : 0;
         string memory location = registry.getVaultInfo(address(this)).name;
+        address nftContract = msg.sender;
 
         for (uint256 i = 0; i < ids.length; i++) {
-            balances1155[msg.sender][ids[i]][actualOwner] += values[i];
-            expiry1155[msg.sender][ids[i]][actualOwner] = expiry;
-            emit Exhibited1155(msg.sender, ids[i], actualOwner, values[i], location, expiry);
+            uint256 id = ids[i];
+            uint256 value = values[i];
+            balances1155[nftContract][id][actualOwner] += value;
+            if (newExpiry > expiry1155[nftContract][id][actualOwner]) {
+                expiry1155[nftContract][id][actualOwner] = newExpiry;
+            }
+            emit Exhibited1155(nftContract, id, actualOwner, value, location, expiry1155[nftContract][id][actualOwner]);
         }
         return super.onERC1155BatchReceived(operator, from, ids, values, data);
     }
@@ -166,7 +175,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         require(block.timestamp >= expiry721[nftContract][tokenId], "Exhibition not yet expired");
 
         owner721[nftContract][tokenId] = address(0);
-        expiry721[nftContract][tokenId] = 0;
+        // Do NOT clear expiry721 here, as it may be used by future deposits
         IERC721(nftContract).safeTransferFrom(address(this), msg.sender, tokenId);
 
         emit Withdrawn721(nftContract, tokenId, msg.sender);
@@ -205,7 +214,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         require(block.timestamp >= expiry721[nftContract][tokenId], "Exhibition not yet expired");
 
         owner721[nftContract][tokenId] = address(0);
-        expiry721[nftContract][tokenId] = 0;
+        // Do NOT clear expiry721 here
 
         bytes memory data;
         if (duration > 0) {
