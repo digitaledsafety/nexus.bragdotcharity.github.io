@@ -134,7 +134,6 @@ async function main() {
 
     // --- Contract Deployments ---
     const minimumDonation = 1n;
-    const refundPeriod = 604800n;
     const externalTreasury = process.env.TREASURY_ADDRESS;
 
     let treasury: { address: `0x${string}`, abi: any };
@@ -154,7 +153,7 @@ async function main() {
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
-    const marketplace = await deploy("NFTMarketplace", [refundPeriod, bragToken.address]);
+    const marketplace = await deploy("NFTMarketplace", [bragToken.address]);
 
     // --- Batch Setup Transactions ---
     console.log("Batching setup and ownership transfer...");
