@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
@@ -13,11 +15,12 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * Uses AccessControl for secure administrative control.
  */
 contract Treasury is ERC721Holder, ERC1155Holder, AccessControl {
+    using SafeERC20 for IERC20;
     bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
 
-    constructor(address _initialOwner) {
-        _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
-        _grantRole(TREASURY_ROLE, _initialOwner);
+    constructor(address _initialAdmin) {
+        _grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin);
+        _grantRole(TREASURY_ROLE, _initialAdmin);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155Holder, AccessControl) returns (bool) {
@@ -60,6 +63,13 @@ contract Treasury is ERC721Holder, ERC1155Holder, AccessControl {
      */
     function withdrawERC1155(address nftContract, uint256 tokenId, uint256 amount, address to) external onlyRole(TREASURY_ROLE) {
         IERC1155(nftContract).safeTransferFrom(address(this), to, tokenId, amount, "");
+    }
+
+    /**
+     * @dev Allows addresses with TREASURY_ROLE to withdraw ERC20 tokens.
+     */
+    function withdrawERC20(address tokenContract, uint256 amount, address to) external onlyRole(TREASURY_ROLE) {
+        IERC20(tokenContract).safeTransfer(to, amount);
     }
 
     /**

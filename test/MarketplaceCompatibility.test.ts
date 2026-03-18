@@ -13,7 +13,7 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     const initialSupply = parseEther("1000000");
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
 
-    const marketplace = await viem.deployContract("NFTMarketplace", [bragToken.address]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, 0n, bragToken.address]);
 
     // ERC721
     const bragNFT = await viem.deployContract("BragNFT", [
@@ -27,7 +27,7 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     await bragNFT.write.setReceiptContract([receipt.address]);
 
     // ERC1155
-    const mock1155 = await viem.deployContract("MockERC1155");
+    const mock1155 = await viem.deployContract("MockERC1155", [owner.account.address]);
 
     return { marketplace, bragNFT, mock1155, bragToken, owner, seller, buyer };
   }

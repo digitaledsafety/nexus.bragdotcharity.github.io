@@ -186,7 +186,7 @@ describe("BatchGrant", function () {
         batchGrant.write.distributeFromBalance([mockUsdc.address, recipients, amounts], {
           account: recipient1.account,
         }),
-        /OwnableUnauthorizedAccount/
+        /AccessControlUnauthorizedAccount/
       );
     });
   });
