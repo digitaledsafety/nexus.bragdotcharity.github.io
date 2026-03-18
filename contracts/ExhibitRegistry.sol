@@ -27,9 +27,9 @@ contract ExhibitRegistry is AccessControl {
     event VaultVerified(address indexed vault, LocationType locationType, string name);
     event VaultRemoved(address indexed vault);
 
-    constructor(address initialOwner) {
-        _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
-        _grantRole(VERIFIER_ROLE, initialOwner);
+    constructor(address initialAdmin) {
+        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
+        _grantRole(VERIFIER_ROLE, initialAdmin);
     }
 
     /**

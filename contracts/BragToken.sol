@@ -19,18 +19,18 @@ contract BragToken is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes, AccessContr
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     uint256 public immutable maxSupply;
 
-    constructor(address initialOwner, uint256 initialSupply, uint256 _maxSupply)
+    constructor(address initialAdmin, uint256 initialSupply, uint256 _maxSupply)
         ERC20("Brag Token", "BRAG")
         ERC20Permit("Brag Token")
     {
         require(_maxSupply >= initialSupply, "Max supply must be >= initial supply");
         maxSupply = _maxSupply;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
-        _grantRole(MINTER_ROLE, initialOwner);
+        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
+        _grantRole(MINTER_ROLE, initialAdmin);
 
         if (initialSupply > 0) {
-            _mint(initialOwner, initialSupply);
+            _mint(initialAdmin, initialSupply);
         }
     }
 

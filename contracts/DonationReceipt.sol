@@ -17,10 +17,10 @@ contract DonationReceipt is ERC721, AccessControl, IDonationReceipt {
 
     event ReceiptMinted(uint256 indexed tokenId, address indexed donor, uint256 amount);
 
-    constructor(address _initialOwner)
+    constructor(address _initialAdmin)
         ERC721("DonationReceipt", "BRAGRECEIPT")
     {
-        _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
+        _grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, AccessControl) returns (bool) {
