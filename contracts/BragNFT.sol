@@ -243,14 +243,34 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     }
 
     /**
-     * @dev Detect if a media string is an audio data URI.
+     * @dev Detect if a media string is an audio data URI or an external audio file.
      */
     function _isAudio(string memory _media) internal pure returns (bool) {
         bytes memory b = bytes(_media);
-        if (b.length < 11) return false;
+        if (b.length < 4) return false;
+
         // Check for "data:audio/"
-        return (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
-                b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/');
+        if (b.length >= 11 &&
+            b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
+            b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') {
+            return true;
+        }
+
+        // Check extensions: .mp3, .wav, .ogg, .m4a, .aac
+        if (_endsWith(b, ".mp3") || _endsWith(b, ".wav") || _endsWith(b, ".ogg") || _endsWith(b, ".m4a") || _endsWith(b, ".aac")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function _endsWith(bytes memory b, string memory suffix) internal pure returns (bool) {
+        bytes memory s = bytes(suffix);
+        if (b.length < s.length) return false;
+        for (uint i = 0; i < s.length; i++) {
+            if (b[b.length - s.length + i] != s[i]) return false;
+        }
+        return true;
     }
 
     /**
