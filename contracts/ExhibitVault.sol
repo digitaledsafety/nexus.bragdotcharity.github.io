@@ -261,4 +261,46 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         emit Moved1155(nftContract, tokenId, msg.sender, amount, destinationVault);
     }
 
+    /**
+     * @dev Batch withdraw ERC721 tokens.
+     */
+    function batchWithdraw721(address[] calldata nftContracts, uint256[] calldata tokenIds) external nonReentrant {
+        require(nftContracts.length == tokenIds.length, "Mismatched arrays");
+        for (uint256 i = 0; i < nftContracts.length; i++) {
+            address nftContract = nftContracts[i];
+            uint256 tokenId = tokenIds[i];
+
+            require(owner721[nftContract][tokenId] == msg.sender, "Not the owner");
+            require(block.timestamp >= expiry721[nftContract][tokenId], "Exhibition not yet expired");
+
+            owner721[nftContract][tokenId] = address(0);
+            IERC721(nftContract).safeTransferFrom(address(this), msg.sender, tokenId);
+
+            emit Withdrawn721(nftContract, tokenId, msg.sender);
+        }
+    }
+
+    /**
+     * @dev Batch withdraw ERC1155 tokens.
+     */
+    function batchWithdraw1155(address[] calldata nftContracts, uint256[] calldata tokenIds, uint256[] calldata amounts) external nonReentrant {
+        require(nftContracts.length == tokenIds.length && tokenIds.length == amounts.length, "Mismatched arrays");
+        for (uint256 i = 0; i < nftContracts.length; i++) {
+            address nftContract = nftContracts[i];
+            uint256 tokenId = tokenIds[i];
+            uint256 amount = amounts[i];
+
+            require(balances1155[nftContract][tokenId][msg.sender] >= amount, "Insufficient balance");
+            require(block.timestamp >= expiry1155[nftContract][tokenId][msg.sender], "Exhibition not yet expired");
+
+            balances1155[nftContract][tokenId][msg.sender] -= amount;
+            if (balances1155[nftContract][tokenId][msg.sender] == 0) {
+                expiry1155[nftContract][tokenId][msg.sender] = 0;
+            }
+            IERC1155(nftContract).safeTransferFrom(address(this), msg.sender, tokenId, amount, "");
+
+            emit Withdrawn1155(nftContract, tokenId, msg.sender, amount);
+        }
+    }
+
 }
