@@ -17,6 +17,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         uint256 price;
         uint256 amount;    // Number of tokens (usually 1 for ERC721)
         uint256 timestamp; // When the offer was created
+        uint256 expiration; // Expiration timestamp (0 = never)
     }
 
     // Mapping from NFT contract -> Token ID -> Buyer -> Offer
@@ -47,6 +48,22 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
      * @param price Total price in payment tokens
      */
     function createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price) external nonReentrant {
+        _createOffer(nftContract, tokenId, amount, price, 0);
+    }
+
+    /**
+     * @notice Create an offer for an NFT with an expiration
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token being offered on
+     * @param amount Number of tokens to buy (should be 1 for ERC721)
+     * @param price Total price in payment tokens
+     * @param duration Duration in seconds until the offer expires (0 = never)
+     */
+    function createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price, uint256 duration) external nonReentrant {
+        _createOffer(nftContract, tokenId, amount, price, duration);
+    }
+
+    function _createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price, uint256 duration) internal {
         require(price > 0, "Offer price must be greater than 0");
         require(amount > 0, "Amount must be greater than 0");
         require(offers[nftContract][tokenId][msg.sender].price == 0, "Offer already exists");
@@ -54,11 +71,14 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         // Transfer tokens from buyer to this contract
         paymentToken.safeTransferFrom(msg.sender, address(this), price);
 
+        uint256 expiration = duration > 0 ? block.timestamp + duration : 0;
+
         // Save the offer
         offers[nftContract][tokenId][msg.sender] = Offer({
             price: price,
             amount: amount,
-            timestamp: block.timestamp
+            timestamp: block.timestamp,
+            expiration: expiration
         });
 
         emit OfferCreated(nftContract, tokenId, msg.sender, price, amount);
@@ -73,6 +93,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     function acceptOffer(address nftContract, uint256 tokenId, address buyer) external nonReentrant {
         Offer memory offer = offers[nftContract][tokenId][buyer];
         require(offer.price > 0, "No valid offer exists");
+        require(offer.expiration == 0 || block.timestamp <= offer.expiration, "Offer has expired");
 
         // CEI: Clear the offer first
         delete offers[nftContract][tokenId][buyer];
@@ -105,6 +126,9 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         try IERC2981(nftContract).royaltyInfo(tokenId, offer.price) returns (address receiver, uint256 amount) {
             royaltyFee = amount;
             royaltyRecipient = receiver;
+            if (royaltyRecipient == address(0)) {
+                royaltyFee = 0;
+            }
         } catch {}
 
         // Cap royalty fee to prevent underflow if (protocolFee + royaltyFee) > offer.price
@@ -152,6 +176,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     function rejectOffer(address nftContract, uint256 tokenId, address buyer) external nonReentrant {
         Offer memory offer = offers[nftContract][tokenId][buyer];
         require(offer.price > 0, "No valid offer exists");
+        // We allow rejecting expired offers to clear them and refund the buyer if they haven't canceled themselves
 
         // Verify ownership
         if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721

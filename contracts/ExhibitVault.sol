@@ -171,6 +171,20 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
      * @dev Withdraw an ERC721 token back to the owner's wallet.
      */
     function withdraw721(address nftContract, uint256 tokenId) external nonReentrant {
+        _withdraw721(nftContract, tokenId);
+    }
+
+    /**
+     * @dev Withdraw multiple ERC721 tokens.
+     */
+    function batchWithdraw721(address[] calldata nftContracts, uint256[] calldata tokenIds) external nonReentrant {
+        require(nftContracts.length == tokenIds.length, "Mismatched arrays");
+        for (uint256 i = 0; i < nftContracts.length; i++) {
+            _withdraw721(nftContracts[i], tokenIds[i]);
+        }
+    }
+
+    function _withdraw721(address nftContract, uint256 tokenId) internal {
         require(owner721[nftContract][tokenId] == msg.sender, "Not the owner");
         require(block.timestamp >= expiry721[nftContract][tokenId], "Exhibition not yet expired");
 
@@ -185,6 +199,20 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
      * @dev Withdraw ERC1155 tokens back to the owner's wallet.
      */
     function withdraw1155(address nftContract, uint256 tokenId, uint256 amount) external nonReentrant {
+        _withdraw1155(nftContract, tokenId, amount);
+    }
+
+    /**
+     * @dev Withdraw multiple ERC1155 tokens.
+     */
+    function batchWithdraw1155(address[] calldata nftContracts, uint256[] calldata tokenIds, uint256[] calldata amounts) external nonReentrant {
+        require(nftContracts.length == tokenIds.length && tokenIds.length == amounts.length, "Mismatched arrays");
+        for (uint256 i = 0; i < nftContracts.length; i++) {
+            _withdraw1155(nftContracts[i], tokenIds[i], amounts[i]);
+        }
+    }
+
+    function _withdraw1155(address nftContract, uint256 tokenId, uint256 amount) internal {
         require(balances1155[nftContract][tokenId][msg.sender] >= amount, "Insufficient balance");
         require(block.timestamp >= expiry1155[nftContract][tokenId][msg.sender], "Exhibition not yet expired");
 
