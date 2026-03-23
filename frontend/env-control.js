@@ -1,4 +1,4 @@
-const ENV_API = 'http://localhost:9002';
+const ENV_API = window.BRAG_CONFIG?.ENV_API || 'http://localhost:9002';
 
 async function updateStatus() {
     try {

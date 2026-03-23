@@ -1,3 +1,4 @@
+import { getExternalUrl } from './url-utils.js';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -46,7 +47,7 @@ const statusCache = new Map();
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "MOCK_SECRET";
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:9000/auth/google/callback";
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `${getExternalUrl(9000)}/auth/google/callback`;
 const activePlayers = new Map(); // XUID -> { serverId, playerName }
 const serverSockets = new Map(); // serverId -> WebSocket (Minecraft uses only one connection per server)
 
@@ -269,7 +270,7 @@ export const handleRequest = async (req, res) => {
             const token = Math.random().toString(36).substring(2, 10).toUpperCase();
             pendingTokens.set(token, { platformId, expires: Date.now() + (10 * 60 * 1000) });
             res.writeHead(200);
-            res.end(JSON.stringify({ token, uuid: platformId, registrationUrl: `http://localhost:3000?token=${token}` }));
+            res.end(JSON.stringify({ token, uuid: platformId, registrationUrl: `${getExternalUrl(3000)}?token=${token}` }));
             return;
         }
 
@@ -363,7 +364,7 @@ export const handleRequest = async (req, res) => {
         // Google OAuth2: Start
         if (pathname === '/auth/google' && req.method === 'GET') {
             const state = randomUUID();
-            googleStates.set(state, searchParams.get('redirectUri') || 'http://localhost:3000/manager.html');
+            googleStates.set(state, searchParams.get('redirectUri') || `${getExternalUrl(3000)}/manager.html`);
 
             const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
                 `client_id=${GOOGLE_CLIENT_ID}&` +
@@ -381,7 +382,7 @@ export const handleRequest = async (req, res) => {
         if (pathname === '/auth/google/callback' && req.method === 'GET') {
             const code = searchParams.get('code');
             const state = searchParams.get('state');
-            const originalRedirect = googleStates.get(state) || 'http://localhost:3000/manager.html';
+            const originalRedirect = googleStates.get(state) || `${getExternalUrl(3000)}/manager.html`;
             googleStates.delete(state);
 
             if (!code) {
@@ -604,8 +605,8 @@ const publicClient = isMain ? createPublicClient({
 
 if (isMain) {
     server.listen(PORT, async () => {
-        console.log(`HTTP Bridge: http://localhost:${PORT}`);
-        console.log(`WS Bridge: ws://localhost:${WS_PORT}`);
+        console.log(`HTTP Bridge: ${getExternalUrl(PORT)}`);
+        console.log(`WS Bridge: ${getExternalUrl(WS_PORT)}`);
         setupEventListeners().catch(console.error);
     });
 }

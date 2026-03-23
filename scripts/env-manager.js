@@ -1,3 +1,4 @@
+import { getExternalUrl } from './url-utils.js';
 import { spawn, execSync } from 'child_process';
 import http from 'http';
 import path from 'path';
@@ -33,7 +34,7 @@ const services = {
 };
 
 // Placeholder for Bedrock Server Manager API URL
-let MANAGER_API_URL = process.env.MANAGER_API_URL || 'http://localhost:9003';
+let MANAGER_API_URL = process.env.MANAGER_API_URL || getExternalUrl(9003);
 
 function log(service, data) {
     const message = data.toString().trim();
@@ -254,7 +255,7 @@ if (mode === 'init') {
 }
 
 server.listen(PORT, () => {
-    console.log(`Environment Manager running at http://localhost:${PORT}`);
+    console.log(`Environment Manager running at ${getExternalUrl(PORT)}`);
 });
 
 process.on('SIGINT', () => {

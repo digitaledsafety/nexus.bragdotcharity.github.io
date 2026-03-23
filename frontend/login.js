@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:9000';
+const API_BASE = window.BRAG_CONFIG?.BRIDGE_URL || 'http://localhost:9000';
 
 // Tab Switching Logic
 const tabWallet = document.getElementById('tabWallet');

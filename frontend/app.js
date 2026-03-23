@@ -565,7 +565,7 @@ async function checkAuth() {
     }
 
     try {
-        const res = await fetch(`http://localhost:9000/auth/session?sessionId=${sessionId}`);
+        const res = await fetch(`${window.BRAG_CONFIG?.BRIDGE_URL || 'http://localhost:9000'}/auth/session?sessionId=${sessionId}`);
         if (!res.ok) {
             localStorage.removeItem('brag_session');
             localStorage.removeItem('brag_address');
