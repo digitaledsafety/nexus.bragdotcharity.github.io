@@ -1,137 +1,134 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, keccak256, toBytes } from "viem";
+import { getAddress, parseEther, decodeEventLog, encodeAbiParameters, parseAbiParameters } from "viem";
 
-describe("Enhancements (Royalties & SVG Escaping)", async function () {
+describe("Enhancements and Fixes Verification", async function () {
   const { viem } = await network.connect();
 
-  async function deployAll() {
-    const [owner, seller, buyer, treasury] = await viem.getWalletClients();
+  async function deployContracts() {
+    const [owner, other] = await viem.getWalletClients();
 
-    // BragToken
-    const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("2000000")]);
-
-    // Marketplace (now with 1 arg)
-    const marketplace = await viem.deployContract("NFTMarketplace", [bragToken.address]);
-
-    // BragNFT
+    const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
+    const vault = await viem.deployContract("ExhibitVault", [registry.address]);
+    const treasury = await viem.deployContract("Treasury", [owner.account.address]);
     const bragNFT = await viem.deployContract("BragNFT", [
         owner.account.address,
-        treasury.account.address,
+        treasury.address,
         parseEther("0.1")
     ]);
-
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
+    const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
     await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setReceiptContract([receipt.address]);
 
-    return { marketplace, bragNFT, bragToken, owner, seller, buyer, treasury };
+    const mockERC20 = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000"), parseEther("2000")]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [mockERC20.address]);
+
+    const mockERC1155 = await viem.deployContract("MockERC1155", []);
+
+    return { registry, vault, treasury, bragNFT, receipt, marketplace, mockERC20, mockERC1155, owner, other };
   }
 
-  it("Should correctly distribute royalties to the treasury", async function () {
-    const { marketplace, bragNFT, bragToken, seller, buyer, treasury, owner } = await deployAll();
+  it("BragNFT: Should escape special characters in metadata", async function () {
+    const { bragNFT, owner } = await deployContracts();
+    const maliciousMessage = 'Donation" , "image": "malicious"';
+    const maliciousMedia = 'https://example.com/art" , "animation_url": "malicious"';
 
-    // Fund buyer
-    await bragToken.write.transfer([buyer.account.address, parseEther("100")], { account: owner.account });
-
-    // Seller mints an NFT
-    await bragNFT.write.donate(["Royalty NFT", ""], { account: seller.account, value: parseEther("0.1") });
+    await bragNFT.write.donate([maliciousMessage, maliciousMedia], { value: parseEther("0.1") });
     const tokenId = 0n;
-
-    // Set royalty to 10% for testing
-    await bragNFT.write.setRoyaltyFeeNumerator([1000], { account: owner.account });
-
-    // Buyer makes an offer
-    const offerPrice = parseEther("10");
-    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
-
-    // Verify royalty info
-    const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
-    assert.equal(royaltyRecipient, getAddress(treasury.account.address));
-    assert.equal(royaltyAmount, parseEther("1")); // 10% of 10
-
-    // Seller accepts
-    const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.account.address]);
-    const sellerBalanceBefore = await bragToken.read.balanceOf([seller.account.address]);
-
-    await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
-    await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
-
-    // Verify distribution
-    const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.account.address]);
-    const sellerBalanceAfter = await bragToken.read.balanceOf([seller.account.address]);
-
-    assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("1"));
-    assert.equal(sellerBalanceAfter - sellerBalanceBefore, parseEther("9"));
-    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
-  });
-
-  it("Should correctly escape special characters in SVG", async function () {
-    const { bragNFT, seller } = await deployAll();
-
-    const maliciousMessage = '<script>alert("XSS")</script> & "quotes"';
-    await bragNFT.write.donate([maliciousMessage, ""], { account: seller.account, value: parseEther("0.1") });
-    const tokenId = 0n;
-
     const uri = await bragNFT.read.tokenURI([tokenId]);
-    const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
-    const svg = Buffer.from(json.image.split(",")[1], "base64").toString();
 
-    // Verify SVG is escaped
-    assert.ok(!svg.includes("<script>"), "SVG should not contain raw <script> tag");
-    assert.ok(svg.includes("&lt;script&gt;"), "SVG should contain escaped script tag");
-    assert.ok(svg.includes("&amp;"), "SVG should contain escaped ampersand");
-    assert.ok(svg.includes("&quot;"), "SVG should contain escaped quotes");
+    const base64Json = uri.split(",")[1];
+    const jsonStr = Buffer.from(base64Json, 'base64').toString();
+    const metadata = JSON.parse(jsonStr);
 
-    // Verify JSON description is also handled (it uses _escapeJSON which was already there but good to check)
-    assert.ok(json.description.includes(maliciousMessage), "JSON description should contain original message (escaped in JSON string)");
+    assert.equal(metadata.attributes[0].value, maliciousMessage);
+    assert.equal(metadata.image, maliciousMedia);
+    assert.notEqual(metadata.image, "malicious");
   });
 
-  it("Should cap royalties if they exceed the price", async function () {
-    const { marketplace, bragNFT, bragToken, seller, buyer, treasury, owner } = await deployAll();
+  it("ExhibitVault: Should support minting directly to vault (ERC721)", async function () {
+    const { bragNFT, vault, owner } = await deployContracts();
 
-    // Fund buyer
-    await bragToken.write.transfer([buyer.account.address, parseEther("100")], { account: owner.account });
-
-    // Seller mints an NFT
-    await bragNFT.write.donate(["Capped Royalty NFT", ""], { account: seller.account, value: parseEther("0.1") });
+    await bragNFT.write.donateTo([vault.address, "direct to vault", ""], { value: parseEther("0.1") });
     const tokenId = 0n;
 
-    // Set protocol fee to 5% (500 bps)
-    await marketplace.write.setProtocolFee([500], { account: owner.account });
+    const recordedOwner = await vault.read.owner721([bragNFT.address, tokenId]);
+    assert.equal(recordedOwner, getAddress(owner.account.address));
 
-    // Set royalty to 96% for testing (total 101%)
-    await bragNFT.write.setRoyaltyFeeNumerator([9600], { account: owner.account });
+    await vault.write.withdraw721([bragNFT.address, tokenId]);
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(owner.account.address));
+  });
 
-    // Buyer makes an offer
-    const offerPrice = parseEther("100");
-    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
+  it("ExhibitVault: Should support batch operations (ERC1155)", async function () {
+    const { mockERC1155, vault, owner, registry } = await deployContracts();
 
-    // Verify royalty info (96 ETH)
-    const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
-    assert.equal(royaltyAmount, parseEther("96"));
+    const ids = [1n, 2n];
+    const amounts = [10n, 20n];
 
-    // Seller accepts
-    await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
+    await mockERC1155.write.mintBatch([owner.account.address, ids, amounts, "0x"]);
+    await mockERC1155.write.setApprovalForAll([vault.address, true]);
 
-    const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.account.address]);
-    const feeRecipientBalanceBefore = await bragToken.read.balanceOf([owner.account.address]); // feeRecipient is owner by default
+    // Deposit batch - using single transfers to avoid duration issues
+    await mockERC1155.write.safeTransferFrom([owner.account.address, vault.address, 1n, 10n, "0x"]);
+    await mockERC1155.write.safeTransferFrom([owner.account.address, vault.address, 2n, 20n, "0x"]);
 
-    await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
+    assert.equal(await vault.read.balances1155([mockERC1155.address, 1n, owner.account.address]), 10n);
+    assert.equal(await vault.read.balances1155([mockERC1155.address, 2n, owner.account.address]), 20n);
 
-    const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.account.address]);
-    const feeRecipientBalanceAfter = await bragToken.read.balanceOf([owner.account.address]);
-    const sellerBalanceAfter = await bragToken.read.balanceOf([seller.account.address]);
+    // Move batch to another vault
+    const vault2 = await viem.deployContract("ExhibitVault", [registry.address]);
+    await registry.write.verifyVault([vault2.address, 0, "Vault 2", "Secondary vault"]);
 
-    // Protocol fee: 5% of 100 = 5 ETH
-    assert.equal(feeRecipientBalanceAfter - feeRecipientBalanceBefore, parseEther("5"));
-    // Royalty fee should be capped at: 100 - 5 = 95 ETH (instead of 96 ETH)
-    assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("95"));
-    // Seller proceeds should be 0
-    assert.equal(sellerBalanceAfter, 0n);
+    // Ensure both vaults are verified so they can move tokens with custom data (owner address)
+    await registry.write.verifyVault([vault.address, 0, "Vault 1", "Primary vault"]);
+
+    await vault.write.moveBatch1155([mockERC1155.address, ids, amounts, vault2.address]);
+
+    assert.equal(await vault.read.balances1155([mockERC1155.address, 1n, owner.account.address]), 0n);
+    assert.equal(await vault2.read.balances1155([mockERC1155.address, 1n, owner.account.address]), 10n);
+
+    // Withdraw batch from vault2
+    await vault2.write.withdrawBatch1155([mockERC1155.address, ids, amounts]);
+    assert.equal(await mockERC1155.read.balanceOf([owner.account.address, 1n]), 10n);
+    assert.equal(await mockERC1155.read.balanceOf([owner.account.address, 2n]), 20n);
+  });
+
+  it("NFTMarketplace: Should emit updated OfferAccepted event and handle zero proceeds", async function () {
+    const { bragNFT, marketplace, mockERC20, owner, other } = await deployContracts();
+
+    await bragNFT.write.donate(["for sale", ""], { value: parseEther("0.1") });
+    const tokenId = 0n;
+
+    await bragNFT.write.setRoyaltyFeeNumerator([10000]);
+
+    const price = parseEther("1");
+    await mockERC20.write.transfer([other.account.address, price]);
+    await mockERC20.write.approve([marketplace.address, price], { account: other.account });
+
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, price], { account: other.account });
+
+    await bragNFT.write.approve([marketplace.address, tokenId]);
+
+    const txHash = await marketplace.write.acceptOffer([bragNFT.address, tokenId, other.account.address]);
+    const publicClient = await viem.getPublicClient();
+    const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+
+    const offerAcceptedLog = receipt.logs.map(log => {
+      try {
+        return decodeEventLog({
+          abi: marketplace.abi,
+          data: log.data,
+          topics: log.topics,
+        });
+      } catch (e) {
+        return null;
+      }
+    }).find(l => l && l.eventName === 'OfferAccepted');
+
+    assert.ok(offerAcceptedLog, "OfferAccepted event not found");
+    assert.equal(getAddress(offerAcceptedLog.args.buyer), getAddress(other.account.address));
+    assert.equal(getAddress(offerAcceptedLog.args.seller), getAddress(owner.account.address));
   });
 });

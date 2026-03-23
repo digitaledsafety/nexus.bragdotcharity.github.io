@@ -218,7 +218,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
 
         string memory animationPart = "";
         if (bytes(animationURL).length > 0) {
-            animationPart = string(abi.encodePacked('", "animation_url": "', animationURL));
+            animationPart = string(abi.encodePacked('", "animation_url": "', _escapeJSON(animationURL)));
         }
 
         string memory json = Base64.encode(
@@ -230,7 +230,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
                         '", "description": "Brag.Charity Donation NFT',
                         bytes(message).length > 0 ? string(abi.encodePacked(": ", _escapeJSON(message))) : "",
                         '", "image": "',
-                        imageURI,
+                        _escapeJSON(imageURI),
                         animationPart,
                         '", "attributes": [{"trait_type": "Message", "value": "',
                         _escapeJSON(message),
