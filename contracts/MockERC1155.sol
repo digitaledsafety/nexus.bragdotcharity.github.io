@@ -7,7 +7,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract MockERC1155 is ERC1155, Ownable {
     constructor() ERC1155("") Ownable(msg.sender) {}
 
-    function mint(address to, uint256 id, uint256 amount) external onlyOwner {
+    function mint(address to, uint256 id, uint256 amount) external {
         _mint(to, id, amount, "");
+    }
+
+    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) external {
+        _mintBatch(to, ids, amounts, data);
     }
 }
