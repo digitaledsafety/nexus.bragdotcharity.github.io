@@ -107,4 +107,26 @@ describe("Treasury Management", async function () {
     const finalTreasuryBalance = await bragToken.read.balanceOf([treasury.address]);
     assert.equal(finalTreasuryBalance, initialTreasuryBalance + offerPrice);
   });
+
+  it("Should allow withdrawing ERC20 from treasury", async function () {
+    const { treasury, bragToken, owner } = await deployContracts();
+
+    const amount = parseEther("50");
+    // Send some tokens to treasury
+    await bragToken.write.transfer([treasury.address, amount], { account: owner.account });
+
+    const initialTreasuryBalance = await bragToken.read.balanceOf([treasury.address]);
+    assert.equal(initialTreasuryBalance, amount);
+
+    const initialOwnerBalance = await bragToken.read.balanceOf([owner.account.address]);
+
+    // Withdraw
+    await treasury.write.withdrawERC20([bragToken.address, owner.account.address, amount], { account: owner.account });
+
+    const finalTreasuryBalance = await bragToken.read.balanceOf([treasury.address]);
+    assert.equal(finalTreasuryBalance, 0n);
+
+    const finalOwnerBalance = await bragToken.read.balanceOf([owner.account.address]);
+    assert.equal(finalOwnerBalance, initialOwnerBalance + amount);
+  });
 });

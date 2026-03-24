@@ -214,4 +214,21 @@ describe("Exhibiting System", async function () {
     assert.ok(expiry3 > expiry1);
   });
 
+  it("Should correctly assign ownership when minted directly to a vault", async function () {
+    const { bragNFT, vault1, user } = await deployContracts();
+
+    // User is the operator/minter (msg.sender)
+    // Mint directly to the vault
+    await bragNFT.write.donateTo([vault1.address, "Direct mint to vault", ""], { account: user.account, value: parseEther("0.1") });
+    const tokenId = 0n;
+
+    // Verify ownership in vault - actualOwner should be user (operator)
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(vault1.address));
+    assert.equal(await vault1.read.owner721([bragNFT.address, tokenId]), getAddress(user.account.address));
+
+    // Withdraw from vault should work for the user
+    await vault1.write.withdraw721([bragNFT.address, tokenId], { account: user.account });
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(user.account.address));
+  });
+
 });
