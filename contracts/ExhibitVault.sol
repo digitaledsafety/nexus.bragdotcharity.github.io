@@ -59,7 +59,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256 tokenId,
         bytes memory data
     ) public override nonReentrant returns (bytes4) {
-        address actualOwner = from;
+        address actualOwner = from == address(0) ? operator : from;
         uint256 duration = 0;
 
         if (data.length == 32) {
@@ -98,7 +98,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256 value,
         bytes memory data
     ) public override nonReentrant returns (bytes4) {
-        address actualOwner = from;
+        address actualOwner = from == address(0) ? operator : from;
         uint256 duration = 0;
 
         if (data.length == 32) {
@@ -134,7 +134,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256[] memory values,
         bytes memory data
     ) public override nonReentrant returns (bytes4) {
-        address actualOwner = from;
+        address actualOwner = from == address(0) ? operator : from;
         uint256 duration = 0;
 
         if (data.length == 32) {

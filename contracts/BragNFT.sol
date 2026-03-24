@@ -243,14 +243,31 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     }
 
     /**
-     * @dev Detect if a media string is an audio data URI.
+     * @dev Detect if a media string is an audio data URI or has an audio extension.
      */
     function _isAudio(string memory _media) internal pure returns (bool) {
         bytes memory b = bytes(_media);
-        if (b.length < 11) return false;
+        if (b.length < 4) return false;
+
         // Check for "data:audio/"
-        return (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
-                b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/');
+        if (b.length >= 11 &&
+            b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
+            b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') {
+            return true;
+        }
+
+        // Check for extensions: .mp3, .wav, .ogg, .m4a, .aac
+        if (b.length >= 4) {
+            bytes4 last4;
+            assembly {
+                last4 := mload(add(add(b, 0x20), sub(mload(b), 0x04)))
+            }
+            if (last4 == ".mp3" || last4 == ".wav" || last4 == ".ogg" || last4 == ".m4a" || last4 == ".aac") {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
