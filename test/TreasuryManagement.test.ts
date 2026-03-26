@@ -46,6 +46,22 @@ describe("Treasury Management", async function () {
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(owner.account.address));
   });
 
+  it("Should allow administrative withdrawal of ERC20 tokens", async function () {
+    const { treasury, owner, bragToken } = await deployContracts();
+    const recipient = "0x000000000000000000000000000000000000dEaD";
+    const amount = parseEther("50");
+
+    // Mint some tokens to the treasury
+    await bragToken.write.mint([treasury.address, amount], { account: owner.account });
+    assert.equal(await bragToken.read.balanceOf([treasury.address]), amount);
+
+    // Withdraw tokens from the treasury
+    await treasury.write.withdrawERC20([bragToken.address, recipient, amount], { account: owner.account });
+
+    assert.equal(await bragToken.read.balanceOf([treasury.address]), 0n);
+    assert.equal(await bragToken.read.balanceOf([recipient]), amount);
+  });
+
   it("Should allow buying from treasury via marketplace and treasury.execute", async function () {
     const { bragNFT, treasury, marketplace, bragToken, donor, buyer, owner } = await deployContracts();
 

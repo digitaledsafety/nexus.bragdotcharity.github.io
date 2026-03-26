@@ -243,14 +243,38 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     }
 
     /**
-     * @dev Detect if a media string is an audio data URI.
+     * @dev Detect if a media string is an audio data URI or has a common audio extension.
      */
     function _isAudio(string memory _media) internal pure returns (bool) {
         bytes memory b = bytes(_media);
-        if (b.length < 11) return false;
-        // Check for "data:audio/"
-        return (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
-                b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/');
+        uint256 len = b.length;
+        if (len < 4) return false;
+
+        // Check for "data:audio/" prefix
+        if (len >= 11) {
+            if (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
+                b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') {
+                return true;
+            }
+        }
+
+        bool result;
+        // Check for common extensions using assembly for efficiency (.mp3, .wav, .ogg, .m4a, .aac)
+        assembly {
+            let last4 := mload(add(add(b, 32), sub(len, 4)))
+            let masked := and(last4, 0xffffffff00000000000000000000000000000000000000000000000000000000)
+            if or(or(or(or(
+                eq(masked, 0x2e6d703300000000000000000000000000000000000000000000000000000000),
+                eq(masked, 0x2e77617600000000000000000000000000000000000000000000000000000000)),
+                eq(masked, 0x2e6f676700000000000000000000000000000000000000000000000000000000)),
+                eq(masked, 0x2e6d346100000000000000000000000000000000000000000000000000000000)),
+                eq(masked, 0x2e61616300000000000000000000000000000000000000000000000000000000)
+            ) {
+                result := 1
+            }
+        }
+
+        return result;
     }
 
     /**

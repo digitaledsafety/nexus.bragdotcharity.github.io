@@ -227,6 +227,19 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.equal(json.attributes[0].value, message);
   });
 
+  it("Should support audio file extensions for animation_url", async function () {
+    const { bragNFT, donor } = await deployContracts();
+    const extensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac"];
+
+    for (let i = 0; i < extensions.length; i++) {
+        const audioUrl = `https://example.com/audio${i}${extensions[i]}`;
+        await bragNFT.write.donate([`audio nft ${extensions[i]}`, audioUrl], { value: parseEther("0.1") });
+        const uri = await bragNFT.read.tokenURI([BigInt(i)]);
+        const json = JSON.parse(atob(uri.split(",")[1]));
+        assert.equal(json.animation_url, audioUrl, `Failed for extension ${extensions[i]}`);
+    }
+  });
+
   it("Should track supply correctly", async function () {
     const { bragNFT, donor, recipient } = await deployContracts();
 
