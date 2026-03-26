@@ -177,6 +177,24 @@ describe("Exhibiting System", async function () {
     );
   });
 
+  it("Should correctly assign owner when minted directly to the vault", async function () {
+    const { vault1: vault, bragNFT, owner, user } = await deployContracts();
+
+    // The scenario is someone calls bragNFT.donateTo(vault.address, ...)
+
+    const message = "Direct to vault";
+    await bragNFT.write.donateTo([vault.address, message, ""], { account: user.account, value: parseEther("0.1") });
+
+    const tokenId = 0n;
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(vault.address));
+
+    // Check ownership in vault
+    // The 'from' in onERC721Received will be address(0) because it's a mint
+    // The 'operator' will be the user calling donateTo
+    const recordedOwner = await vault.read.owner721([bragNFT.address, tokenId]);
+    assert.equal(recordedOwner, getAddress(user.account.address));
+  });
+
   it("Should only increase expiry on subsequent deposits", async function () {
     const { bragNFT, vault1, user } = await deployContracts();
     const publicClient = await viem.getPublicClient();
