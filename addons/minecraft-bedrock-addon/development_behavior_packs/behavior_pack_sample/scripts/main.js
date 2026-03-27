@@ -1,12 +1,10 @@
 import { world, system, DynamicPropertiesDefinition } from "@minecraft/server";
-import { http, HttpRequest, HttpRequestMethod } from "@minecraft/server-net";
 
 /**
  * ARCHITECTURE NOTE:
  * The project uses a unified Node.js Bridge (scripts/nft-bridge.js) which supports
  * Sign-In with Ethereum (SIWE) for secure wallet linking and WebSockets for real-time updates.
  */
-const BRIDGE_URL = "http://localhost:9000"; // Point to scripts/nft-bridge.js
 const WS_URL = "localhost:9001"; // Point to scripts/nft-bridge.js (WS port)
 const SERVER_ID = "server-1"; // Unique ID for this Minecraft server
 
@@ -15,48 +13,11 @@ const SERVER_ID = "server-1"; // Unique ID for this Minecraft server
  * This also registers the player as 'active' on this server in the Bridge.
  */
 async function checkNftStatus(player) {
-    const platformId = player.xuid;
-    if (!platformId) return;
+    if (!player.xuid) return;
 
     try {
-        let uuid = player.getDynamicProperty("nft_uuid");
-
-        // Sync with server if local UUID is missing
-        if (!uuid) {
-            const checkUrl = `${BRIDGE_URL}?path=check-platform&platform=minecraft&platformId=${platformId}`;
-            const checkRequest = new HttpRequest(checkUrl);
-            checkRequest.method = HttpRequestMethod.Get;
-            const checkResponse = await http.request(checkRequest);
-
-            if (checkResponse.status === 200) {
-                const checkData = JSON.parse(checkResponse.body);
-                if (checkData.linked) {
-                    uuid = checkData.uuid;
-                    player.setDynamicProperty("nft_uuid", uuid);
-                }
-            }
-        }
-
-        if (!uuid) return;
-
-        // Check initial ownership and REGISTER active status with bridge
-        // We pass playerName so the Bridge knows how to target this player via WebSocket
-        const url = `${BRIDGE_URL}?path=check-ownership&uuid=${uuid}&serverId=${SERVER_ID}&playerName=${encodeURIComponent(player.name)}`;
-        const request = new HttpRequest(url);
-        request.method = HttpRequestMethod.Get;
-
-        const response = await http.request(request);
-
-        if (response.status === 200) {
-            const data = JSON.parse(response.body);
-
-            if (data.isHolder) {
-                player.sendMessage(`§a[NFT] Verified NFT Holder!§r`);
-                player.addTag("nft_holder");
-            } else {
-                player.removeTag("nft_holder");
-            }
-        }
+        // Send check command via WebSocket
+        world.getDimension("overworld").runCommand(`say !check ${player.xuid} ${SERVER_ID} "${player.name}"`);
     } catch (error) {
         console.warn("NFT Bridge Error: " + error);
     }
@@ -75,7 +36,7 @@ function initiateBridgeConnection() {
         system.runTimeout(() => {
             world.getDimension("overworld").runCommand(`say !handshake ${SERVER_ID}`);
             console.warn(`[NFT] Handshaked with bridge as ${SERVER_ID}`);
-        }, 100);
+        }, 500);
     } catch (e) {
         console.warn(`[NFT] Connection/Handshake failed: ${e}`);
     }
@@ -92,75 +53,31 @@ world.afterEvents.worldInitialize.subscribe(() => {
 async function handleChat(event) {
     const message = event.message.trim();
     const player = event.sender;
-    const platformId = player.xuid;
 
     if (message.toLowerCase() === "!register") {
         event.cancel = true;
-        if (!platformId) {
+        if (!player.xuid) {
             player.sendMessage("§cYou must be signed in to Xbox Live to register.§r");
             return;
         }
         player.sendMessage("§bRequesting registration link...§r");
 
         try {
-            const url = `${BRIDGE_URL}?path=request-token&platform=minecraft&platformId=${platformId}`;
-            const request = new HttpRequest(url);
-            request.method = HttpRequestMethod.Get;
-
-            const response = await http.request(request);
-
-            if (response.status === 200) {
-                const data = JSON.parse(response.body);
-                const { token, uuid } = data;
-                
-                player.setDynamicProperty("nft_uuid", uuid);
-                const registrationUrl = data.registrationUrl || `${BRIDGE_URL}?path=register&token=${token}`;
-
-                player.sendMessage("§e====================================§r");
-                player.sendMessage("§aTo link your wallet, visit this URL:§r");
-                player.sendMessage(`§f${registrationUrl}§r`);
-                player.sendMessage("§7(The link is valid for 10 minutes)§r");
-                player.sendMessage("§e====================================§r");
-            } else {
-                player.sendMessage("§cFailed to get registration token.§r");
-            }
+            world.getDimension("overworld").runCommand(`say !register ${player.xuid} ${SERVER_ID} "${player.name}"`);
         } catch (error) {
             player.sendMessage("§cBridge server is offline.§r");
         }
     } else if (message.toLowerCase() === "!my_nfts") {
         event.cancel = true;
-        const uuid = player.getDynamicProperty("nft_uuid");
-        if (!uuid) {
-            player.sendMessage("§cYou must be registered to view your NFTs.§r");
+        if (!player.xuid) {
+            player.sendMessage("§cYou must be signed in to Xbox Live to view your NFTs.§r");
             return;
         }
 
         player.sendMessage("§bFetching your NFTs...§r");
 
         try {
-            const url = `${BRIDGE_URL}?path=check-ownership&uuid=${uuid}`;
-            const request = new HttpRequest(url);
-            request.method = HttpRequestMethod.Get;
-            const response = await http.request(request);
-
-            if (response.status === 200) {
-                const data = JSON.parse(response.body);
-                if (data.isHolder && data.nfts && data.nfts.length > 0) {
-                    player.sendMessage("§eYour NFTs:§r");
-                    data.nfts.forEach((nft) => {
-                        player.sendMessage(`§b- ID #${nft.tokenId} (${nft.location})§r`);
-                        if (nft.animation_url) {
-                            player.sendMessage(`  §7Media: §f${nft.animation_url}§r`);
-                        } else if (nft.image) {
-                            player.sendMessage(`  §7Image: §f${nft.image}§r`);
-                        }
-                    });
-                } else {
-                    player.sendMessage("§6No NFTs found in your linked wallet.§r");
-                }
-            } else {
-                player.sendMessage("§cFailed to fetch NFTs.§r");
-            }
+            world.getDimension("overworld").runCommand(`say !my_nfts ${player.xuid} ${SERVER_ID} "${player.name}"`);
         } catch (error) {
             player.sendMessage("§cBridge server error.§r");
         }

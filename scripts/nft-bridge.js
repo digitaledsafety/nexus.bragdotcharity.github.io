@@ -54,6 +54,46 @@ function saveMappings() {
     fs.writeFileSync(MAPPINGS_FILE, JSON.stringify(Object.fromEntries(mappings), null, 2));
 }
 
+// --- Core Logic ---
+async function getPlatformStatus(platformId) {
+    const linkedAddress = mappings.get(platformId);
+    return { linked: !!linkedAddress, address: linkedAddress || null, uuid: platformId };
+}
+
+async function createRegistrationToken(platformId) {
+    const token = Math.random().toString(36).substring(2, 10).toUpperCase();
+    pendingTokens.set(token, { platformId, expires: Date.now() + (10 * 60 * 1000) });
+    return { token, uuid: platformId, registrationUrl: `http://localhost:3000?token=${token}` };
+}
+
+async function getOwnershipStatus(uuid, serverId, playerName) {
+    const addressToCheck = mappings.get(uuid) || uuid;
+
+    if (uuid && serverId && playerName) {
+        activePlayers.set(uuid, { serverId, playerName });
+    }
+
+    if (!addressToCheck || !addressToCheck.startsWith('0x') || addressToCheck.length !== 42) {
+         return { isHolder: false, address: addressToCheck };
+    }
+
+    let status = await fetchCurrentStatus(addressToCheck);
+    statusCache.set(addressToCheck.toLowerCase(), status);
+
+    const serverConfig = serverConfigs[serverId];
+    const vaultAddr = (serverConfig && serverConfig.vaultAddress) ? serverConfig.vaultAddress.toLowerCase() : null;
+    const inVault = vaultAddr ? (status.vaults[vaultAddr]?.length > 0) : false;
+    const inWallet = status.walletNfts.length > 0;
+
+    return {
+        isHolder: inVault || inWallet,
+        inVault,
+        inWallet,
+        address: addressToCheck,
+        nfts: [...status.walletNfts, ...(vaultAddr ? (status.vaults[vaultAddr] || []) : [])]
+    };
+}
+
 // --- WebSocket Server (Minecraft Bedrock Protocol) ---
 let wss;
 if (isMain) {
@@ -67,18 +107,63 @@ wss.on('connection', (ws, req) => {
 
     // In a real scenario, the first message from the server would identify which serverId it is.
     // For now, we'll assign the first connection to server-1, second to server-2, etc. or use a handshake.
-    ws.on('message', (data) => {
+    ws.on('message', async (data) => {
         try {
             const msg = JSON.parse(data);
 
             // Handle Minecraft Bedrock Handshake via PlayerMessage
             if (msg.body && msg.body.eventName === 'PlayerMessage') {
                 const message = msg.body.properties.Message;
-                if (message && message.startsWith('!handshake ')) {
+                if (!message) return;
+
+                if (message.startsWith('!handshake ')) {
                     const serverId = message.split(' ')[1];
                     if (serverConfigs[serverId]) {
                         serverSockets.set(serverId, ws);
                         console.log(`WebSocket handshaked and assigned to ${serverId} (${serverConfigs[serverId].name})`);
+                    }
+                } else {
+                    // Robust parsing for: !<command> <platformId> <serverId> "<playerName>"
+                    const match = message.match(/^!(check|register|my_nfts)\s+(\S+)\s+(\S+)\s+"(.+)"$/);
+                    if (match) {
+                        const [_, command, platformId, serverId, playerName] = match;
+
+                        if (command === 'check') {
+                            const platformStatus = await getPlatformStatus(platformId);
+                            if (!platformStatus.linked) return;
+
+                            const data = await getOwnershipStatus(platformId, serverId, playerName);
+                            if (data.isHolder) {
+                                sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§a[NFT] Verified NFT Holder!§r"}]}`);
+                                sendMinecraftCommand(serverId, `tag "${playerName}" add nft_holder`);
+                            } else {
+                                sendMinecraftCommand(serverId, `tag "${playerName}" remove nft_holder`);
+                            }
+                        } else if (command === 'register') {
+                            const data = await createRegistrationToken(platformId);
+                            const registrationUrl = data.registrationUrl;
+
+                            sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§e====================================§r"}]}`);
+                            sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§aTo link your wallet, visit this URL:§r"}]}`);
+                            sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§f${registrationUrl}§r"}]}`);
+                            sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§7(The link is valid for 10 minutes)§r"}]}`);
+                            sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§e====================================§r"}]}`);
+                        } else if (command === 'my_nfts') {
+                            const data = await getOwnershipStatus(platformId, serverId, playerName);
+                            if (data.isHolder && data.nfts && data.nfts.length > 0) {
+                                sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§eYour NFTs:§r"}]}`);
+                                for (const nft of data.nfts) {
+                                    sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§b- ID #${nft.tokenId} (${nft.location})§r"}]}`);
+                                    if (nft.animation_url) {
+                                        sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"  §7Media: §f${nft.animation_url}§r"}]}`);
+                                    } else if (nft.image) {
+                                        sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"  §7Image: §f${nft.image}§r"}]}`);
+                                    }
+                                }
+                            } else {
+                                sendMinecraftCommand(serverId, `tellraw "${playerName}" {"rawtext":[{"text":"§6No NFTs found in your linked wallet.§r"}]}`);
+                            }
+                        }
                     }
                 }
             }
@@ -104,7 +189,8 @@ wss.on('connection', (ws, req) => {
     });
 
     // Subscribe to interesting events
-    const subscribeMsg = {
+    // We subscribe to PlayerMessage for commands
+    ws.send(JSON.stringify({
         header: {
             version: 1,
             requestId: randomUUID(),
@@ -112,8 +198,7 @@ wss.on('connection', (ws, req) => {
             messagePurpose: "subscribe"
         },
         body: { eventName: "PlayerMessage" }
-    };
-    ws.send(JSON.stringify(subscribeMsg));
+    }));
 });
 }
 
@@ -258,18 +343,17 @@ export const handleRequest = async (req, res) => {
     try {
         if (searchParams.get('path') === 'check-platform') {
             const platformId = searchParams.get('platformId');
-            const linkedAddress = mappings.get(platformId);
+            const data = await getPlatformStatus(platformId);
             res.writeHead(200);
-            res.end(JSON.stringify({ linked: !!linkedAddress, address: linkedAddress || null, uuid: platformId }));
+            res.end(JSON.stringify(data));
             return;
         }
 
         if (searchParams.get('path') === 'request-token') {
             const platformId = searchParams.get('platformId');
-            const token = Math.random().toString(36).substring(2, 10).toUpperCase();
-            pendingTokens.set(token, { platformId, expires: Date.now() + (10 * 60 * 1000) });
+            const data = await createRegistrationToken(platformId);
             res.writeHead(200);
-            res.end(JSON.stringify({ token, uuid: platformId, registrationUrl: `http://localhost:3000?token=${token}` }));
+            res.end(JSON.stringify(data));
             return;
         }
 
@@ -440,10 +524,8 @@ export const handleRequest = async (req, res) => {
             const uuid = searchParams.get('uuid'); // This is the XUID from Minecraft
             const serverId = searchParams.get('serverId');
             const playerName = searchParams.get('playerName');
-            const addressToCheck = mappings.get(uuid) || uuid;
 
             if (uuid && serverId && playerName) {
-                activePlayers.set(uuid, { serverId, playerName });
                 // If this is the first time we see this connection, try to bind the socket if it's generic
                 if (!serverSockets.has(serverId) && wss.clients.size > 0) {
                     // For local mock testing, we'll just take the first available socket if not bound
@@ -452,28 +534,9 @@ export const handleRequest = async (req, res) => {
                 }
             }
 
-            if (!addressToCheck || !addressToCheck.startsWith('0x') || addressToCheck.length !== 42) {
-                 res.writeHead(200);
-                 res.end(JSON.stringify({ isHolder: false, address: addressToCheck }));
-                 return;
-            }
-
-            let status = await fetchCurrentStatus(addressToCheck);
-            statusCache.set(addressToCheck.toLowerCase(), status);
-
-            const serverConfig = serverConfigs[serverId];
-            const vaultAddr = (serverConfig && serverConfig.vaultAddress) ? serverConfig.vaultAddress.toLowerCase() : null;
-            const inVault = vaultAddr ? (status.vaults[vaultAddr]?.length > 0) : false;
-            const inWallet = status.walletNfts.length > 0;
-
+            const data = await getOwnershipStatus(uuid, serverId, playerName);
             res.writeHead(200);
-            res.end(JSON.stringify({
-                isHolder: inVault || inWallet,
-                inVault,
-                inWallet,
-                address: addressToCheck,
-                nfts: [...status.walletNfts, ...(vaultAddr ? (status.vaults[vaultAddr] || []) : [])]
-            }));
+            res.end(JSON.stringify(data));
             return;
         }
 
