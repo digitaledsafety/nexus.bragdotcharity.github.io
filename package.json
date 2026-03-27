@@ -1,10 +1,11 @@
 {
   "scripts": {
     "node": "hardhat node",
-    "deploy:local": "HARDHAT_IGNITION_CONFIRM_DEPLOYMENT=true hardhat ignition deploy ignition/modules/App.ts --network localhost && node scripts/export-abis.cjs",
-    "deploy:sepolia:gasless": "HARDHAT_NETWORK=sepolia npx hardhat run scripts/deploy-gasless.ts --network sepolia && node scripts/export-abis.cjs",
+    "deploy:local": "cross-env HARDHAT_IGNITION_CONFIRM_DEPLOYMENT=true hardhat ignition deploy ignition/modules/App.ts --network localhost && node scripts/export-abis.cjs",
+    "deploy:sepolia:gasless": "cross-env HARDHAT_NETWORK=sepolia npx hardhat run scripts/deploy-gasless.ts --network sepolia && node scripts/export-abis.cjs",
     "seed:local": "hardhat run scripts/seed-data.ts --network localhost",
-    "seed:sepolia": "HARDHAT_NETWORK=sepolia hardhat run scripts/seed-data.ts --network sepolia",
+    "seed:sepolia": "cross-env HARDHAT_NETWORK=sepolia hardhat run scripts/seed-data.ts --network sepolia",
+    "serve": "npx serve frontend -p 3000",
     "bridge": "node scripts/nft-bridge.js",
     "test": "hardhat test",
     "compile": "hardhat compile",
@@ -16,6 +17,7 @@
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
     "@playwright/test": "^1.58.2",
     "@types/node": "^22.17.2",
+    "cross-env": "^7.0.3",
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.2.0",
     "playwright": "^1.58.2",
