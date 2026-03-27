@@ -1,10 +1,10 @@
 {
   "scripts": {
     "node": "hardhat node",
-    "deploy:local": "cross-env HARDHAT_IGNITION_CONFIRM_DEPLOYMENT=true hardhat ignition deploy ignition/modules/App.ts --network localhost && node scripts/export-abis.cjs",
-    "deploy:sepolia:gasless": "cross-env HARDHAT_NETWORK=sepolia npx hardhat run scripts/deploy-gasless.ts --network sepolia && node scripts/export-abis.cjs",
+    "deploy:local": "npx cross-env HARDHAT_IGNITION_CONFIRM_DEPLOYMENT=true hardhat ignition deploy ignition/modules/App.ts --network localhost && node scripts/export-abis.cjs",
+    "deploy:sepolia:gasless": "npx cross-env HARDHAT_NETWORK=sepolia npx hardhat run scripts/deploy-gasless.ts --network sepolia && node scripts/export-abis.cjs",
     "seed:local": "hardhat run scripts/seed-data.ts --network localhost",
-    "seed:sepolia": "cross-env HARDHAT_NETWORK=sepolia hardhat run scripts/seed-data.ts --network sepolia",
+    "seed:sepolia": "npx cross-env HARDHAT_NETWORK=sepolia hardhat run scripts/seed-data.ts --network sepolia",
     "serve": "npx serve frontend -p 3000",
     "bridge": "node scripts/nft-bridge.js",
     "test": "hardhat test",
