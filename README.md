@@ -54,7 +54,7 @@ npm run bridge
 ### 4. Serve the Frontend
 Open the interactive gallery and manager:
 ```shell
-npx serve frontend -p 3000
+npm run serve
 ```
 Then visit `http://localhost:3000` in your browser.
 

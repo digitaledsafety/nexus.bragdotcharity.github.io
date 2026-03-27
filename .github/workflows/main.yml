@@ -58,7 +58,7 @@ jobs:
             echo "Waiting for Hardhat node... ($i)"
             sleep 1
           done
-          npx hardhat ignition deploy ignition/modules/App.ts --network localhost
+          npx cross-env HARDHAT_IGNITION_CONFIRM_DEPLOYMENT=true npx hardhat ignition deploy ignition/modules/App.ts --network localhost
           npm run seed:local
 
       - name: Export ABIs
