@@ -103,8 +103,10 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         address royaltyRecipient;
 
         try IERC2981(nftContract).royaltyInfo(tokenId, offer.price) returns (address receiver, uint256 amount) {
-            royaltyFee = amount;
-            royaltyRecipient = receiver;
+            if (receiver != address(0)) {
+                royaltyFee = amount;
+                royaltyRecipient = receiver;
+            }
         } catch {}
 
         // Cap royalty fee to prevent underflow if (protocolFee + royaltyFee) > offer.price
@@ -117,7 +119,7 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         if (protocolFee > 0 && feeRecipient != address(0)) {
             paymentToken.safeTransfer(feeRecipient, protocolFee);
         }
-        if (royaltyFee > 0 && royaltyRecipient != address(0)) {
+        if (royaltyFee > 0) {
             paymentToken.safeTransfer(royaltyRecipient, royaltyFee);
         }
         paymentToken.safeTransfer(msg.sender, sellerProceeds);
