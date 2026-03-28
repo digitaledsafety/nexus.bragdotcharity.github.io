@@ -258,23 +258,16 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
             }
         }
 
-        bool result;
-        // Check for common extensions using assembly for efficiency (.mp3, .wav, .ogg, .m4a, .aac)
-        assembly {
-            let last4 := mload(add(add(b, 32), sub(len, 4)))
-            let masked := and(last4, 0xffffffff00000000000000000000000000000000000000000000000000000000)
-            if or(or(or(or(
-                eq(masked, 0x2e6d703300000000000000000000000000000000000000000000000000000000),
-                eq(masked, 0x2e77617600000000000000000000000000000000000000000000000000000000)),
-                eq(masked, 0x2e6f676700000000000000000000000000000000000000000000000000000000)),
-                eq(masked, 0x2e6d346100000000000000000000000000000000000000000000000000000000)),
-                eq(masked, 0x2e61616300000000000000000000000000000000000000000000000000000000)
-            ) {
-                result := 1
-            }
+        // Check for common extensions: .mp3, .wav, .ogg, .m4a, .aac
+        if (b[len - 4] == '.') {
+            if (b[len - 3] == 'm' && b[len - 2] == 'p' && b[len - 1] == '3') return true;
+            if (b[len - 3] == 'w' && b[len - 2] == 'a' && b[len - 1] == 'v') return true;
+            if (b[len - 3] == 'o' && b[len - 2] == 'g' && b[len - 1] == 'g') return true;
+            if (b[len - 3] == 'm' && b[len - 2] == '4' && b[len - 1] == 'a') return true;
+            if (b[len - 3] == 'a' && b[len - 2] == 'a' && b[len - 1] == 'c') return true;
         }
 
-        return result;
+        return false;
     }
 
     /**
