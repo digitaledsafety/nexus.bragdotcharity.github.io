@@ -244,30 +244,46 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
 
     /**
      * @dev Detect if a media string is an audio data URI or has a common audio extension.
+     * Optimized using assembly for prefix and suffix checks.
      */
-    function _isAudio(string memory _media) internal pure returns (bool) {
+    function _isAudio(string memory _media) internal pure returns (bool result) {
         bytes memory b = bytes(_media);
         uint256 len = b.length;
         if (len < 4) return false;
 
-        // Check for "data:audio/" prefix
-        if (len >= 11) {
-            if (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
-                b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') {
-                return true;
+        assembly {
+            let dataPtr := add(b, 32)
+
+            // Check for "data:audio/" prefix (11 bytes)
+            if gt(len, 10) {
+                // "data:audio/" in hex is 0x646174613a617564696f2f
+                // We mask the first 11 bytes of the first word
+                let prefix := and(mload(dataPtr), 0xffffffffffffffffffffff000000000000000000000000000000000000000000)
+                if eq(prefix, 0x646174613a617564696f2f000000000000000000000000000000000000000000) {
+                    result := 1
+                }
+            }
+
+            if iszero(result) {
+                // Check for common extensions: .mp3, .wav, .ogg, .m4a, .aac (4 bytes including dot)
+                // We load the last 4 bytes of the string
+                let last4 := and(mload(add(dataPtr, sub(len, 4))), 0xffffffff00000000000000000000000000000000000000000000000000000000)
+
+                // .mp3 = 0x2e6d7033
+                // .wav = 0x2e776176
+                // .ogg = 0x2e6f6767
+                // .m4a = 0x2e6d3461
+                // .aac = 0x2e616163
+                if or(or(or(or(
+                    eq(last4, 0x2e6d703300000000000000000000000000000000000000000000000000000000),
+                    eq(last4, 0x2e77617600000000000000000000000000000000000000000000000000000000)),
+                    eq(last4, 0x2e6f676700000000000000000000000000000000000000000000000000000000)),
+                    eq(last4, 0x2e6d346100000000000000000000000000000000000000000000000000000000)),
+                    eq(last4, 0x2e61616300000000000000000000000000000000000000000000000000000000)) {
+                    result := 1
+                }
             }
         }
-
-        // Check for common extensions: .mp3, .wav, .ogg, .m4a, .aac
-        if (b[len - 4] == '.') {
-            if (b[len - 3] == 'm' && b[len - 2] == 'p' && b[len - 1] == '3') return true;
-            if (b[len - 3] == 'w' && b[len - 2] == 'a' && b[len - 1] == 'v') return true;
-            if (b[len - 3] == 'o' && b[len - 2] == 'g' && b[len - 1] == 'g') return true;
-            if (b[len - 3] == 'm' && b[len - 2] == '4' && b[len - 1] == 'a') return true;
-            if (b[len - 3] == 'a' && b[len - 2] == 'a' && b[len - 1] == 'c') return true;
-        }
-
-        return false;
     }
 
     /**

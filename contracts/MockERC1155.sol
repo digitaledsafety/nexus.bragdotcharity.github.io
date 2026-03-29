@@ -10,4 +10,8 @@ contract MockERC1155 is ERC1155, Ownable {
     function mint(address to, uint256 id, uint256 amount) external onlyOwner {
         _mint(to, id, amount, "");
     }
+
+    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) external onlyOwner {
+        _mintBatch(to, ids, amounts, data);
+    }
 }
