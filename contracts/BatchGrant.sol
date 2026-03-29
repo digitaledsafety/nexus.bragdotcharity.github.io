@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -72,6 +74,33 @@ contract BatchGrant is Ownable {
         for (uint256 i = 0; i < recipients.length; i++) {
             (bool success, ) = recipients[i].call{value: amounts[i]}("");
             require(success, "ETH transfer failed");
+        }
+    }
+
+    /**
+     * @dev Distributes ERC721 tokens to multiple recipients.
+     * @param token The ERC721 token contract.
+     * @param recipients Array of recipient addresses.
+     * @param tokenIds Array of token IDs to transfer.
+     */
+    function distribute721(IERC721 token, address[] calldata recipients, uint256[] calldata tokenIds) external {
+        require(recipients.length == tokenIds.length, "Mismatched arrays");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            token.safeTransferFrom(msg.sender, recipients[i], tokenIds[i]);
+        }
+    }
+
+    /**
+     * @dev Distributes ERC1155 tokens to multiple recipients.
+     * @param token The ERC1155 token contract.
+     * @param recipients Array of recipient addresses.
+     * @param ids Array of token IDs.
+     * @param amounts Array of amounts.
+     */
+    function distribute1155(IERC1155 token, address[] calldata recipients, uint256[] calldata ids, uint256[] calldata amounts) external {
+        require(recipients.length == ids.length && ids.length == amounts.length, "Mismatched arrays");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            token.safeTransferFrom(msg.sender, recipients[i], ids[i], amounts[i], "");
         }
     }
 }
