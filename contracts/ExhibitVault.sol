@@ -208,6 +208,16 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         _move721(nftContract, tokenId, destinationVault, duration);
     }
 
+    /**
+     * @dev Move multiple ERC721 tokens directly to another verified vault.
+     */
+    function batchMove721(address[] calldata nftContracts, uint256[] calldata tokenIds, address destinationVault) external nonReentrant {
+        require(nftContracts.length == tokenIds.length, "Mismatched arrays");
+        for (uint256 i = 0; i < nftContracts.length; i++) {
+            _move721(nftContracts[i], tokenIds[i], destinationVault, 0);
+        }
+    }
+
     function _move721(address nftContract, uint256 tokenId, address destinationVault, uint256 duration) internal {
         require(owner721[nftContract][tokenId] == msg.sender, "Not the owner");
         require(registry.isVerified(destinationVault), "Destination not verified");
@@ -237,6 +247,16 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
 
     function move1155WithDuration(address nftContract, uint256 tokenId, uint256 amount, address destinationVault, uint256 duration) public nonReentrant {
         _move1155(nftContract, tokenId, amount, destinationVault, duration);
+    }
+
+    /**
+     * @dev Move multiple ERC1155 tokens directly to another verified vault.
+     */
+    function batchMove1155(address[] calldata nftContracts, uint256[] calldata ids, uint256[] calldata amounts, address destinationVault) external nonReentrant {
+        require(nftContracts.length == ids.length && ids.length == amounts.length, "Mismatched arrays");
+        for (uint256 i = 0; i < nftContracts.length; i++) {
+            _move1155(nftContracts[i], ids[i], amounts[i], destinationVault, 0);
+        }
     }
 
     function _move1155(address nftContract, uint256 tokenId, uint256 amount, address destinationVault, uint256 duration) internal {
