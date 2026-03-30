@@ -38,6 +38,7 @@ btnSiwe.addEventListener('click', async () => {
         await provider.send("eth_requestAccounts", []);
         const signer = provider.getSigner();
         const address = await signer.getAddress();
+        const network = await provider.getNetwork();
 
         // 1. Get Nonce
         const nonceRes = await fetch(`${API_BASE}/auth/nonce?address=${address}`);
@@ -47,7 +48,7 @@ btnSiwe.addEventListener('click', async () => {
         const domain = window.location.host;
         const origin = window.location.origin;
         const statement = 'Sign in with Ethereum to Brag Charity.';
-        const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\n${statement}\n\nURI: ${origin}\nVersion: 1\nChain ID: 1\nNonce: ${nonce}\nIssued At: ${new Date().toISOString()}`;
+        const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\n${statement}\n\nURI: ${origin}\nVersion: 1\nChain ID: ${network.chainId}\nNonce: ${nonce}\nIssued At: ${new Date().toISOString()}`;
 
         // 3. Sign Message
         const signature = await signer.signMessage(message);
