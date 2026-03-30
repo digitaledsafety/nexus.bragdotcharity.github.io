@@ -31,45 +31,73 @@ Whether you're building a decentralized gallery, a cross-platform gaming reward 
 
 ## 2. Application Setup (Local Development)
 
-You can run the entire brag.charity ecosystem locally to test contracts, the bridge, and the frontend without spending real ETH.
+The easiest way to run the entire brag.charity ecosystem is using the **Environment Manager**, which orchestrates the Hardhat node, the Minecraft bridge, and the frontend server.
 
-### 1. Start the Local Node
-In a separate terminal, start the Hardhat network:
+### 1. First-Time Setup (Deploy, Seed, Start)
+To deploy contracts locally, seed initial test data, and start all services in one command:
 ```shell
-npm run node
+npm run env:init
 ```
 
-### 2. Deploy Contracts Locally
-Deploy the smart contracts and automatically export ABIs for the frontend:
+### 2. Resuming Services
+If you have already deployed and seeded, you can start the services later with:
 ```shell
-npm run deploy:local
+npm run env:start
 ```
 
-### 3. Start the Minecraft Bridge
-The bridge coordinates between the game and the blockchain, handling the Verification Handshake.
-```shell
-npm run bridge
-```
+### 3. Service Dashboard & Status
+The Environment Manager runs a control API on port `9002`. You can verify the status of all managed services (Hardhat, Bridge, Frontend) by visiting:
+`http://localhost:9002/status`
 
-### 4. Serve the Frontend
-Open the interactive gallery and manager:
-```shell
-npm run serve
-```
-Then visit `http://localhost:3000` in your browser.
+Once running, the interactive gallery and manager are available at `http://localhost:3000`.
 
 ---
 
-## 3. Seeding Test Data
+## 3. Configuration & Integration
 
-Jumpstart your local environment with realistic data (minted NFTs, active vaults, and marketplace offers).
+### Overriding Contract Addresses
+By default, the bridge and frontend use addresses from the latest local deployment. You can override these using environment variables:
+*   `CONTRACT_ADDRESS_BRAGNFT`: Address of the Nexus NFT contract.
+*   `CONTRACT_ADDRESS_NFTMARKETPLACE`: Address of the Marketplace.
+*   `CONTRACT_ADDRESS_TREASURY`: Address of the Treasury.
 
-### Local Seeding
-After your local node is running, execute:
+### Updating Frontend Addresses
+After a new deployment, contract addresses and ABIs are automatically synchronized to `frontend/contracts.js`. To manually trigger this synchronization:
 ```shell
-npm run seed:local
+node scripts/export-abis.cjs
 ```
-This script automates the creation of 5 `ExhibitVault` instances (e.g., `server-1`, `gallery-1`), mints a BragNFT, and creates a sample marketplace offer.
+
+### Minecraft Server Integration
+The bridge coordinates between the blockchain and game servers. It provides an HTTP API on port `9000` (for web-based linking) and a WebSocket server on port `9001` (for Minecraft client connections).
+
+To map specific Minecraft servers to `ExhibitVault` contracts, create a `bridge-config.json` file in the root directory:
+
+```json
+{
+  "servers": {
+    "survival-1": {
+      "vaultAddress": "0x...",
+      "name": "Survival Server"
+    },
+    "creative-1": {
+      "vaultAddress": "0x...",
+      "name": "Creative Server"
+    }
+  }
+}
+```
+
+### Pointing to External Minecraft Managers
+If you are using an external service like `bedrock-server-manager` for remote server control, set the `MANAGER_API_URL` environment variable:
+```shell
+export MANAGER_API_URL="http://your-manager-api:9003"
+```
+
+---
+
+## 4. Seeding Test Data
+
+Jumpstart your local environment with realistic data (minted NFTs, active vaults, and marketplace offers). **Note:** `npm run env:init` already performs local seeding.
 
 ### Sepolia Seeding (Gasless)
 To test the full account abstraction flow on the Sepolia testnet:
