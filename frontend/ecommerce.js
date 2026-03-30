@@ -3,15 +3,15 @@ let signer;
 let network;
 
 const NETWORK_NAMES = {
-    1: 'mainnet',
-    11155111: 'sepolia',
-    17000: 'holesky',
-    31337: 'hardhat',
-    137: 'polygon',
-    80001: 'mumbai',
-    42161: 'arbitrum',
-    10: 'optimism',
-    8453: 'base'
+    1: 'Mainnet',
+    11155111: 'Sepolia',
+    17000: 'Holesky',
+    31337: 'Hardhat',
+    137: 'Polygon',
+    80001: 'Mumbai',
+    42161: 'Arbitrum',
+    10: 'Optimism',
+    8453: 'Base'
 };
 
 // Reusable Wallet Connection
