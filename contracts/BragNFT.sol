@@ -195,7 +195,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
         string memory media = onChainMedia[tokenId];
 
         if (bytes(media).length > 0) {
-            if (_isAudio(media)) {
+            if (_isMultimedia(media)) {
                 animationURL = media;
                 imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, message)))));
             } else {
@@ -204,7 +204,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
         } else {
             string memory offChainURI = super.tokenURI(tokenId);
             if (bytes(offChainURI).length > 0) {
-                if (_isAudio(offChainURI)) {
+                if (_isMultimedia(offChainURI)) {
                     animationURL = offChainURI;
                     imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, message)))));
                 } else {
@@ -218,7 +218,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
 
         string memory animationPart = "";
         if (bytes(animationURL).length > 0) {
-            animationPart = string(abi.encodePacked('", "animation_url": "', animationURL));
+            animationPart = string(abi.encodePacked('", "animation_url": "', _escapeJSON(animationURL)));
         }
 
         string memory json = Base64.encode(
@@ -230,7 +230,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
                         '", "description": "Brag.Charity Donation NFT',
                         bytes(message).length > 0 ? string(abi.encodePacked(": ", _escapeJSON(message))) : "",
                         '", "image": "',
-                        imageURI,
+                        _escapeJSON(imageURI),
                         animationPart,
                         '", "attributes": [{"trait_type": "Message", "value": "',
                         _escapeJSON(message),
@@ -243,28 +243,41 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     }
 
     /**
-     * @dev Detect if a media string is an audio data URI or has a common audio extension.
+     * @dev Detect if a media string is an audio/video data URI or has a common multimedia extension.
      */
-    function _isAudio(string memory _media) internal pure returns (bool) {
+    function _isMultimedia(string memory _media) internal pure returns (bool) {
         bytes memory b = bytes(_media);
         uint256 len = b.length;
         if (len < 4) return false;
 
-        // Check for "data:audio/" prefix
+        // Check for "data:audio/" or "data:video/" prefix
         if (len >= 11) {
-            if (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':' &&
-                b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') {
-                return true;
+            if (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':') {
+                if (b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') return true;
+                if (len >= 11 && b[5] == 'v' && b[6] == 'i' && b[7] == 'd' && b[8] == 'e' && b[9] == 'o' && b[10] == '/') return true;
             }
         }
 
-        // Check for common extensions: .mp3, .wav, .ogg, .m4a, .aac
+        // Check for 3-letter extensions: .mp3, .wav, .ogg, .m4a, .aac, .mp4, .mov, .ogv, .m4v
         if (b[len - 4] == '.') {
-            if (b[len - 3] == 'm' && b[len - 2] == 'p' && b[len - 1] == '3') return true;
-            if (b[len - 3] == 'w' && b[len - 2] == 'a' && b[len - 1] == 'v') return true;
-            if (b[len - 3] == 'o' && b[len - 2] == 'g' && b[len - 1] == 'g') return true;
-            if (b[len - 3] == 'm' && b[len - 2] == '4' && b[len - 1] == 'a') return true;
-            if (b[len - 3] == 'a' && b[len - 2] == 'a' && b[len - 1] == 'c') return true;
+            bytes1 b1 = b[len - 3];
+            bytes1 b2 = b[len - 2];
+            bytes1 b3 = b[len - 1];
+
+            if (b1 == 'm' && b2 == 'p' && b3 == '3') return true;
+            if (b1 == 'w' && b2 == 'a' && b3 == 'v') return true;
+            if (b1 == 'o' && b2 == 'g' && b3 == 'g') return true;
+            if (b1 == 'm' && b2 == '4' && b3 == 'a') return true;
+            if (b1 == 'a' && b2 == 'a' && b3 == 'c') return true;
+            if (b1 == 'm' && b2 == 'p' && b3 == '4') return true;
+            if (b1 == 'm' && b2 == 'o' && b3 == 'v') return true;
+            if (b1 == 'o' && b2 == 'g' && b3 == 'v') return true;
+            if (b1 == 'm' && b2 == '4' && b3 == 'v') return true;
+        }
+
+        // Check for 4-letter extensions: .webm
+        if (len >= 5 && b[len - 5] == '.') {
+            if (b[len - 4] == 'w' && b[len - 3] == 'e' && b[len - 2] == 'b' && b[len - 1] == 'm') return true;
         }
 
         return false;

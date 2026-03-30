@@ -146,6 +146,25 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     }
 
     /**
+     * @notice Batch cancel multiple offers you made
+     * @param nftContracts Array of NFT contract addresses
+     * @param tokenIds Array of token IDs
+     */
+    function cancelOffers(address[] calldata nftContracts, uint256[] calldata tokenIds) external nonReentrant {
+        require(nftContracts.length == tokenIds.length, "Mismatched arrays");
+        for (uint256 i = 0; i < nftContracts.length; i++) {
+            address nftContract = nftContracts[i];
+            uint256 tokenId = tokenIds[i];
+            Offer memory offer = offers[nftContract][tokenId][msg.sender];
+            if (offer.price > 0) {
+                delete offers[nftContract][tokenId][msg.sender];
+                paymentToken.safeTransfer(msg.sender, offer.price);
+                emit OfferCanceled(nftContract, tokenId, msg.sender);
+            }
+        }
+    }
+
+    /**
      * @notice Reject an offer for your NFT
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token being sold
