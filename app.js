@@ -149,8 +149,52 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
         document.getElementById('mintOnChain').checked = true;
         const fileType = file.type.startsWith('audio/') ? 'Audio' : 'Image';
         log(`${fileType} loaded as Data URI. "Store Media On-chain" selected.`, 'success');
+
+        // Hide AI preview if user uploads manually
+        document.getElementById('aiPreview').classList.add('hidden');
     };
     reader.readAsDataURL(file);
+});
+
+document.getElementById('btnGenerateAI').addEventListener('click', async () => {
+    const btn = document.getElementById('btnGenerateAI');
+    const originalHtml = btn.innerHTML;
+
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        log('Requesting AI NFT generation from Gemini...');
+
+        const response = await fetch('http://localhost:9000/generate-nft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) throw new Error('AI Generation failed');
+
+        const data = await response.json();
+
+        document.getElementById('mintTokenURI').value = data.image;
+        document.getElementById('mintOnChain').checked = true;
+
+        // Update Preview
+        const preview = document.getElementById('aiPreview');
+        const previewImg = document.getElementById('aiPreviewImg');
+        const promptText = document.getElementById('aiPromptText');
+
+        previewImg.src = data.image;
+        promptText.innerText = data.prompt;
+        preview.classList.remove('hidden');
+
+        log(`AI Image generated! Prompt: ${data.prompt}`, 'success');
+        if (data.isMock) log('Note: Using mock image as GEMINI_API_KEY is not set.', 'info');
+
+    } catch (error) {
+        log(`AI Generation error: ${error.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
 });
 
 document.getElementById('btnMint').addEventListener('click', async () => {
