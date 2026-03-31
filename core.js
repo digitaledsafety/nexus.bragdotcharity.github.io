@@ -44,7 +44,7 @@ async function initCore() {
 
     // 4. Handle auth for manager page
     if (window.location.pathname.includes('manager.html')) {
-        await checkAuth();
+        //await checkAuth();
     }
 
     initNavbarUI();
