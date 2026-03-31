@@ -1,0 +1,7 @@
+127.0.0.1 - - [31/Mar/2026 15:46:34] "GET /marketplace.html HTTP/1.1" 200 -
+127.0.0.1 - - [31/Mar/2026 15:46:35] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [31/Mar/2026 15:46:35] "GET /contracts.js HTTP/1.1" 200 -
+127.0.0.1 - - [31/Mar/2026 15:46:35] "GET /core.js HTTP/1.1" 200 -
+127.0.0.1 - - [31/Mar/2026 15:46:35] "GET /marketplace.js HTTP/1.1" 200 -
+127.0.0.1 - - [31/Mar/2026 15:46:40] "GET /product.html?id=0&addr=0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E HTTP/1.1" 200 -
+127.0.0.1 - - [31/Mar/2026 15:46:40] "GET /product.js HTTP/1.1" 200 -
