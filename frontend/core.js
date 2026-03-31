@@ -9,6 +9,9 @@ let network;
 let userAddress;
 let cart = [];
 
+let resolveCoreReady;
+const coreReady = new Promise(resolve => { resolveCoreReady = resolve; });
+
 const NETWORK_NAMES = {
     1: 'Mainnet',
     11155111: 'Sepolia',
@@ -48,6 +51,7 @@ async function initCore() {
     }
 
     initNavbarUI();
+    resolveCoreReady();
 }
 
 /**
@@ -165,8 +169,13 @@ function getContract(name, addressOverride = null) {
  * Get deployment address for current network
  */
 function getDeploymentAddress(name) {
+    const alias = name === 'NFTMarketplace' ? 'Marketplace' : name;
+
     // Priority 1: localStorage overrides (from Manager)
-    const override = localStorage.getItem(`addr${name}`);
+    let override = localStorage.getItem(`addr${name}`);
+    if (!override && alias !== name) {
+        override = localStorage.getItem(`addr${alias}`);
+    }
     if (override && ethers.utils.isAddress(override)) return override;
 
     // Priority 2: CONTRACT_DATA
@@ -176,7 +185,7 @@ function getDeploymentAddress(name) {
 
     // Support name mapping (Marketplace -> NFTMarketplace)
     if (deps) {
-        return deps[name] || deps[name === 'NFTMarketplace' ? 'Marketplace' : name] || null;
+        return deps[name] || deps[alias] || null;
     }
     return null;
 }

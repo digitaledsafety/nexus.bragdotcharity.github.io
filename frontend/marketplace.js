@@ -3,9 +3,8 @@
  * Uses core.js for wallet and contract interactions.
  */
 
-let cart = [];
-
 async function initMarketplace() {
+    await coreReady;
     // Shared cart already initialized in core.js initCore
     await loadNFTs();
 }

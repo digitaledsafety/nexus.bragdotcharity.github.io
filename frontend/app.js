@@ -16,14 +16,22 @@ function log(message, type = 'info') {
 }
 
 // Persistent addresses logic for Admin
-const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrMarketplace'];
+const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrNFTMarketplace'];
 addressFields.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    const saved = localStorage.getItem(id);
+    let saved = localStorage.getItem(id);
+    // Backward compatibility for NFTMarketplace
+    if (!saved && id === 'addrNFTMarketplace') {
+        saved = localStorage.getItem('addrMarketplace');
+    }
     if (saved) el.value = saved;
     el.addEventListener('change', (e) => {
         localStorage.setItem(id, e.target.value);
+        // Also save to the alias key for backward compatibility or different naming conventions
+        if (id === 'addrNFTMarketplace') {
+            localStorage.setItem('addrMarketplace', e.target.value);
+        }
         const contractName = id.replace('addr', '');
         const explorerInput = document.getElementById(`explorerAddr_${contractName}`);
         if (explorerInput) explorerInput.value = e.target.value;
@@ -174,7 +182,7 @@ if (btnAutofill) {
         const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
         if (deps) {
             Object.entries(deps).forEach(([name, addr]) => {
-                const fieldId = name === 'NFTMarketplace' ? 'addrMarketplace' : `addr${name}`;
+                const fieldId = `addr${name}`;
                 const field = document.getElementById(fieldId);
                 if (field) {
                     field.value = addr;
