@@ -9,6 +9,7 @@ let selectedUsdAmount = 50; // Default
 const CAUSE_NAME = "Empowering STEM Education";
 
 async function initHome() {
+    await coreReady;
     setupHomeListeners();
     await fetchEthPrice();
     await refreshHomeStats();

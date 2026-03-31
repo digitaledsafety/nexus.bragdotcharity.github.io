@@ -4,6 +4,7 @@
  */
 
 async function initProduct() {
+    await coreReady;
     const urlParams = new URLSearchParams(window.location.search);
     const tokenId = urlParams.get('id');
     const contractAddr = urlParams.get('addr');
