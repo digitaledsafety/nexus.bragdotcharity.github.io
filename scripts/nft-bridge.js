@@ -47,6 +47,8 @@ const statusCache = new Map();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "MOCK_SECRET";
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:9000/auth/google/callback";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
 const activePlayers = new Map(); // XUID -> { serverId, playerName }
 const serverSockets = new Map(); // serverId -> WebSocket (Minecraft uses only one connection per server)
 
@@ -537,6 +539,97 @@ export const handleRequest = async (req, res) => {
             const data = await getOwnershipStatus(uuid, serverId, playerName);
             res.writeHead(200);
             res.end(JSON.stringify(data));
+            return;
+        }
+
+        if (pathname === '/generate-nft' && req.method === 'POST') {
+            const themes = ["crypto art", "glitch art", "philanthropy", "decentralized finance", "charity"];
+            const styles = ["abstract", "cyberpunk", "minimalist", "surreal", "vibrant", "ethereal", "pixel art", "watercolor"];
+            const subjects = ["global connection", "digital heart", "decentralized future", "giving back", "blockchain network", "humanity", "technology"];
+
+            const theme = themes[Math.floor(Math.random() * themes.length)];
+            const style = styles[Math.floor(Math.random() * styles.length)];
+            const subject = subjects[Math.floor(Math.random() * subjects.length)];
+            const prompt = `A ${style} ${theme} representation of ${subject}, high resolution, digital art, symbolic of giving and technology.`;
+
+            console.log(`Generating AI NFT with prompt: ${prompt}`);
+
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "MOCK_KEY") {
+                console.log("No Gemini API key found, returning mock image");
+                // Return a mock base64 image (a simple blue square)
+                const mockImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA6jnS7gAAAABJRU5ErkJggg==";
+                res.writeHead(200);
+                res.end(JSON.stringify({
+                    image: mockImage,
+                    prompt: prompt,
+                    isMock: true
+                }));
+                return;
+            }
+
+            try {
+                // Using the Imagen 4.0 endpoint for Google AI Studio as per latest docs
+                // Note: docs say imagen-3.0 is shut down, recommending imagen-4.0-generate-001
+                const api_url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${GEMINI_API_KEY}`;
+
+                const response = await fetch(api_url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        instances: [{ prompt: prompt }],
+                        parameters: { sampleCount: 1 }
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(`Gemini API error: ${response.status} - ${error}`);
+                }
+
+                const result = await response.json();
+                // Correct response format for Gemini API generateImages:
+                // result.generatedImages[0].image.imageBytes (which is base64 in REST)
+                // Wait, REST docs say:
+                // "predictions": [ { "bytesBase64Encoded": "..." } ]
+                // Re-checking the REST example in the docs:
+                /*
+                curl -X POST \
+                    "https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict" \
+                    -H "x-goog-api-key: $GEMINI_API_KEY" \
+                    -H "Content-Type: application/json" \
+                    -d '{
+                        "instances": [ { "prompt": "Robot holding a red skateboard" } ],
+                        "parameters": { "sampleCount": 4 }
+                      }'
+                */
+                // The JS SDK uses generatedImages, but the REST API uses predictions for Imagen.
+                // Let's verify the response structure for REST.
+                // Based on Vertex AI (which is similar), it's result.predictions[0].bytesBase64Encoded
+
+                let base64Image;
+                if (result.predictions && result.predictions[0]) {
+                    base64Image = result.predictions[0].bytesBase64Encoded;
+                } else if (result.generatedImages && result.generatedImages[0]) {
+                    base64Image = result.generatedImages[0].image.imageBytes;
+                }
+
+                if (!base64Image) {
+                    throw new Error("Invalid response format from Gemini API: " + JSON.stringify(result));
+                }
+
+                const dataUri = `data:image/png;base64,${base64Image}`;
+
+                res.writeHead(200);
+                res.end(JSON.stringify({
+                    image: dataUri,
+                    prompt: prompt,
+                    isMock: false
+                }));
+            } catch (error) {
+                console.error("AI Generation failed:", error);
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: error.message }));
+            }
             return;
         }
 
