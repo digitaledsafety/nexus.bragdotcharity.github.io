@@ -8,8 +8,8 @@ const emailSection = document.getElementById('emailSection');
 
 tabWallet.addEventListener('click', () => {
     tabWallet.classList.add('border-indigo-500', 'text-white');
-    tabWallet.classList.remove('border-transparent', 'text-slate-400');
-    tabEmail.classList.add('border-transparent', 'text-slate-400');
+    tabWallet.classList.remove('border-transparent', 'text-slate-500');
+    tabEmail.classList.add('border-transparent', 'text-slate-500');
     tabEmail.classList.remove('border-indigo-500', 'text-white');
     walletSection.classList.remove('hidden');
     emailSection.classList.add('hidden');
@@ -17,8 +17,8 @@ tabWallet.addEventListener('click', () => {
 
 tabEmail.addEventListener('click', () => {
     tabEmail.classList.add('border-indigo-500', 'text-white');
-    tabEmail.classList.remove('border-transparent', 'text-slate-400');
-    tabWallet.classList.add('border-transparent', 'text-slate-400');
+    tabEmail.classList.remove('border-transparent', 'text-slate-500');
+    tabWallet.classList.add('border-transparent', 'text-slate-500');
     tabWallet.classList.remove('border-indigo-500', 'text-white');
     emailSection.classList.remove('hidden');
     walletSection.classList.add('hidden');
@@ -114,7 +114,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (token) {
         document.getElementById('linkingStatus').classList.remove('hidden');
         document.getElementById('displayToken').innerText = token;
-        document.getElementById('subtext').classList.add('hidden');
+        const subtext = document.getElementById('subtext');
+        if (subtext) subtext.classList.add('hidden');
     }
 });
 
