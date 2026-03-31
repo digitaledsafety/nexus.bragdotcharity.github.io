@@ -153,10 +153,19 @@
                         <label class="block text-sm mb-1">Media (URI or Data URI)</label>
                         <div class="flex space-x-2 mb-2">
                             <input type="text" id="mintTokenURI" class="input-field" placeholder="ipfs://... or data:image/...">
+                            <button id="btnGenerateAI" class="btn-secondary px-3" title="Generate AI Image">
+                                <i class="fas fa-robot"></i>
+                            </button>
                             <button id="btnUpload" class="btn-secondary px-3" title="Upload File">
                                 <i class="fas fa-upload"></i>
                             </button>
                             <input type="file" id="fileInput" class="hidden" accept="image/*,audio/*">
+                        </div>
+                        <div id="aiPreview" class="hidden mb-2 relative group">
+                            <img id="aiPreviewImg" src="" class="w-full h-32 object-cover rounded border border-slate-600">
+                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded">
+                                <span id="aiPromptText" class="text-[10px] text-white px-2 text-center italic"></span>
+                            </div>
                         </div>
                         <label class="flex items-center space-x-2 cursor-pointer">
                             <input type="checkbox" id="mintOnChain" class="rounded border-slate-700 bg-slate-800 text-purple-600 focus:ring-purple-500">

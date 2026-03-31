@@ -45,7 +45,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
         minimumDonation = _minimumDonation;
-        maxSupply = 10000; // Default max supply
+        maxSupply = 100; // Default max supply
     }
 
     function totalSupply() public view returns (uint256) {

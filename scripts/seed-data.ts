@@ -217,7 +217,24 @@ async function main() {
 
 
     // 1. User A: Mint BragNFT by donating
-    console.log("User A: Minting BragNFT...");
+    console.log("User A: Minting BragNFT with AI-generated media...");
+
+    // Try to get AI media from the bridge
+    let aiMedia = "https://picsum.photos/400";
+    try {
+        console.log("Requesting AI image from bridge...");
+        const response = await fetch('http://localhost:9000/generate-nft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (response.ok) {
+            const data: any = await response.json();
+            aiMedia = data.image;
+            console.log("AI Image received (length: " + aiMedia.length + ")");
+        }
+    } catch (e) {
+        console.warn("Could not fetch AI image from bridge, falling back to picsum:", (e as any).message);
+    }
 
     let donateTxHash;
     if (isSepolia) {
@@ -231,12 +248,13 @@ async function main() {
                         type: 'function',
                         inputs: [
                             { name: 'message', type: 'string' },
-                            { name: 'media', type: 'string' }
+                            { name: 'media', type: 'string' },
+                            { name: 'onChain', type: 'bool' }
                         ],
                         outputs: [],
                         stateMutability: 'payable'
                     }],
-                    args: ["Seeding data!", "https://picsum.photos/400"]
+                    args: ["Seeding data with AI!", aiMedia, true]
                 }),
                 value: donationAmount
             }
@@ -251,12 +269,13 @@ async function main() {
                     type: 'function',
                     inputs: [
                         { name: 'message', type: 'string' },
-                        { name: 'media', type: 'string' }
+                        { name: 'media', type: 'string' },
+                        { name: 'onChain', type: 'bool' }
                     ],
                     outputs: [],
                     stateMutability: 'payable'
                 }],
-                args: ["Seeding data!", "https://picsum.photos/400"]
+                args: ["Seeding data with AI!", aiMedia, true]
             }),
             value: donationAmount
         });
