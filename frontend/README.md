@@ -12,7 +12,7 @@ This project is configured with a GitHub Action (`.github/workflows/deploy-pages
 
 ## Local Development
 
-Simply open `index.html` (Discovery) or `manager.html` (Admin) in your browser. You will need MetaMask installed and connected to a network (Localhost, Sepolia, or Mainnet) where the contracts are deployed.
+Simply open `index.html` (Home) or `marketplace.html` (Marketplace) in your browser. You will need MetaMask installed and connected to a network (Localhost, Sepolia, or Mainnet) where the contracts are deployed.
 
 ## Contract Addresses
 
@@ -32,11 +32,11 @@ The product page identifies NFTs using URL parameters.
 **Example:**
 `product.html?id=0&addr=0x5FC8d32690cc91D4c39d9d3abcBD16989F875707`
 
-The **Discovery Gallery** (`index.html`) automatically switches from demo data to real blockchain data once it detects `Donated` events from the BragNFT contract.
+The **Marketplace** (`marketplace.html`) automatically switches from demo data to real blockchain data once it detects `Donated` events from the BragNFT contract.
 
 ### Triggering Live Data
 To see real data in the gallery and product page, you must fire a `Donated` event:
-1.  Open **`manager.html`** and connect your wallet.
+1.  Open **`manager.html`** (Admin) and connect your wallet.
 2.  Use the **Mint BragNFT** section.
 3.  Fill in the donation amount, a message, and upload an image (this generates a Data URI).
 4.  Check **"Store Media On-chain"** (ensures immediate compatibility with the current frontend).

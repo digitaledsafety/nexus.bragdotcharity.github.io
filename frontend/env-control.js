@@ -11,24 +11,24 @@ async function updateStatus() {
 
         for (const [name, svc] of Object.entries(data.services)) {
             const card = document.createElement('div');
-            card.className = 'bg-slate-800 p-3 rounded-lg border border-slate-700';
+            card.className = 'bg-white/5 p-4 rounded-2xl border border-white/5';
 
             const isRunning = svc.status === 'running';
-            const statusColor = isRunning ? 'text-green-400' : 'text-red-400';
+            const statusColor = isRunning ? 'text-emerald-500' : 'text-red-500';
             const statusIcon = isRunning ? 'fa-check-circle' : 'fa-times-circle';
 
             card.innerHTML = `
-                <div class="flex justify-between items-start mb-2">
-                    <span class="text-sm font-bold uppercase text-slate-400">${name}</span>
-                    <i class="fas ${statusIcon} ${statusColor}"></i>
+                <div class="flex justify-between items-start mb-3">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">${name}</span>
+                    <i class="fas ${statusIcon} ${statusColor} text-xs"></i>
                 </div>
                 <div class="flex justify-between items-center">
-                    <span class="text-xs text-slate-500">${svc.logCount} logs</span>
-                    <div class="space-x-1">
-                        <button onclick="controlService('${name}', '${isRunning ? 'stop' : 'start'}')" class="text-[10px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 transition-colors">
+                    <span class="text-[10px] font-bold text-slate-600">${svc.logCount} LOGS</span>
+                    <div class="flex space-x-1">
+                        <button onclick="controlService('${name}', '${isRunning ? 'stop' : 'start'}')" class="text-[9px] font-black uppercase tracking-tighter px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                             ${isRunning ? 'Stop' : 'Start'}
                         </button>
-                        <button onclick="viewLogs('${name}')" class="text-[10px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 transition-colors">
+                        <button onclick="viewLogs('${name}')" class="text-[9px] font-black uppercase tracking-tighter px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                             Logs
                         </button>
                     </div>
@@ -40,15 +40,11 @@ async function updateStatus() {
         // Update Minecraft Status
         const mcStatus = document.getElementById('mcStatus');
         if (data.minecraft.connected) {
-            mcStatus.innerHTML = `
-                <span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
-                <span class="text-sm text-slate-400">Server Manager Online</span>
-            `;
+            mcStatus.innerText = 'ONLINE';
+            mcStatus.className = 'text-[10px] font-black text-emerald-500';
         } else {
-            mcStatus.innerHTML = `
-                <span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
-                <span class="text-sm text-slate-400">Server Manager Offline</span>
-            `;
+            mcStatus.innerText = 'OFFLINE';
+            mcStatus.className = 'text-[10px] font-black text-red-500';
         }
 
     } catch (e) {
@@ -72,14 +68,13 @@ async function viewLogs(name) {
         const res = await fetch(`${ENV_API}/logs?service=${name}`);
         const logs = await res.json();
 
-        // Use the existing log element in manager.html to show these logs
         const logElement = document.getElementById('logs');
-        logElement.innerHTML = `<div class="text-purple-400 border-b border-slate-700 pb-1 mb-2">--- Showing logs for ${name.toUpperCase()} ---</div>`;
+        logElement.innerHTML = `<div class="text-indigo-400 border-b border-white/5 pb-2 mb-3 font-black uppercase tracking-widest text-[9px] flex items-center"><i class="fas fa-terminal mr-2"></i> Log Stream: ${name}</div>`;
 
         logs.forEach(entry => {
             const div = document.createElement('div');
-            div.className = 'text-slate-300';
-            div.innerText = `[${new Date(entry.timestamp).toLocaleTimeString()}] ${entry.message}`;
+            div.className = 'text-slate-400 mb-1';
+            div.innerHTML = `<span class="text-slate-600 mr-2">[${new Date(entry.timestamp).toLocaleTimeString()}]</span> ${entry.message}`;
             logElement.appendChild(div);
         });
         logElement.scrollTop = logElement.scrollHeight;
@@ -88,19 +83,24 @@ async function viewLogs(name) {
     }
 }
 
-document.getElementById('btnEnvStatus').addEventListener('click', updateStatus);
+// Check if element exists before adding listener (for new mobile-friendly manager)
+const btnStatus = document.getElementById('btnEnvStatus');
+if (btnStatus) btnStatus.addEventListener('click', updateStatus);
 
-document.getElementById('btnEnvInit').addEventListener('click', async () => {
-    if (confirm('This will restart the node, re-deploy all contracts and seed fresh data. Continue?')) {
-        try {
-            await fetch(`${ENV_API}/init`, { method: 'POST' });
-            alert('Initialization started. Check logs for progress.');
-            updateStatus();
-        } catch (e) {
-            alert('Failed to start initialization');
+const btnInit = document.getElementById('btnEnvInit');
+if (btnInit) {
+    btnInit.addEventListener('click', async () => {
+        if (confirm('This will restart the node, re-deploy all contracts and seed fresh data. Continue?')) {
+            try {
+                await fetch(`${ENV_API}/init`, { method: 'POST' });
+                alert('Initialization started. Check logs for progress.');
+                updateStatus();
+            } catch (e) {
+                alert('Failed to start initialization');
+            }
         }
-    }
-});
+    });
+}
 
 document.getElementById('btnMcStart').addEventListener('click', async () => {
     try {
