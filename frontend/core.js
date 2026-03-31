@@ -197,9 +197,10 @@ function initNavbarUI() {
     // Highight active link
     const path = window.location.pathname;
     document.querySelectorAll('.nav-link').forEach(link => {
-        if (path.includes(link.getAttribute('href'))) {
+        const href = link.getAttribute('href');
+        if (href && path.includes(href)) {
             link.classList.add('active');
-        } else if (path.endsWith('/') && link.getAttribute('href') === 'index.html') {
+        } else if (path.endsWith('/') && href === 'index.html') {
             link.classList.add('active');
         } else {
             link.classList.remove('active');
