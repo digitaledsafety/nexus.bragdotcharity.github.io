@@ -169,11 +169,15 @@ function getContract(name, addressOverride = null) {
  * Get deployment address for current network
  */
 function getDeploymentAddress(name) {
-    const alias = name === 'NFTMarketplace' ? 'Marketplace' : name;
+    const aliases = {
+        'NFTMarketplace': 'Marketplace',
+        'Marketplace': 'NFTMarketplace'
+    };
+    const alias = aliases[name];
 
     // Priority 1: localStorage overrides (from Manager)
     let override = localStorage.getItem(`addr${name}`);
-    if (!override && alias !== name) {
+    if (!override && alias) {
         override = localStorage.getItem(`addr${alias}`);
     }
     if (override && ethers.utils.isAddress(override)) return override;
@@ -183,9 +187,8 @@ function getDeploymentAddress(name) {
     const chainId = network.chainId.toString();
     const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
 
-    // Support name mapping (Marketplace -> NFTMarketplace)
     if (deps) {
-        return deps[name] || deps[alias] || null;
+        return deps[name] || (alias ? deps[alias] : null) || null;
     }
     return null;
 }

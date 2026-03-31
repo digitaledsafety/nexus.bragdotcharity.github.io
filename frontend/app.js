@@ -20,22 +20,25 @@ const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrNFTMarketplace
 addressFields.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
+
+    // Load saved value
     let saved = localStorage.getItem(id);
-    // Backward compatibility for NFTMarketplace
-    if (!saved && id === 'addrNFTMarketplace') {
-        saved = localStorage.getItem('addrMarketplace');
-    }
+    if (!saved && id === 'addrNFTMarketplace') saved = localStorage.getItem('addrMarketplace');
     if (saved) el.value = saved;
-    el.addEventListener('change', (e) => {
+
+    // Save on any change (input or change event)
+    const saver = (e) => {
         localStorage.setItem(id, e.target.value);
-        // Also save to the alias key for backward compatibility or different naming conventions
-        if (id === 'addrNFTMarketplace') {
-            localStorage.setItem('addrMarketplace', e.target.value);
-        }
+        if (id === 'addrNFTMarketplace') localStorage.setItem('addrMarketplace', e.target.value);
+
+        // Sync with any hidden explorer fields if they exist
         const contractName = id.replace('addr', '');
         const explorerInput = document.getElementById(`explorerAddr_${contractName}`);
         if (explorerInput) explorerInput.value = e.target.value;
-    });
+    };
+
+    el.addEventListener('change', saver);
+    el.addEventListener('input', saver);
 });
 
 /**
@@ -182,11 +185,19 @@ if (btnAutofill) {
         const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
         if (deps) {
             Object.entries(deps).forEach(([name, addr]) => {
-                const fieldId = `addr${name}`;
+                let fieldId = `addr${name}`;
+                // Special mapping for Marketplace alias
+                if (name === 'Marketplace' || name === 'NFTMarketplace') {
+                    fieldId = 'addrNFTMarketplace';
+                }
+
                 const field = document.getElementById(fieldId);
                 if (field) {
                     field.value = addr;
                     localStorage.setItem(fieldId, addr);
+                    if (fieldId === 'addrNFTMarketplace') {
+                        localStorage.setItem('addrMarketplace', addr);
+                    }
                 }
             });
             log('Addresses pre-filled from deployment data', 'success');
@@ -195,7 +206,25 @@ if (btnAutofill) {
 }
 
 // Initializer for Manager specific UI
-window.addEventListener('DOMContentLoaded', () => {
+async function initManager() {
+    await coreReady;
+
+    // Auto-fill empty fields if we can find them in deployment data
+    addressFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.value) {
+            const contractName = id.replace('addr', '');
+            const addr = getDeploymentAddress(contractName);
+            if (addr) {
+                el.value = addr;
+                localStorage.setItem(id, addr);
+                if (id === 'addrNFTMarketplace') localStorage.setItem('addrMarketplace', addr);
+            }
+        }
+    });
+
     // Re-trigger wallet UI update specifically for manager elements
     if (userAddress) updateWalletUI();
-});
+}
+
+window.addEventListener('DOMContentLoaded', initManager);
