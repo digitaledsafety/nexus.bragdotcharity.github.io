@@ -39,6 +39,16 @@ async function loadProductData(contractAddr, tokenId) {
         const metadata = parseMetadata(tokenURI);
         if (!metadata) throw new Error("Metadata parse failed");
 
+        // Receipt Link
+        if (receiptId > 0) {
+            const receiptContract = getContract('DonationReceipt');
+            const explorerUrl = network?.chainId === 11155111 ? "https://sepolia.etherscan.io/address/" : "https://etherscan.io/address/";
+            const receiptLink = document.getElementById('dispReceipt');
+            if (receiptLink && receiptContract) {
+                receiptLink.href = `${explorerUrl}${receiptContract.address}?a=${receiptId}`;
+            }
+        }
+
         // UI Injection
         document.getElementById('nftName').textContent = metadata.name;
         document.getElementById('breadcrumbName').textContent = metadata.name;
@@ -61,14 +71,32 @@ async function loadProductData(contractAddr, tokenId) {
             document.getElementById('nftImage').src = metadata.image;
         }
 
-        // Marketplace State
+        // Marketplace State - Find highest active offer
         if (marketplace) {
-            const offer = await marketplace.offers(contractAddr, tokenId);
-            if (offer.buyer !== ethers.constants.AddressZero) {
-                document.getElementById('noOffer').classList.add('hidden');
-                document.getElementById('offerExists').classList.remove('hidden');
-                document.getElementById('highestOfferPrice').textContent = `${ethers.utils.formatEther(offer.price)} BRAG`;
-                document.getElementById('highestOfferBuyer').textContent = `by ${offer.buyer.substring(0, 6)}...${offer.buyer.substring(38)}`;
+            try {
+                const offerFilter = marketplace.filters.OfferCreated(contractAddr, tokenId);
+                const offerEvents = await marketplace.queryFilter(offerFilter, -50000);
+
+                let highestOffer = { price: ethers.BigNumber.from(0), buyer: ethers.constants.AddressZero };
+
+                // Track unique buyers to check their current offer state
+                const buyers = [...new Set(offerEvents.map(e => e.args.buyer))];
+
+                for (const buyer of buyers) {
+                    const currentOffer = await marketplace.offers(contractAddr, tokenId, buyer);
+                    if (currentOffer.price.gt(highestOffer.price)) {
+                        highestOffer = { price: currentOffer.price, buyer: buyer };
+                    }
+                }
+
+                if (highestOffer.price.gt(0)) {
+                    document.getElementById('noOffer').classList.add('hidden');
+                    document.getElementById('offerExists').classList.remove('hidden');
+                    document.getElementById('highestOfferPrice').textContent = `${ethers.utils.formatEther(highestOffer.price)} BRAG`;
+                    document.getElementById('highestOfferBuyer').textContent = `by ${highestOffer.buyer.substring(0, 6)}...${highestOffer.buyer.substring(38)}`;
+                }
+            } catch (err) {
+                console.warn("Failed to load offers", err);
             }
         }
 
