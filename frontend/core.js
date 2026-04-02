@@ -45,6 +45,11 @@ async function initCore() {
     // 3. Initialize Cart
     initCart();
 
+    // 4. Handle auth for manager page
+    if (window.location.pathname.includes('manager.html')) {
+        //await checkAuth();
+    }
+
     initNavbarUI();
     resolveCoreReady();
 }
@@ -201,7 +206,17 @@ function initNavbarUI() {
         };
     }
 
-    // Nav Link Highlighting is now handled by router.js updateActiveLink
+    // Highight active link
+    const path = window.location.pathname;
+    document.querySelectorAll('.nav-link').forEach(link => {
+        if (path.includes(link.getAttribute('href'))) {
+            link.classList.add('active');
+        } else if (path.endsWith('/') && link.getAttribute('href') === 'index.html') {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
+        }
+    });
 }
 
 /**
@@ -283,7 +298,7 @@ function updateCartUI() {
 async function checkAuth() {
     const sessionId = localStorage.getItem('brag_session');
     if (!sessionId) {
-        router.navigateTo('login');
+        window.location.href = 'login.html';
         return;
     }
 
@@ -291,7 +306,7 @@ async function checkAuth() {
         const res = await fetch(`http://localhost:9000/auth/session?sessionId=${sessionId}`);
         if (!res.ok) {
             localStorage.removeItem('brag_session');
-            router.navigateTo('login');
+            window.location.href = 'login.html';
         }
     } catch (e) {
         console.warn("Auth server unavailable.");
