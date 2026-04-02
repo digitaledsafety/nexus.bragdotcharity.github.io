@@ -24,6 +24,7 @@
             border-color: rgba(99, 102, 241, 0.3);
         }
     </style>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 </head>
 <body class="min-h-screen flex flex-col">
     <!-- Navbar -->
@@ -32,7 +33,7 @@
             <div class="flex justify-between h-20 items-center">
                 <!-- Logo -->
                 <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href='index.html'">
-                    <img src="https://digitaleducationsafety.org/assets/img/logo.jpg" alt="Logo" class="h-10 w-10 rounded-full border border-white/10 shadow-lg">
+                    <model-viewer src="https://cdn.digitaleducationsafety.org/assets/models/coin.glb" autoplay auto-rotate interaction-prompt="none" class="h-10 w-10 rounded-full border border-white/10 shadow-lg" style="--poster-color: transparent;"></model-viewer>
                     <div class="hidden xs:block">
                         <span class="text-2xl font-black bg-clip-text text-transparent brag-gradient">brag</span>
                         <span class="text-2xl font-light">.charity</span>
