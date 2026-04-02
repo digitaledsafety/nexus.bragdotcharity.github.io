@@ -177,6 +177,34 @@ if (btnRegisterVault) {
     });
 }
 
+const btnFlag = document.getElementById('btnFlag');
+if (btnFlag) {
+    btnFlag.addEventListener('click', async () => {
+        const addr = document.getElementById('modContractAddr').value;
+        const tokenId = document.getElementById('modTokenId').value;
+        try {
+            const contract = getAdminContract('BragNFT', addr);
+            await txHandler(contract.setFlagged(tokenId, true), 'Content Flagged Successfully');
+        } catch (e) {
+            log(e.message, 'error');
+        }
+    });
+}
+
+const btnUnflag = document.getElementById('btnUnflag');
+if (btnUnflag) {
+    btnUnflag.addEventListener('click', async () => {
+        const addr = document.getElementById('modContractAddr').value;
+        const tokenId = document.getElementById('modTokenId').value;
+        try {
+            const contract = getAdminContract('BragNFT', addr);
+            await txHandler(contract.setFlagged(tokenId, false), 'Content Unflagged Successfully');
+        } catch (e) {
+            log(e.message, 'error');
+        }
+    });
+}
+
 const btnAutofill = document.getElementById('btnAutofill');
 if (btnAutofill) {
     btnAutofill.addEventListener('click', () => {
