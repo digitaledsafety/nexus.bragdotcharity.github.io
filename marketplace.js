@@ -4,19 +4,9 @@
  */
 
 async function initMarketplace() {
-    setupMarketplaceListeners();
+    await coreReady;
+    // Shared cart already initialized in core.js initCore
     await loadNFTs();
-}
-
-function cleanupMarketplace() {
-    // No specific long-running processes to cleanup here yet
-}
-
-function setupMarketplaceListeners() {
-    const sortOrder = document.getElementById('sortOrder');
-    if (sortOrder) {
-        sortOrder.onchange = () => loadNFTs();
-    }
 }
 
 /**
@@ -30,7 +20,7 @@ async function loadNFTs() {
     const bragNFT = getContract('BragNFT');
     if (!bragNFT) {
         nftGrid.innerHTML = '';
-        if (emptyState) emptyState.classList.remove('hidden');
+        emptyState.classList.remove('hidden');
         return;
     }
 
@@ -51,13 +41,10 @@ async function loadNFTs() {
         }
 
         nftGrid.innerHTML = '';
-        if (emptyState) emptyState.classList.add('hidden');
+        emptyState.classList.add('hidden');
 
-        // Sort
-        const sortOrderEl = document.getElementById('sortOrder');
-        const isOldest = sortOrderEl && sortOrderEl.value === 'oldest';
-        const sortedEvents = isOldest ? events : events.reverse();
-
+        // Sort by newest first
+        const sortedEvents = events.reverse();
         const seenTokens = new Set();
 
         for (const event of sortedEvents) {
@@ -70,7 +57,7 @@ async function loadNFTs() {
     } catch (e) {
         console.error('Error loading marketplace NFTs:', e);
         nftGrid.innerHTML = '';
-        if (emptyState) emptyState.classList.remove('hidden');
+        emptyState.classList.remove('hidden');
     }
 }
 
@@ -79,7 +66,6 @@ async function loadNFTs() {
  */
 async function renderNFTCard(contract, tokenId) {
     const nftGrid = document.getElementById('nftGrid');
-    if (!nftGrid) return;
     try {
         const tokenURI = await contract.tokenURI(tokenId);
         const metadata = parseMetadata(tokenURI);
@@ -89,7 +75,7 @@ async function renderNFTCard(contract, tokenId) {
         card.className = 'glass-card rounded-[2rem] overflow-hidden group cursor-pointer transition-all hover:translate-y-[-8px] border-white/5 hover:border-indigo-500/30';
         card.onclick = (e) => {
             if (e.target.closest('.add-to-cart-btn')) return;
-            router.navigateTo('product', `?id=${tokenId}&addr=${contract.address}`);
+            window.location.href = `product.html?id=${tokenId}&addr=${contract.address}`;
         };
 
         const isAudio = metadata.animation_url && metadata.animation_url.includes('audio');
@@ -118,18 +104,12 @@ async function renderNFTCard(contract, tokenId) {
             </div>
         `;
 
-        const addToCartBtn = card.querySelector('.add-to-cart-btn');
-        if (addToCartBtn) {
-            addToCartBtn.onclick = (e) => {
-                e.stopPropagation();
-                addToCart({
-                    id: tokenId,
-                    address: contract.address,
-                    name: metadata.name,
-                    image: metadata.image
-                });
-            };
-        }
+        card.querySelector('.add-to-cart-btn').onclick = () => addToCart({
+            id: tokenId,
+            address: contract.address,
+            name: metadata.name,
+            image: metadata.image
+        });
 
         nftGrid.appendChild(card);
     } catch (e) {
@@ -143,7 +123,6 @@ async function renderNFTCard(contract, tokenId) {
  */
 function renderDemoMarketCard() {
     const nftGrid = document.getElementById('nftGrid');
-    if (!nftGrid) return;
     const card = document.createElement('div');
     card.className = 'glass-card rounded-[2rem] overflow-hidden group cursor-pointer border-white/5';
     card.innerHTML = `
@@ -158,7 +137,10 @@ function renderDemoMarketCard() {
             <p class="text-slate-600 text-xs uppercase tracking-widest font-black">Minted by DESF</p>
         </div>
     `;
-    card.onclick = () => router.navigateTo('home', '#donate');
+    card.onclick = () => window.location.href = 'index.html#donate';
     nftGrid.innerHTML = '';
     nftGrid.appendChild(card);
 }
+
+
+window.addEventListener('load', initMarketplace);

@@ -1,35 +1,12 @@
 const ENV_API = 'http://localhost:9002';
-let statusInterval;
-
-function initEnvControl() {
-    setupEnvListeners();
-
-    // Auto-update status every 5 seconds
-    if (statusInterval) clearInterval(statusInterval);
-    statusInterval = setInterval(updateStatus, 5000);
-    updateStatus();
-
-    // Export to global scope for onclick handlers
-    window.controlService = controlService;
-    window.viewLogs = viewLogs;
-}
-
-function cleanupEnvControl() {
-    if (statusInterval) {
-        clearInterval(statusInterval);
-        statusInterval = null;
-    }
-}
 
 async function updateStatus() {
-    const container = document.getElementById('envServiceStatus');
-    if (!container) return;
-
     try {
         const res = await fetch(`${ENV_API}/status`);
         if (!res.ok) throw new Error('Manager offline');
         const data = await res.json();
 
+        const container = document.getElementById('envServiceStatus');
         container.innerHTML = '';
 
         for (const [name, svc] of Object.entries(data.services)) {
@@ -62,19 +39,18 @@ async function updateStatus() {
 
         // Update Minecraft Status
         const mcStatus = document.getElementById('mcStatus');
-        if (mcStatus) {
-            if (data.minecraft.connected) {
-                mcStatus.innerText = 'ONLINE';
-                mcStatus.className = 'text-[10px] font-black text-emerald-500';
-            } else {
-                mcStatus.innerText = 'OFFLINE';
-                mcStatus.className = 'text-[10px] font-black text-red-500';
-            }
+        if (data.minecraft.connected) {
+            mcStatus.innerText = 'ONLINE';
+            mcStatus.className = 'text-[10px] font-black text-emerald-500';
+        } else {
+            mcStatus.innerText = 'OFFLINE';
+            mcStatus.className = 'text-[10px] font-black text-red-500';
         }
 
     } catch (e) {
         console.error('Failed to update status:', e);
-        if (container) container.innerHTML = '<div class="col-span-4 text-center text-slate-500 text-sm italic py-4">Environment Manager (scripts/env-manager.js) is not running on port 9002</div>';
+        const container = document.getElementById('envServiceStatus');
+        container.innerHTML = '<div class="col-span-4 text-center text-slate-500 text-sm italic py-4">Environment Manager (scripts/env-manager.js) is not running on port 9002</div>';
     }
 }
 
@@ -93,7 +69,6 @@ async function viewLogs(name) {
         const logs = await res.json();
 
         const logElement = document.getElementById('logs');
-        if (!logElement) return;
         logElement.innerHTML = `<div class="text-indigo-400 border-b border-white/5 pb-2 mb-3 font-black uppercase tracking-widest text-[9px] flex items-center"><i class="fas fa-terminal mr-2"></i> Log Stream: ${name}</div>`;
 
         logs.forEach(entry => {
@@ -108,91 +83,85 @@ async function viewLogs(name) {
     }
 }
 
-function setupEnvListeners() {
-    // Check if element exists before adding listener (for new mobile-friendly manager)
-    const btnStatus = document.getElementById('btnEnvStatus');
-    if (btnStatus) btnStatus.onclick = updateStatus;
+// Check if element exists before adding listener (for new mobile-friendly manager)
+const btnStatus = document.getElementById('btnEnvStatus');
+if (btnStatus) btnStatus.addEventListener('click', updateStatus);
 
-    const btnInit = document.getElementById('btnEnvInit');
-    if (btnInit) {
-        btnInit.onclick = async () => {
-            if (confirm('This will restart the node, re-deploy all contracts and seed fresh data. Continue?')) {
-                try {
-                    await fetch(`${ENV_API}/init`, { method: 'POST' });
-                    alert('Initialization started. Check logs for progress.');
-                    updateStatus();
-                } catch (e) {
-                    alert('Failed to start initialization');
-                }
-            }
-        };
-    }
-
-    const btnMcStart = document.getElementById('btnMcStart');
-    if (btnMcStart) {
-        btnMcStart.onclick = async () => {
+const btnInit = document.getElementById('btnEnvInit');
+if (btnInit) {
+    btnInit.addEventListener('click', async () => {
+        if (confirm('This will restart the node, re-deploy all contracts and seed fresh data. Continue?')) {
             try {
-                const res = await fetch(`${ENV_API}/minecraft/start`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Minecraft servers starting...');
-                } else {
-                    alert('Failed to start Minecraft servers: ' + (data.error || 'Unknown error'));
-                }
+                await fetch(`${ENV_API}/init`, { method: 'POST' });
+                alert('Initialization started. Check logs for progress.');
+                updateStatus();
             } catch (e) {
-                alert('Failed to connect to Environment Manager');
+                alert('Failed to start initialization');
             }
-        };
-    }
-
-    const btnMcStop = document.getElementById('btnMcStop');
-    if (btnMcStop) {
-        btnMcStop.onclick = async () => {
-            try {
-                const res = await fetch(`${ENV_API}/minecraft/stop`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Minecraft servers stopping...');
-                } else {
-                    alert('Failed to stop Minecraft servers: ' + (data.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Failed to connect to Environment Manager');
-            }
-        };
-    }
-
-    const btnMcRestart = document.getElementById('btnMcRestart');
-    if (btnMcRestart) {
-        btnMcRestart.onclick = async () => {
-            try {
-                const res = await fetch(`${ENV_API}/minecraft/restart`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Minecraft servers restarting...');
-                } else {
-                    alert('Failed to restart Minecraft servers: ' + (data.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Failed to connect to Environment Manager');
-            }
-        };
-    }
-
-    const btnInjectAddon = document.getElementById('btnInjectAddon');
-    if (btnInjectAddon) {
-        btnInjectAddon.onclick = async () => {
-            try {
-                const res = await fetch(`${ENV_API}/minecraft/inject`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Addon injected successfully to all managed servers!');
-                } else {
-                    alert('Injection failed: ' + (data.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Failed to connect to Environment Manager for injection');
-            }
-        };
-    }
+        }
+    });
 }
+
+document.getElementById('btnMcStart').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/start`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Minecraft servers starting...');
+        } else {
+            alert('Failed to start Minecraft servers: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager');
+    }
+});
+
+document.getElementById('btnMcStop').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/stop`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Minecraft servers stopping...');
+        } else {
+            alert('Failed to stop Minecraft servers: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager');
+    }
+});
+
+document.getElementById('btnMcRestart').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/restart`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Minecraft servers restarting...');
+        } else {
+            alert('Failed to restart Minecraft servers: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager');
+    }
+});
+
+document.getElementById('btnInjectAddon').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/inject`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Addon injected successfully to all managed servers!');
+        } else {
+            alert('Injection failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager for injection');
+    }
+});
+
+// Auto-update status every 5 seconds
+setInterval(updateStatus, 5000);
+updateStatus();
+
+// Export to global scope for onclick handlers
+window.controlService = controlService;
+window.viewLogs = viewLogs;
