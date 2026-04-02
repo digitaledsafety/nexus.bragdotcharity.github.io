@@ -22,3 +22,7 @@
 # Hardhat coverage reports
 /coverage
 mappings.json
+
+# Local development artifacts
+serve.log
+test-results/
