@@ -129,17 +129,20 @@ const router = {
         const footer = document.getElementById('main-footer');
         const risk = document.getElementById('risk-disclosure');
         const cartBtn = document.getElementById('cartBtn');
+        const viewport = document.getElementById('app-viewport');
 
         if (routeName === 'login') {
             if (nav) nav.classList.add('hidden');
             if (footer) footer.classList.add('hidden');
             if (risk) risk.classList.add('hidden');
             document.body.classList.add('justify-center');
+            if (viewport) viewport.classList.remove('flex-grow');
         } else {
             if (nav) nav.classList.remove('hidden');
             if (footer) footer.classList.remove('hidden');
             if (risk) risk.classList.remove('hidden');
             document.body.classList.remove('justify-center');
+            if (viewport) viewport.classList.add('flex-grow');
 
             if (routeName === 'marketplace' || routeName === 'product') {
                 if (cartBtn) cartBtn.classList.remove('hidden');

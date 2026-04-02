@@ -142,7 +142,7 @@ function setupGoogleLogin() {
     const btnGoogle = document.getElementById('btnGoogle');
     if (!btnGoogle) return;
     btnGoogle.onclick = () => {
-        const redirectUri = window.location.origin + '/?page=manager';
+        const redirectUri = window.location.origin + '/?page=login';
         window.location.href = `${API_BASE}/auth/google?redirectUri=${encodeURIComponent(redirectUri)}`;
     };
 }
