@@ -38,15 +38,8 @@ if (fs.existsSync(MAPPINGS_FILE)) {
 }
 
 const pendingTokens = new Map();
-const nonces = new Map(); // address -> nonce
-const sessions = new Map(); // sessionId -> { address, email, type }
-const emailWallets = new Map(); // email -> address (mock)
-const googleStates = new Map(); // state -> redirectUri
 const statusCache = new Map();
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID";
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "MOCK_SECRET";
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:9000/auth/google/callback";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
 const activePlayers = new Map(); // XUID -> { serverId, playerName }
@@ -368,6 +361,12 @@ export const handleRequest = async (req, res) => {
 
             // Allow skipping signature verification for local dev testing if requested
             if (!skipVerify || CHAIN_ID !== 31337) {
+                // Verify that the message includes the address to prevent simple replay (stateless)
+                // In a production environment, you should also verify the timestamp.
+                if (!message.includes(address)) {
+                    res.writeHead(400); res.end(JSON.stringify({ error: "Message must include address" }));
+                    return;
+                }
                 const isValid = await verifyMessage({ address, message, signature });
                 if (!isValid) { res.writeHead(401); res.end(JSON.stringify({ error: "Invalid signature" })); return; }
             }
@@ -376,149 +375,6 @@ export const handleRequest = async (req, res) => {
             saveMappings();
             res.writeHead(200);
             res.end(JSON.stringify({ success: true, platformId: pending.platformId, address }));
-            return;
-        }
-
-        // SIWE: Get Nonce
-        if (pathname === '/auth/nonce' && req.method === 'GET') {
-            const address = searchParams.get('address');
-            if (!address) { res.writeHead(400); res.end(JSON.stringify({ error: "Address required" })); return; }
-            const nonce = randomUUID();
-            nonces.set(address.toLowerCase(), nonce);
-            res.writeHead(200);
-            res.end(JSON.stringify({ nonce }));
-            return;
-        }
-
-        // SIWE: Verify Signature
-        if (pathname === '/auth/verify' && req.method === 'POST') {
-            let body = '';
-            for await (const chunk of req) body += chunk;
-            const { message, signature, address } = JSON.parse(body);
-
-            const lowerAddr = address.toLowerCase();
-            const expectedNonce = nonces.get(lowerAddr);
-
-            if (!expectedNonce || !message.includes(expectedNonce)) {
-                res.writeHead(400); res.end(JSON.stringify({ error: "Invalid nonce or message" }));
-                return;
-            }
-
-            const isValid = await verifyMessage({ address, message, signature });
-            if (!isValid) {
-                res.writeHead(401); res.end(JSON.stringify({ error: "Invalid signature" }));
-                return;
-            }
-
-            const sessionId = randomUUID();
-            sessions.set(sessionId, { address: lowerAddr, type: 'wallet', createdAt: Date.now() });
-            nonces.delete(lowerAddr);
-
-            res.writeHead(200);
-            res.end(JSON.stringify({ success: true, sessionId, address: lowerAddr }));
-            return;
-        }
-
-        // Email Login (Mock)
-        if (pathname === '/auth/login-email' && req.method === 'POST') {
-            let body = '';
-            for await (const chunk of req) body += chunk;
-            const { email, password } = JSON.parse(body);
-
-            // Simple mock auth
-            if (!email || !password) {
-                res.writeHead(400); res.end(JSON.stringify({ error: "Email and password required" }));
-                return;
-            }
-
-            let address = emailWallets.get(email);
-            if (!address) {
-                // Create a mock address for this email
-                address = `0x${Buffer.from(email).toString('hex').padEnd(40, '0').slice(0, 40)}`;
-                emailWallets.set(email, address);
-            }
-
-            const sessionId = randomUUID();
-            sessions.set(sessionId, { address, email, type: 'email', createdAt: Date.now() });
-
-            res.writeHead(200);
-            res.end(JSON.stringify({ success: true, sessionId, address, email }));
-            return;
-        }
-
-        // Google OAuth2: Start
-        if (pathname === '/auth/google' && req.method === 'GET') {
-            const state = randomUUID();
-            googleStates.set(state, searchParams.get('redirectUri') || 'http://localhost:3000/manager.html');
-
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-                `client_id=${GOOGLE_CLIENT_ID}&` +
-                `redirect_uri=${encodeURIComponent(GOOGLE_REDIRECT_URI)}&` +
-                `response_type=code&` +
-                `scope=openid%20email%20profile&` +
-                `state=${state}`;
-
-            res.writeHead(302, { 'Location': authUrl });
-            res.end();
-            return;
-        }
-
-        // Google OAuth2: Callback
-        if (pathname === '/auth/google/callback' && req.method === 'GET') {
-            const code = searchParams.get('code');
-            const state = searchParams.get('state');
-            const originalRedirect = googleStates.get(state) || 'http://localhost:3000/manager.html';
-            googleStates.delete(state);
-
-            if (!code) {
-                res.writeHead(302, { 'Location': `${originalRedirect}?error=google_auth_failed` });
-                res.end();
-                return;
-            }
-
-            // In a real scenario, we would exchange the code for a token here.
-            // For this implementation, we'll simulate the successful exchange.
-            // In production, you'd use fetch() to https://oauth2.googleapis.com/token
-
-            let email = "verified-user@example.com"; // Mocked
-            if (GOOGLE_CLIENT_ID !== "MOCK_CLIENT_ID") {
-                try {
-                    // Real exchange logic would go here
-                    // const tokenRes = await fetch('https://oauth2.googleapis.com/token', { ... });
-                    // const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { ... });
-                    // email = userInfo.email;
-                } catch (e) {
-                    console.error("Google Token Exchange Failed:", e);
-                }
-            }
-
-            let address = emailWallets.get(email);
-            if (!address) {
-                address = `0x${Buffer.from(email).toString('hex').padEnd(40, '0').slice(0, 40)}`;
-                emailWallets.set(email, address);
-            }
-
-            const sessionId = randomUUID();
-            sessions.set(sessionId, { address, email, type: 'google', createdAt: Date.now() });
-
-            // Redirect back to frontend with session info
-            res.writeHead(302, {
-                'Location': `${originalRedirect}?sessionId=${sessionId}&address=${address}&email=${encodeURIComponent(email)}`
-            });
-            res.end();
-            return;
-        }
-
-        // Session Check
-        if (pathname === '/auth/session' && req.method === 'GET') {
-            const sessionId = searchParams.get('sessionId');
-            const session = sessions.get(sessionId);
-            if (!session) {
-                res.writeHead(401); res.end(JSON.stringify({ error: "Invalid session" }));
-                return;
-            }
-            res.writeHead(200);
-            res.end(JSON.stringify(session));
             return;
         }
 
@@ -646,7 +502,7 @@ export const handleRequest = async (req, res) => {
 
 const server = http.createServer(handleRequest);
 
-export { sessions, nonces, pendingTokens, mappings, emailWallets };
+export { pendingTokens, mappings };
 
 async function fetchWithRetry(fn, label, maxRetries = 3) {
     for (let i = 0; i < maxRetries; i++) {
