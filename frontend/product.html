@@ -26,41 +26,7 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-    <!-- Navbar -->
-    <nav class="border-b border-white/5 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-20 items-center">
-                <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href='index.html'">
-                    <img src="https://digitaleducationsafety.org/assets/img/logo.jpg" alt="Logo" class="h-10 w-10 rounded-full border border-white/10 shadow-lg">
-                    <div class="hidden xs:block">
-                        <span class="text-2xl font-black bg-clip-text text-transparent brag-gradient">brag</span>
-                        <span class="text-2xl font-light">.charity</span>
-                    </div>
-                </div>
-
-                <div class="hidden md:flex items-center space-x-8 text-sm font-bold uppercase tracking-wider">
-                    <a href="index.html" class="nav-link">Home</a>
-                    <a href="marketplace.html" class="nav-link">Marketplace</a>
-                    <a href="manager.html" class="nav-link text-slate-500 hover:text-slate-300">Manager</a>
-                </div>
-
-                <div class="flex items-center space-x-4">
-                    <button id="btnConnect" class="btn-primary px-6 py-2.5 rounded-full font-extrabold text-xs shadow-lg shadow-indigo-500/20 uppercase tracking-tighter">
-                        Connect Wallet
-                    </button>
-                    <button id="mobileMenuBtn" class="md:hidden text-slate-400 hover:text-white p-2">
-                        <i class="fas fa-bars text-xl"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div id="mobileMenu" class="hidden md:hidden border-t border-white/5 p-4 space-y-4">
-            <a href="index.html" class="block py-2 text-slate-300 font-bold">Home</a>
-            <a href="marketplace.html" class="block py-2 text-slate-300 font-bold">Marketplace</a>
-            <a href="manager.html" class="block py-2 text-slate-500 font-bold">Manager</a>
-        </div>
-    </nav>
+    <div id="header-include"></div>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
         <div id="productLoading" class="text-center py-32 space-y-4">
@@ -203,11 +169,7 @@
         </div>
     </main>
 
-    <footer class="border-t border-white/5 py-12 mt-20">
-        <div class="max-w-7xl mx-auto px-4 text-center text-slate-600 text-[10px] font-black uppercase tracking-[0.2em]">
-            &copy; 2026 brag.charity &bull; Secure Smart Contract NFT Assets
-        </div>
-    </footer>
+    <div id="footer-include"></div>
 
     <script src="contracts.js"></script>
     <script src="core.js"></script>
