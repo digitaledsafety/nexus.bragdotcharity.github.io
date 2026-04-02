@@ -1,5 +1,5 @@
 /**
- * core.js - Shared infrastructure for Brag Charity Frontend
+ * core.js - Shared infrastructure for brag.charity Frontend
  * Consolidates wallet connection, contract interaction, and shared UI logic.
  */
 
@@ -22,42 +22,9 @@ const NETWORK_NAMES = {
 };
 
 /**
- * Load Header and Footer includes
- */
-async function loadHeaderFooter() {
-    const headerPlaceholder = document.getElementById('header-include');
-    const footerPlaceholder = document.getElementById('footer-include');
-
-    if (headerPlaceholder) {
-        try {
-            const resp = await fetch('header.html');
-            if (resp.ok) {
-                headerPlaceholder.innerHTML = await resp.text();
-            }
-        } catch (e) {
-            console.error("Failed to load header", e);
-        }
-    }
-
-    if (footerPlaceholder) {
-        try {
-            const resp = await fetch('footer.html');
-            if (resp.ok) {
-                footerPlaceholder.innerHTML = await resp.text();
-            }
-        } catch (e) {
-            console.error("Failed to load footer", e);
-        }
-    }
-}
-
-/**
  * Initialize core wallet logic
  */
 async function initCore() {
-    // 0. Load header/footer
-    await loadHeaderFooter();
-
     // 1. Try to connect wallet (silent)
     if (localStorage.getItem('wallet_connected') === 'true') {
         await connectWallet(true);
@@ -241,13 +208,23 @@ function initNavbarUI() {
 
     // Highight active link
     const path = window.location.pathname;
-    document.querySelectorAll('.nav-link').forEach(link => {
-        if (path.includes(link.getAttribute('href'))) {
-            link.classList.add('active');
-        } else if (path.endsWith('/') && link.getAttribute('href') === 'index.html') {
-            link.classList.add('active');
+    const navItems = document.querySelectorAll('[data-nav]');
+    navItems.forEach(item => {
+        const navId = item.getAttribute('data-nav');
+        const href = item.getAttribute('href');
+
+        const isActive = path.includes(href) ||
+                         (path.endsWith('/') && href === 'index.html') ||
+                         (path === '' && href === 'index.html');
+
+        if (isActive) {
+            item.classList.add('active');
+            if (item.classList.contains('text-slate-500')) {
+                item.classList.remove('text-slate-500');
+                item.classList.add('text-indigo-400');
+            }
         } else {
-            link.classList.remove('active');
+            item.classList.remove('active');
         }
     });
 }

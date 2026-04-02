@@ -75,7 +75,7 @@ describe('Auth Bridge API', () => {
         const nonce = "test-nonce-123";
         nonces.set(account.address.toLowerCase(), nonce);
 
-        const message = `Sign in to Brag Charity\nNonce: ${nonce}`;
+        const message = `Sign in to brag.charity\nNonce: ${nonce}`;
         const signature = await account.signMessage({ message });
 
         const req = new MockRequest("/auth/verify", "POST");

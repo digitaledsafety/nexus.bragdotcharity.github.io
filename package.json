@@ -10,7 +10,8 @@
     "test": "hardhat test",
     "compile": "hardhat compile",
     "env:init": "node scripts/env-manager.js init",
-    "env:start": "node scripts/env-manager.js start"
+    "env:start": "node scripts/env-manager.js start",
+    "build:frontend": "node scripts/build-frontend.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.0",

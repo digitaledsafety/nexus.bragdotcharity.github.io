@@ -17,10 +17,10 @@
             </div>
 
             <!-- Desktop Nav -->
-            <div class="hidden md:flex items-center space-x-8 text-sm font-bold uppercase tracking-wider">
-                <a href="index.html" class="nav-link">Home</a>
-                <a href="marketplace.html" class="nav-link">Marketplace</a>
-                <a href="manager.html" class="nav-link text-slate-500 hover:text-slate-300">Manager</a>
+            <div id="desktopNav" class="hidden md:flex items-center space-x-8 text-sm font-bold uppercase tracking-wider">
+                <a href="index.html" data-nav="index" class="nav-link">Home</a>
+                <a href="marketplace.html" data-nav="marketplace" class="nav-link">Marketplace</a>
+                <a href="manager.html" data-nav="manager" class="nav-link text-slate-500 hover:text-slate-300">Manager</a>
             </div>
 
             <!-- Wallet & Cart -->
@@ -43,9 +43,9 @@
 
     <!-- Mobile Menu -->
     <div id="mobileMenu" class="hidden md:hidden border-t border-white/5 p-4 space-y-4">
-        <a href="index.html" class="block py-2 text-slate-300 font-bold">Home</a>
-        <a href="marketplace.html" class="block py-2 text-slate-300 font-bold">Marketplace</a>
-        <a href="manager.html" class="block py-2 text-slate-500 font-bold">Manager (Admin)</a>
+        <a href="index.html" data-nav="index" class="block py-2 text-slate-300 font-bold">Home</a>
+        <a href="marketplace.html" data-nav="marketplace" class="block py-2 text-slate-300 font-bold">Marketplace</a>
+        <a href="manager.html" data-nav="manager" class="block py-2 text-slate-500 font-bold">Manager (Admin)</a>
         <div class="pt-4 border-t border-white/5">
             <button id="btnConnectMobile" class="w-full btn-primary py-3 rounded-xl font-bold">Connect Wallet</button>
         </div>

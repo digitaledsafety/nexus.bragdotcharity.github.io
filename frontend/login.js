@@ -47,7 +47,7 @@ btnSiwe.addEventListener('click', async () => {
         // 2. Prepare SIWE Message
         const domain = window.location.host;
         const origin = window.location.origin;
-        const statement = 'Sign in with Ethereum to Brag Charity.';
+        const statement = 'Sign in with Ethereum to brag.charity.';
         const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\n${statement}\n\nURI: ${origin}\nVersion: 1\nChain ID: ${network.chainId}\nNonce: ${nonce}\nIssued At: ${new Date().toISOString()}`;
 
         // 3. Sign Message
