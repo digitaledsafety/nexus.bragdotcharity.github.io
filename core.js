@@ -45,11 +45,6 @@ async function initCore() {
     // 3. Initialize Cart
     initCart();
 
-    // 4. Handle auth for manager page
-    if (window.location.pathname.includes('manager.html')) {
-        //await checkAuth();
-    }
-
     initNavbarUI();
     resolveCoreReady();
 }
@@ -206,17 +201,7 @@ function initNavbarUI() {
         };
     }
 
-    // Highight active link
-    const path = window.location.pathname;
-    document.querySelectorAll('.nav-link').forEach(link => {
-        if (path.includes(link.getAttribute('href'))) {
-            link.classList.add('active');
-        } else if (path.endsWith('/') && link.getAttribute('href') === 'index.html') {
-            link.classList.add('active');
-        } else {
-            link.classList.remove('active');
-        }
-    });
+    // Nav Link Highlighting is now handled by router.js updateActiveLink
 }
 
 /**
@@ -298,7 +283,7 @@ function updateCartUI() {
 async function checkAuth() {
     const sessionId = localStorage.getItem('brag_session');
     if (!sessionId) {
-        window.location.href = 'login.html';
+        router.navigateTo('login');
         return;
     }
 
@@ -306,7 +291,7 @@ async function checkAuth() {
         const res = await fetch(`http://localhost:9000/auth/session?sessionId=${sessionId}`);
         if (!res.ok) {
             localStorage.removeItem('brag_session');
-            window.location.href = 'login.html';
+            router.navigateTo('login');
         }
     } catch (e) {
         console.warn("Auth server unavailable.");

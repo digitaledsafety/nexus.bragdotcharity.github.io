@@ -1,5 +1,5 @@
 /**
- * home.js - Logic for the index.html (Home) page.
+ * home.js - Logic for the home view.
  * Uses core.js for wallet and contract interactions.
  */
 
@@ -9,10 +9,13 @@ let selectedUsdAmount = 50; // Default
 const CAUSE_NAME = "Empowering STEM Education";
 
 async function initHome() {
-    await coreReady;
     setupHomeListeners();
     await fetchEthPrice();
     await refreshHomeStats();
+}
+
+function cleanupHome() {
+    // No specific long-running processes to cleanup here yet
 }
 
 async function fetchEthPrice() {
@@ -37,8 +40,10 @@ async function refreshHomeStats() {
         const current = await bragNFT.totalSupply();
         const remaining = total.sub(current);
 
-        document.getElementById('nftsTotal').innerText = total.toString();
-        document.getElementById('nftsRemaining').innerText = remaining.toString();
+        const totalEl = document.getElementById('nftsTotal');
+        const remEl = document.getElementById('nftsRemaining');
+        if (totalEl) totalEl.innerText = total.toString();
+        if (remEl) remEl.innerText = remaining.toString();
 
         // Raised Stats
         const treasuryAddr = await bragNFT.treasury();
@@ -47,8 +52,10 @@ async function refreshHomeStats() {
             const ethVal = parseFloat(ethers.utils.formatEther(balance));
             const usdVal = ethVal * ethPrice;
 
-            document.getElementById('totalRaisedETH').innerText = ethVal.toFixed(4);
-            document.getElementById('totalRaisedUSD').innerText = `$${usdVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            const ethRaisedEl = document.getElementById('totalRaisedETH');
+            const usdRaisedEl = document.getElementById('totalRaisedUSD');
+            if (ethRaisedEl) ethRaisedEl.innerText = ethVal.toFixed(4);
+            if (usdRaisedEl) usdRaisedEl.innerText = `$${usdVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
         // Contract Link
@@ -65,37 +72,40 @@ async function refreshHomeStats() {
 }
 
 function setupHomeListeners() {
-    document.getElementById('btnConnect').addEventListener('click', () => connectWallet());
-    document.getElementById('btnConnectMobile').addEventListener('click', () => connectWallet());
-
     const tierBtns = document.querySelectorAll('.tier-btn');
     tierBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.onclick = (e) => {
             tierBtns.forEach(b => b.classList.remove('active', 'border-indigo-500', 'bg-indigo-500/10'));
             btn.classList.add('active', 'border-indigo-500', 'bg-indigo-500/10');
             selectedUsdAmount = parseFloat(btn.dataset.usd);
-            document.getElementById('customAmount').value = '';
+            const customInput = document.getElementById('customAmount');
+            if (customInput) customInput.value = '';
             updateHomeConversion();
-        });
+        };
     });
 
-    document.getElementById('customAmount').addEventListener('input', (e) => {
-        tierBtns.forEach(b => b.classList.remove('active', 'border-indigo-500', 'bg-indigo-500/10'));
-        selectedUsdAmount = parseFloat(e.target.value) || 0;
-        updateHomeConversion();
-    });
+    const customInput = document.getElementById('customAmount');
+    if (customInput) {
+        customInput.oninput = (e) => {
+            tierBtns.forEach(b => b.classList.remove('active', 'border-indigo-500', 'bg-indigo-500/10'));
+            selectedUsdAmount = parseFloat(e.target.value) || 0;
+            updateHomeConversion();
+        };
+    }
 
-    document.getElementById('btnDonateETH').addEventListener('click', donateETH);
+    const btnDonate = document.getElementById('btnDonateETH');
+    if (btnDonate) btnDonate.onclick = donateETH;
 }
 
 function updateHomeConversion() {
     const ethDisplay = document.getElementById('ethConversion');
     if (selectedUsdAmount > 0 && ethPrice > 0) {
         const eth = selectedUsdAmount / ethPrice;
-        document.getElementById('ethAmount').innerText = eth.toFixed(5);
-        ethDisplay.classList.remove('hidden');
+        const ethAmountEl = document.getElementById('ethAmount');
+        if (ethAmountEl) ethAmountEl.innerText = eth.toFixed(5);
+        if (ethDisplay) ethDisplay.classList.remove('hidden');
     } else {
-        ethDisplay.classList.add('hidden');
+        if (ethDisplay) ethDisplay.classList.add('hidden');
     }
 }
 
@@ -129,19 +139,28 @@ async function donateETH() {
     } catch (e) {
         console.error(e);
         showModal("Donation Failed", e.reason || e.message || "Transaction failed.");
-        document.getElementById('statusIcon').innerHTML = '<i class="fas fa-times text-white"></i>';
-        document.getElementById('statusIcon').classList.replace('brag-gradient', 'bg-red-500');
+        const statusIcon = document.getElementById('statusIcon');
+        if (statusIcon) {
+            statusIcon.innerHTML = '<i class="fas fa-times text-white"></i>';
+            statusIcon.classList.replace('brag-gradient', 'bg-red-500');
+        }
     }
 }
 
 function showModal(title, desc) {
-    document.getElementById('modalStatus').classList.remove('hidden');
+    const modal = document.getElementById('modalStatus');
+    if (!modal) return;
+    modal.classList.remove('hidden');
     document.getElementById('statusTitle').innerText = title;
     document.getElementById('statusDesc').innerText = desc;
-    document.getElementById('statusIcon').innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i>';
-    document.getElementById('statusIcon').classList.add('brag-gradient');
-    document.getElementById('statusIcon').classList.remove('bg-red-500', 'bg-green-500');
-    document.getElementById('statusActions').classList.add('hidden');
+    const statusIcon = document.getElementById('statusIcon');
+    if (statusIcon) {
+        statusIcon.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i>';
+        statusIcon.classList.add('brag-gradient');
+        statusIcon.classList.remove('bg-red-500', 'bg-green-500');
+    }
+    const statusActions = document.getElementById('statusActions');
+    if (statusActions) statusActions.classList.add('hidden');
 }
 
 let lastReceipt = null;
@@ -150,19 +169,26 @@ function handleHomeSuccess(receipt) {
     lastReceipt = receipt;
     document.getElementById('statusTitle').innerText = "Impact Verified!";
     document.getElementById('statusDesc').innerText = "Your contribution has been recorded and your NFT minted. Thank you!";
-    document.getElementById('statusIcon').innerHTML = '<i class="fas fa-check text-white"></i>';
-    document.getElementById('statusIcon').classList.replace('brag-gradient', 'bg-emerald-500');
-    document.getElementById('statusActions').classList.remove('hidden');
+    const statusIcon = document.getElementById('statusIcon');
+    if (statusIcon) {
+        statusIcon.innerHTML = '<i class="fas fa-check text-white"></i>';
+        statusIcon.classList.replace('brag-gradient', 'bg-emerald-500');
+    }
+    const statusActions = document.getElementById('statusActions');
+    if (statusActions) statusActions.classList.remove('hidden');
 
     const explorerUrl = network?.chainId === 11155111 ? "https://sepolia.etherscan.io/tx/" : "https://etherscan.io/tx/";
-    document.getElementById('txExplorerLink').href = explorerUrl + receipt.transactionHash;
-    document.getElementById('btnDownloadReceipt').onclick = generateHomePDF;
+    const txLink = document.getElementById('txExplorerLink');
+    if (txLink) txLink.href = explorerUrl + receipt.transactionHash;
+    const downloadBtn = document.getElementById('btnDownloadReceipt');
+    if (downloadBtn) downloadBtn.onclick = generateHomePDF;
 
     refreshHomeStats();
 }
 
 function closeModal() {
-    document.getElementById('modalStatus').classList.add('hidden');
+    const modal = document.getElementById('modalStatus');
+    if (modal) modal.classList.add('hidden');
 }
 
 async function generateHomePDF() {
@@ -192,5 +218,3 @@ async function generateHomePDF() {
 
     doc.save(`Brag_Receipt_${lastReceipt.transactionHash.substring(0, 8)}.pdf`);
 }
-
-window.addEventListener('load', initHome);
