@@ -37,7 +37,12 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     // Optional on-chain media storage
     mapping(uint256 => string) public onChainMedia;
 
+    // Moderation state
+    mapping(uint256 => bool) public flagged;
+
     event Donated(address indexed donor, uint256 amount, uint256 nftTokenId, uint256 receiptTokenId, string message);
+    event TokenReported(uint256 indexed tokenId, address indexed reporter, string reason);
+    event TokenFlagged(uint256 indexed tokenId, bool status);
 
     constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
         ERC721("BragNFT", "BRAGNFT")
@@ -88,6 +93,28 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
 
     function setBragToken(address _bragToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         bragToken = IBragToken(_bragToken);
+    }
+
+    /**
+     * @notice Report inappropriate media associated with a token.
+     * @param tokenId The ID of the token being reported.
+     * @param reason A brief description of why the content is inappropriate.
+     */
+    function report(uint256 tokenId, string calldata reason) external {
+        _requireOwned(tokenId);
+        emit TokenReported(tokenId, msg.sender, reason);
+    }
+
+    /**
+     * @notice Flag or unflag a token for inappropriate content.
+     * @dev Restricted to administrators.
+     * @param tokenId The ID of the token.
+     * @param status True to flag (hide), false to unflag.
+     */
+    function setFlagged(uint256 tokenId, bool status) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _requireOwned(tokenId);
+        flagged[tokenId] = status;
+        emit TokenFlagged(tokenId, status);
     }
 
     /**
@@ -178,6 +205,23 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
+
+        if (flagged[tokenId]) {
+            string memory flaggedJson = Base64.encode(
+                bytes(
+                    string(
+                        abi.encodePacked(
+                            '{"name": "BragNFT #',
+                            tokenId.toString(),
+                            ' [FLAGGED]", "description": "This content has been flagged for moderation and is hidden.", "image": "data:image/svg+xml;base64,',
+                            Base64.encode(bytes(_generateFlaggedSVG(tokenId))),
+                            '", "attributes": [{"trait_type": "Moderation", "value": "Flagged"}]}'
+                        )
+                    )
+                )
+            );
+            return string(abi.encodePacked("data:application/json;base64,", flaggedJson));
+        }
 
         // Get message from linked receipt
         uint256 receiptId = nftToReceipt[tokenId];
@@ -294,6 +338,21 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
             '<rect width="100%" height="100%" fill="#6366f1" />',
             '<text x="50%" y="50%" class="base" dominant-baseline="middle" text-anchor="middle">',
             displayText,
+            '</text></svg>'
+        ));
+    }
+
+    /**
+     * @dev Generates a placeholder SVG for flagged content.
+     */
+    function _generateFlaggedSVG(uint256 tokenId) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
+            '<style>.base { fill: #f87171; font-family: sans-serif; font-size: 16px; font-weight: bold; }</style>',
+            '<rect width="100%" height="100%" fill="#111827" />',
+            '<text x="50%" y="45%" class="base" dominant-baseline="middle" text-anchor="middle">Content Flagged</text>',
+            '<text x="50%" y="55%" class="base" style="font-size: 12px; fill: #9ca3af;" dominant-baseline="middle" text-anchor="middle">BragNFT #',
+            tokenId.toString(),
             '</text></svg>'
         ));
     }

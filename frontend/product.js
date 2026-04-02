@@ -155,6 +155,23 @@ function setupProductActions(contractAddr, tokenId, metadata) {
             image: metadata.image
         });
     };
+
+    document.getElementById('btnReport').onclick = async () => {
+        const reason = prompt('Please specify why this content is being reported (e.g., Offensive, Copyright):');
+        if (!reason) return;
+
+        const bragNFT = getContract('BragNFT', contractAddr);
+        if (!bragNFT) return alert('Contract not found on this network');
+
+        try {
+            const tx = await bragNFT.report(tokenId, reason);
+            console.log('Report transaction sent. Waiting for confirmation...');
+            await tx.wait();
+            alert('Report submitted successfully. Administrators will review.');
+        } catch (e) {
+            alert('Reporting failed: ' + (e.reason || e.message));
+        }
+    };
 }
 
 
