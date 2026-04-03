@@ -1,5 +1,5 @@
 /**
- * core.js - Shared infrastructure for Brag Charity Frontend
+ * core.js - Shared infrastructure for brag.charity Frontend
  * Consolidates wallet connection, contract interaction, and shared UI logic.
  */
 
@@ -208,13 +208,23 @@ function initNavbarUI() {
 
     // Highight active link
     const path = window.location.pathname;
-    document.querySelectorAll('.nav-link').forEach(link => {
-        if (path.includes(link.getAttribute('href'))) {
-            link.classList.add('active');
-        } else if (path.endsWith('/') && link.getAttribute('href') === 'index.html') {
-            link.classList.add('active');
+    const navItems = document.querySelectorAll('[data-nav]');
+    navItems.forEach(item => {
+        const navId = item.getAttribute('data-nav');
+        const href = item.getAttribute('href');
+
+        const isActive = path.includes(href) ||
+                         (path.endsWith('/') && href === 'index.html') ||
+                         (path === '' && href === 'index.html');
+
+        if (isActive) {
+            item.classList.add('active');
+            if (item.classList.contains('text-slate-500')) {
+                item.classList.remove('text-slate-500');
+                item.classList.add('text-indigo-400');
+            }
         } else {
-            link.classList.remove('active');
+            item.classList.remove('active');
         }
     });
 }

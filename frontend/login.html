@@ -10,15 +10,10 @@
     <link rel="stylesheet" href="style.css">
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 </head>
-<body class="min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+<body class="min-h-screen flex flex-col">
+    <!-- include header.html -->
+    <div class="flex-grow flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
-        <div class="flex justify-center items-center space-x-3 mb-8 cursor-pointer" onclick="window.location.href='index.html'">
-            <model-viewer src="https://cdn.digitaleducationsafety.org/assets/models/coin.glb" autoplay auto-rotate interaction-prompt="none" class="h-14 w-14 rounded-full" style="--poster-color: transparent;"></model-viewer>
-            <div>
-                <span class="text-4xl font-black bg-clip-text text-transparent brag-gradient">brag</span>
-                <span class="text-4xl font-light">.charity</span>
-            </div>
-        </div>
 
         <div id="linkingStatus" class="mb-6 hidden">
             <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-4 flex items-center space-x-3">
@@ -61,11 +56,11 @@
             </div>
         </div>
 
-        <p class="mt-8 text-center text-[10px] font-black uppercase tracking-widest text-slate-600">
-            &copy; 2026 brag.charity Ecosystem &bull; <a href="#" class="hover:text-indigo-400">Security Policy</a>
-        </p>
     </div>
+    <!-- include footer.html -->
 
+    <script src="contracts.js"></script>
+    <script src="core.js"></script>
     <script src="login.js"></script>
 </body>
 </html>
