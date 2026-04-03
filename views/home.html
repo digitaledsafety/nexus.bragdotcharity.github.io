@@ -9,7 +9,7 @@
                 Proof of <span class="brag-gradient-text">Impact</span>, Powered by Web3.
             </h1>
             <p class="text-slate-400 text-lg sm:text-xl leading-relaxed max-w-2xl">
-                brag.charity bridges the gap between digital ownership and real-world impact. Donate to STEM programs, collect unique AI-generated NFTs, and showcase your contributions in virtual galleries.
+                brag.charity bridges the gap between digital ownership and real-world impact. Donate to STEM programs, collect unique AI-generated NFTs, and earn <span class="text-indigo-400 font-bold">BRAG Governance Tokens</span> for every contribution.
             </p>
 
             <div class="flex flex-wrap gap-8 pt-4">
@@ -50,7 +50,7 @@
 
     <!-- Features Grid -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             <div class="space-y-4">
                 <div class="w-12 h-12 rounded-2xl brag-gradient flex items-center justify-center text-xl">
                     <i class="fas fa-heart-pulse"></i>
@@ -64,6 +64,13 @@
                 </div>
                 <h3 class="text-xl font-bold">AI Minting</h3>
                 <p class="text-slate-400 text-sm leading-relaxed">Every donation triggers a unique AI-generated NFT minted on-chain, representing your contribution.</p>
+            </div>
+            <div class="space-y-4">
+                <div class="w-12 h-12 rounded-2xl brag-gradient flex items-center justify-center text-xl">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <h3 class="text-xl font-bold">BRAG Rewards</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Earn 1 BRAG for every 1 ETH donated. Use tokens to bid on NFTs in the marketplace and vote on ecosystem growth.</p>
             </div>
             <div class="space-y-4">
                 <div class="w-12 h-12 rounded-2xl brag-gradient flex items-center justify-center text-xl">
@@ -112,6 +119,9 @@
 
                     <div id="ethConversion" class="text-xs text-slate-500 text-center italic hidden">
                         ≈ <span id="ethAmount" class="font-bold text-slate-300">0.000</span> ETH
+                        <div class="mt-2 text-indigo-400 font-black uppercase tracking-widest text-[10px] animate-pulse">
+                            + <span id="bragRewardAmount">0.000</span> BRAG Bonus Tokens Included
+                        </div>
                     </div>
 
                     <!-- Action -->
