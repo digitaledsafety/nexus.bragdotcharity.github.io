@@ -107,3 +107,26 @@ body {
 .section-header i {
     margin-right: 0.75rem; color: #818cf8;
 }
+
+/* BRAG Token Icon */
+.brag-token-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    background: var(--primary-gradient);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 900;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+    vertical-align: middle;
+    margin-top: -2px;
+}
+
+.brag-token-icon-lg {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.25rem;
+}
