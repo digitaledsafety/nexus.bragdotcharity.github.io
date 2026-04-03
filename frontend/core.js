@@ -46,8 +46,8 @@ async function initCore() {
     initCart();
 
     // 4. Handle redirection for manager page if not connected
-    if (window.location.hash.startsWith('#/manager') && !userAddress && localStorage.getItem('wallet_connected') !== 'true') {
-        router.navigateTo('login');
+    if (window.location.pathname.includes('manager.html') && !userAddress) {
+        window.location.href = 'login.html';
     }
 
     initNavbarUI();
@@ -206,15 +206,27 @@ function initNavbarUI() {
         };
     }
 
-    const connectBtn = document.getElementById('btnConnect');
-    if (connectBtn) {
-        connectBtn.onclick = () => connectWallet();
-    }
+    // Highight active link
+    const path = window.location.pathname;
+    const navItems = document.querySelectorAll('[data-nav]');
+    navItems.forEach(item => {
+        const navId = item.getAttribute('data-nav');
+        const href = item.getAttribute('href');
 
-    const connectBtnMobile = document.getElementById('btnConnectMobile');
-    if (connectBtnMobile) {
-        connectBtnMobile.onclick = () => connectWallet();
-    }
+        const isActive = path.includes(href) ||
+                         (path.endsWith('/') && href === 'index.html') ||
+                         (path === '' && href === 'index.html');
+
+        if (isActive) {
+            item.classList.add('active');
+            if (item.classList.contains('text-slate-500')) {
+                item.classList.remove('text-slate-500');
+                item.classList.add('text-indigo-400');
+            }
+        } else {
+            item.classList.remove('active');
+        }
+    });
 }
 
 /**

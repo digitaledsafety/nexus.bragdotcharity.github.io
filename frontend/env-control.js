@@ -83,103 +83,84 @@ async function viewLogs(name) {
     }
 }
 
-function initEnvControl() {
-    // Check if element exists before adding listener (for new mobile-friendly manager)
-    const btnStatus = document.getElementById('btnEnvStatus');
-    if (btnStatus) btnStatus.onclick = updateStatus;
+// Check if element exists before adding listener (for new mobile-friendly manager)
+const btnStatus = document.getElementById('btnEnvStatus');
+if (btnStatus) btnStatus.addEventListener('click', updateStatus);
 
-    const btnInit = document.getElementById('btnEnvInit');
-    if (btnInit) {
-        btnInit.onclick = async () => {
-            if (confirm('This will restart the node, re-deploy all contracts and seed fresh data. Continue?')) {
-                try {
-                    await fetch(`${ENV_API}/init`, { method: 'POST' });
-                    alert('Initialization started. Check logs for progress.');
-                    updateStatus();
-                } catch (e) {
-                    alert('Failed to start initialization');
-                }
-            }
-        };
-    }
-
-    const btnMcStart = document.getElementById('btnMcStart');
-    if (btnMcStart) {
-        btnMcStart.onclick = async () => {
+const btnInit = document.getElementById('btnEnvInit');
+if (btnInit) {
+    btnInit.addEventListener('click', async () => {
+        if (confirm('This will restart the node, re-deploy all contracts and seed fresh data. Continue?')) {
             try {
-                const res = await fetch(`${ENV_API}/minecraft/start`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Minecraft servers starting...');
-                } else {
-                    alert('Failed to start Minecraft servers: ' + (data.error || 'Unknown error'));
-                }
+                await fetch(`${ENV_API}/init`, { method: 'POST' });
+                alert('Initialization started. Check logs for progress.');
+                updateStatus();
             } catch (e) {
-                alert('Failed to connect to Environment Manager');
+                alert('Failed to start initialization');
             }
-        };
-    }
-
-    const btnMcStop = document.getElementById('btnMcStop');
-    if (btnMcStop) {
-        btnMcStop.onclick = async () => {
-            try {
-                const res = await fetch(`${ENV_API}/minecraft/stop`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Minecraft servers stopping...');
-                } else {
-                    alert('Failed to stop Minecraft servers: ' + (data.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Failed to connect to Environment Manager');
-            }
-        };
-    }
-
-    const btnMcRestart = document.getElementById('btnMcRestart');
-    if (btnMcRestart) {
-        btnMcRestart.onclick = async () => {
-            try {
-                const res = await fetch(`${ENV_API}/minecraft/restart`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Minecraft servers restarting...');
-                } else {
-                    alert('Failed to restart Minecraft servers: ' + (data.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Failed to connect to Environment Manager');
-            }
-        };
-    }
-
-    const btnInjectAddon = document.getElementById('btnInjectAddon');
-    if (btnInjectAddon) {
-        btnInjectAddon.onclick = async () => {
-            try {
-                const res = await fetch(`${ENV_API}/minecraft/inject`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Addon injected successfully to all managed servers!');
-                } else {
-                    alert('Injection failed: ' + (data.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Failed to connect to Environment Manager for injection');
-            }
-        };
-    }
-
-    updateStatus();
+        }
+    });
 }
 
-// Auto-update status every 5 seconds (global, but check if we're on manager page)
-setInterval(() => {
-    if (window.location.hash.startsWith('#/manager')) {
-        updateStatus();
+document.getElementById('btnMcStart').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/start`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Minecraft servers starting...');
+        } else {
+            alert('Failed to start Minecraft servers: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager');
     }
-}, 5000);
+});
+
+document.getElementById('btnMcStop').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/stop`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Minecraft servers stopping...');
+        } else {
+            alert('Failed to stop Minecraft servers: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager');
+    }
+});
+
+document.getElementById('btnMcRestart').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/restart`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Minecraft servers restarting...');
+        } else {
+            alert('Failed to restart Minecraft servers: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager');
+    }
+});
+
+document.getElementById('btnInjectAddon').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${ENV_API}/minecraft/inject`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            alert('Addon injected successfully to all managed servers!');
+        } else {
+            alert('Injection failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to connect to Environment Manager for injection');
+    }
+});
+
+// Auto-update status every 5 seconds
+setInterval(updateStatus, 5000);
+updateStatus();
 
 // Export to global scope for onclick handlers
 window.controlService = controlService;

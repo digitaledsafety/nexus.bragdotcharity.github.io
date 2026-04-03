@@ -75,7 +75,7 @@ async function renderNFTCard(contract, tokenId) {
         card.className = 'glass-card rounded-[2rem] overflow-hidden group cursor-pointer transition-all hover:translate-y-[-8px] border-white/5 hover:border-indigo-500/30';
         card.onclick = (e) => {
             if (e.target.closest('.add-to-cart-btn')) return;
-            router.navigateTo('product', `?id=${tokenId}&addr=${contract.address}`);
+            window.location.href = `product.html?id=${tokenId}&addr=${contract.address}`;
         };
 
         const isAudio = metadata.animation_url && metadata.animation_url.includes('audio');
@@ -143,3 +143,4 @@ function renderDemoMarketCard() {
 }
 
 
+window.addEventListener('load', initMarketplace);

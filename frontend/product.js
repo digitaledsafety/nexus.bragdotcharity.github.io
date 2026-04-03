@@ -5,9 +5,7 @@
 
 async function initProduct() {
     await coreReady;
-    const hash = window.location.hash;
-    const queryString = hash.includes('?') ? hash.split('?')[1] : '';
-    const urlParams = new URLSearchParams(queryString);
+    const urlParams = new URLSearchParams(window.location.search);
     const tokenId = urlParams.get('id');
     const contractAddr = urlParams.get('addr');
 
@@ -160,3 +158,4 @@ function setupProductActions(contractAddr, tokenId, metadata) {
 }
 
 
+window.addEventListener('load', initProduct);
