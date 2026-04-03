@@ -42,6 +42,12 @@ const config: HardhatUserConfig = {
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
+    mainnet: {
+      type: "http",
+      chainType: "l1",
+      url: configVariable("MAINNET_RPC_URL"),
+      accounts: [configVariable("MAINNET_PRIVATE_KEY")],
+    },
     localhost: {
       type: "http",
       chainType: "l1",
