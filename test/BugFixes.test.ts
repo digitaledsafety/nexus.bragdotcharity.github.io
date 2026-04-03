@@ -13,7 +13,7 @@ describe("Bug Fixes", async function () {
     const initialSupply = parseEther("1000000");
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
 
-    const marketplace = await viem.deployContract("NFTMarketplace", [bragToken.address]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, 0n, bragToken.address]);
 
     // Mock NFT with controllable royalty
     const mockNFT = await viem.deployContract("MockRoyaltyNFT", ["Mock NFT", "MOCK"]);

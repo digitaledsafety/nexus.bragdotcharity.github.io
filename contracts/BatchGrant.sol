@@ -3,16 +3,19 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title BatchGrant
  * @dev A simple utility to distribute ERC20 tokens to multiple recipients in a single transaction.
+ * Uses AccessControl for consistent permission management.
  */
-contract BatchGrant is Ownable {
+contract BatchGrant is AccessControl {
     using SafeERC20 for IERC20;
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor(address initialAdmin) {
+        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
+    }
 
     /**
      * @dev Allows the contract to receive ETH.
@@ -54,9 +57,9 @@ contract BatchGrant is Ownable {
 
     /**
      * @dev Distributes ERC20 tokens already held by this contract to multiple recipients.
-     * Restricted to the owner.
+     * Restricted to those with DEFAULT_ADMIN_ROLE.
      */
-    function distributeFromBalance(IERC20 token, address[] calldata recipients, uint256[] calldata amounts) external onlyOwner {
+    function distributeFromBalance(IERC20 token, address[] calldata recipients, uint256[] calldata amounts) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(recipients.length == amounts.length, "Mismatched arrays");
         for (uint256 i = 0; i < recipients.length; i++) {
             token.safeTransfer(recipients[i], amounts[i]);
@@ -65,9 +68,9 @@ contract BatchGrant is Ownable {
 
     /**
      * @dev Distributes ETH already held by this contract to multiple recipients.
-     * Restricted to the owner.
+     * Restricted to those with DEFAULT_ADMIN_ROLE.
      */
-    function distributeETHFromBalance(address[] calldata recipients, uint256[] calldata amounts) external onlyOwner {
+    function distributeETHFromBalance(address[] calldata recipients, uint256[] calldata amounts) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(recipients.length == amounts.length, "Mismatched arrays");
         for (uint256 i = 0; i < recipients.length; i++) {
             (bool success, ) = recipients[i].call{value: amounts[i]}("");
