@@ -89,7 +89,9 @@ function updateHomeConversion() {
     const ethDisplay = document.getElementById('ethConversion');
     if (selectedUsdAmount > 0 && ethPrice > 0) {
         const eth = selectedUsdAmount / ethPrice;
-        document.getElementById('ethAmount').innerText = eth.toFixed(5);
+        const ethStr = eth.toFixed(4);
+        document.getElementById('ethAmount').innerText = ethStr;
+        document.getElementById('bragRewardAmount').innerText = ethStr;
         ethDisplay.classList.remove('hidden');
     } else {
         ethDisplay.classList.add('hidden');
@@ -145,8 +147,9 @@ let lastReceipt = null;
 
 function handleHomeSuccess(receipt) {
     lastReceipt = receipt;
+    const bragAmount = (selectedUsdAmount / ethPrice).toFixed(4);
     document.getElementById('statusTitle').innerText = "Impact Verified!";
-    document.getElementById('statusDesc').innerText = "Your contribution has been recorded and your NFT minted. Thank you!";
+    document.getElementById('statusDesc').innerHTML = `Your contribution has been recorded. You've minted a unique AI NFT and received <span class="text-indigo-400 font-black">${bragAmount} BRAG</span> tokens. Thank you!`;
     document.getElementById('statusIcon').innerHTML = '<i class="fas fa-check text-white"></i>';
     document.getElementById('statusIcon').classList.replace('brag-gradient', 'bg-emerald-500');
     document.getElementById('statusActions').classList.remove('hidden');
