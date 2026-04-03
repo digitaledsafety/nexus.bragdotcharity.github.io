@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 
 test.describe('Network Detection', () => {
-  const landingUrl = `file://${path.resolve('frontend/landing.html')}`;
+  const landingUrl = `file://${path.resolve('frontend/index.html')}`;
   const managerUrl = `file://${path.resolve('frontend/manager.html')}`;
   const loginUrl = `file://${path.resolve('frontend/login.html')}`;
 
@@ -52,15 +52,15 @@ test.describe('Network Detection', () => {
         on: () => {},
         removeListener: () => {}
       };
-      localStorage.setItem('brag_session', 'mock-session');
+      localStorage.setItem('wallet_connected', 'true');
       localStorage.setItem('brag_address', '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266');
     });
 
     await page.goto(managerUrl);
-    await page.click('#connectBtn');
-    const networkStatus = page.locator('#networkStatus');
-    await expect(networkStatus).toContainText('Sepolia');
-    await expect(networkStatus).toContainText('11155111');
+    // Button ID is #btnConnect in manager.html
+    await page.click('#btnConnect');
+    const networkBadge = page.locator('#networkBadge');
+    await expect(networkBadge).toContainText('Sepolia');
   });
 
   test('Login page should use correct Chain ID in SIWE message', async ({ page }) => {

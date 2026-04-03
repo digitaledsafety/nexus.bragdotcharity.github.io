@@ -45,9 +45,9 @@ async function initCore() {
     // 3. Initialize Cart
     initCart();
 
-    // 4. Handle auth for manager page
-    if (window.location.pathname.includes('manager.html')) {
-        //await checkAuth();
+    // 4. Handle redirection for manager page if not connected
+    if (window.location.pathname.includes('manager.html') && !userAddress) {
+        window.location.href = 'login.html';
     }
 
     initNavbarUI();
@@ -302,26 +302,6 @@ function updateCartUI() {
     });
 }
 
-/**
- * Session verification helper
- */
-async function checkAuth() {
-    const sessionId = localStorage.getItem('brag_session');
-    if (!sessionId) {
-        window.location.href = 'login.html';
-        return;
-    }
-
-    try {
-        const res = await fetch(`http://localhost:9000/auth/session?sessionId=${sessionId}`);
-        if (!res.ok) {
-            localStorage.removeItem('brag_session');
-            window.location.href = 'login.html';
-        }
-    } catch (e) {
-        console.warn("Auth server unavailable.");
-    }
-}
 
 // Global initialization
 window.addEventListener('DOMContentLoaded', initCore);

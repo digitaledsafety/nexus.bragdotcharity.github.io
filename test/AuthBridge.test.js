@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it, beforeEach } from "node:test";
-import { handleRequest, sessions, nonces, pendingTokens, emailWallets, mappings } from "../scripts/nft-bridge.js";
+import { handleRequest, pendingTokens, mappings } from "../scripts/nft-bridge.js";
 import { EventEmitter } from "node:events";
 import { privateKeyToAccount } from 'viem/accounts';
 
@@ -52,65 +52,8 @@ const account = privateKeyToAccount(TEST_PRIVATE_KEY);
 
 describe('Auth Bridge API', () => {
     beforeEach(() => {
-        sessions.clear();
-        nonces.clear();
         pendingTokens.clear();
-        emailWallets.clear();
         mappings.clear();
-    });
-
-    it('should return a nonce for SIWE', async () => {
-        const req = new MockRequest(`/auth/nonce?address=${account.address}`);
-        const res = new MockResponse();
-
-        await handleRequest(req, res);
-
-        assert.strictEqual(res.statusCode, 200);
-        const data = JSON.parse(res.body);
-        assert.ok(data.nonce);
-        assert.strictEqual(nonces.get(account.address.toLowerCase()), data.nonce);
-    });
-
-    it('should verify SIWE signature and create a session', async () => {
-        const nonce = "test-nonce-123";
-        nonces.set(account.address.toLowerCase(), nonce);
-
-        const message = `Sign in to brag.charity\nNonce: ${nonce}`;
-        const signature = await account.signMessage({ message });
-
-        const req = new MockRequest("/auth/verify", "POST");
-        req.body = JSON.stringify({
-            address: account.address,
-            message,
-            signature
-        });
-
-        const res = new MockResponse();
-        await handleRequest(req, res);
-
-        assert.strictEqual(res.statusCode, 200);
-        const data = JSON.parse(res.body);
-        assert.ok(data.sessionId);
-
-        const session = sessions.get(data.sessionId);
-        assert.ok(session);
-        assert.strictEqual(session.address, account.address.toLowerCase());
-    });
-
-    it('should handle email login and generate deterministic address', async () => {
-        const email = "test@example.com";
-        const req = new MockRequest("/auth/login-email", "POST");
-        req.body = JSON.stringify({ email, password: "password123" });
-
-        const res = new MockResponse();
-        await handleRequest(req, res);
-
-        assert.strictEqual(res.statusCode, 200);
-        const data = JSON.parse(res.body);
-        assert.ok(data.sessionId);
-
-        const expectedAddress = `0x${Buffer.from(email).toString('hex').padEnd(40, '0').slice(0, 40)}`;
-        assert.strictEqual(data.address, expectedAddress);
     });
 
     it('should link a platform ID via /verify-link', async () => {
@@ -118,7 +61,8 @@ describe('Auth Bridge API', () => {
         const platformId = "minecraft-uuid-456";
         pendingTokens.set(token, { platformId, expires: Date.now() + 10000 });
 
-        const message = `Link account ${token}`;
+        // Message must include address for stateless verification
+        const message = `Link account ${token} for ${account.address}`;
         const signature = await account.signMessage({ message });
 
         const req = new MockRequest("/verify-link", "POST");
@@ -136,17 +80,28 @@ describe('Auth Bridge API', () => {
         assert.strictEqual(mappings.get(platformId), account.address);
     });
 
-    it('should verify a valid session', async () => {
-        const sessionId = "valid-session-id";
-        sessions.set(sessionId, { address: account.address, type: 'wallet', createdAt: Date.now() });
+    it('should fail /verify-link if address is not in message', async () => {
+        const token = "LINK123";
+        const platformId = "minecraft-uuid-456";
+        pendingTokens.set(token, { platformId, expires: Date.now() + 10000 });
 
-        const req = new MockRequest(`/auth/session?sessionId=${sessionId}`);
+        // Message does not include address
+        const message = `Link account ${token}`;
+        const signature = await account.signMessage({ message });
+
+        const req = new MockRequest("/verify-link", "POST");
+        req.body = JSON.stringify({
+            token,
+            address: account.address,
+            message,
+            signature
+        });
+
         const res = new MockResponse();
-
         await handleRequest(req, res);
 
-        assert.strictEqual(res.statusCode, 200);
+        assert.strictEqual(res.statusCode, 400);
         const data = JSON.parse(res.body);
-        assert.strictEqual(data.address, account.address);
+        assert.strictEqual(data.error, "Message must include address");
     });
 });
