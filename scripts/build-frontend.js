@@ -4,25 +4,23 @@ import path from 'path';
 const SRC_DIR = 'frontend';
 const DIST_DIR = 'dist/frontend';
 
-function ensureDirectoryExistence(filePath) {
-  const dirname = path.dirname(filePath);
-  if (fs.existsSync(dirname)) {
-    return true;
-  }
-  ensureDirectoryExistence(dirname);
-  fs.mkdirSync(dirname);
-}
-
-function processIncludes(html) {
-  const includeRegex = /<!--\s*include\s+([^\s]+)\s*-->/g;
-  return html.replace(includeRegex, (match, includePath) => {
-    const fullPath = path.join(SRC_DIR, includePath);
-    if (fs.existsSync(fullPath)) {
-      return fs.readFileSync(fullPath, 'utf8');
+function copyRecursiveSync(src, dest) {
+  const exists = fs.existsSync(src);
+  const stats = exists && fs.statSync(src);
+  const isDirectory = exists && stats.isDirectory();
+  if (isDirectory) {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
     }
-    console.warn(`Include not found: ${fullPath}`);
-    return match;
-  });
+    fs.readdirSync(src).forEach((childItemName) => {
+      copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
+    });
+  } else {
+    // Skip original header/footer if they are still there (though we should clean up)
+    if (src.endsWith('header.html') || src.endsWith('footer.html')) return;
+
+    fs.copyFileSync(src, dest);
+  }
 }
 
 function main() {
@@ -30,30 +28,9 @@ function main() {
     fs.mkdirSync(DIST_DIR, { recursive: true });
   }
 
-  const files = fs.readdirSync(SRC_DIR);
-
-  files.forEach(file => {
-    const srcPath = path.join(SRC_DIR, file);
-    const distPath = path.join(DIST_DIR, file);
-
-    const stat = fs.statSync(srcPath);
-
-    if (stat.isDirectory()) {
-      // For this project, we don't have subdirectories in frontend yet,
-      // but let's handle it just in case.
-      return;
-    }
-
-    if (file.endsWith('.html') && file !== 'header.html' && file !== 'footer.html') {
-      console.log(`Processing ${file}...`);
-      let html = fs.readFileSync(srcPath, 'utf8');
-      html = processIncludes(html);
-      fs.writeFileSync(distPath, html);
-    } else {
-      // Copy other files (js, css, etc.)
-      fs.copyFileSync(srcPath, distPath);
-    }
-  });
+  // Simply copy everything from SRC_DIR to DIST_DIR, preserving structure
+  // Since we are now a SPA, index.html is the only entry point and it handles its own "includes" via the router/shell
+  copyRecursiveSync(SRC_DIR, DIST_DIR);
 
   console.log('Build complete!');
 }
