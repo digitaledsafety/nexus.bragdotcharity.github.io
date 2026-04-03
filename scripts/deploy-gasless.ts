@@ -3,23 +3,21 @@ import path from "path";
 import {
     createPublicClient,
     http,
-    parseEther,
-    getAddress,
-    encodeFunctionData,
-    Hex,
-    defineChain,
-    walletActions,
     encodeDeployData,
-    concat,
-    getContractAddress,
+    Hex,
     keccak256,
     toHex,
-    stringToHex,
-    createWalletClient
+    concat,
+    getContractAddress,
+    getAddress,
+    encodeFunctionData,
+    createWalletClient,
+    walletActions,
+    defineChain
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { localhost, sepolia } from "viem/chains";
-
+import { sepolia, localhost } from "viem/chains";
+import { stringToHex } from "viem/utils";
 // @ts-ignore
 import { createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
@@ -153,7 +151,7 @@ async function main() {
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
-    const marketplace = await deploy("NFTMarketplace", [bragToken.address]);
+    const marketplace = await deploy("NFTMarketplace", [scaAddress, bragToken.address]);
 
     // --- Batch Setup Transactions ---
     console.log("Batching setup and ownership transfer...");
@@ -196,7 +194,8 @@ async function main() {
     const contractsToTransfer = [
         { name: "DonationReceipt", contract: donationReceipt },
         { name: "BragNFT", contract: bragNFT },
-        { name: "BragToken", contract: bragToken }
+        { name: "BragToken", contract: bragToken },
+        { name: "NFTMarketplace", contract: marketplace }
     ];
 
     for (const item of contractsToTransfer) {
