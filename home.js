@@ -65,9 +65,6 @@ async function refreshHomeStats() {
 }
 
 function setupHomeListeners() {
-    document.getElementById('btnConnect').addEventListener('click', () => connectWallet());
-    document.getElementById('btnConnectMobile').addEventListener('click', () => connectWallet());
-
     const tierBtns = document.querySelectorAll('.tier-btn');
     tierBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -193,4 +190,3 @@ async function generateHomePDF() {
     doc.save(`Brag_Receipt_${lastReceipt.transactionHash.substring(0, 8)}.pdf`);
 }
 
-window.addEventListener('load', initHome);

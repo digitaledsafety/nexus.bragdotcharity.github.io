@@ -1,0 +1,44 @@
+<div class="flex-grow flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <div id="linkingStatus" class="mb-6 hidden">
+            <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-4 flex items-center space-x-3">
+                <div class="animate-pulse bg-indigo-500 h-2 w-2 rounded-full"></div>
+                <span class="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Linking Minecraft Account: <span id="displayToken" class="text-white"></span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="glass-card py-10 px-6 sm:px-10 rounded-[2.5rem] shadow-2xl">
+            <div class="space-y-8">
+                <!-- Wallet Login Only -->
+                <div id="walletSection" class="space-y-6">
+                    <div class="text-center mb-8">
+                        <h2 class="text-xl font-black text-white uppercase tracking-widest">Sign in with Wallet</h2>
+                        <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-2">Connect your Ethereum wallet to continue</p>
+                    </div>
+
+                    <button id="btnSiwe" class="w-full flex justify-center py-4 px-4 rounded-2xl font-black text-white brag-gradient hover:opacity-90 shadow-xl shadow-indigo-500/20 transition-all uppercase tracking-widest text-xs">
+                        <i class="fab fa-ethereum mr-3 text-lg"></i> Connect Wallet
+                    </button>
+
+                    <div class="relative py-2">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/5"></div></div>
+                        <div class="relative flex justify-center text-[10px]"><span class="px-3 bg-slate-900 text-slate-600 font-black uppercase tracking-widest">Supported</span></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/5 border border-white/5 group hover:border-indigo-500/30 transition-colors">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Logo.svg" alt="MetaMask" class="h-8 w-8 mb-2">
+                            <span class="text-[9px] font-black uppercase text-slate-500 group-hover:text-slate-300">MetaMask</span>
+                        </div>
+                        <div class="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/5 border border-white/5 group hover:border-indigo-500/30 transition-colors">
+                            <img src="https://raw.githubusercontent.com/WalletConnect/walletconnect-assets/master/Logo/Blue%20(Default)/Logo.svg" alt="WalletConnect" class="h-8 w-8 mb-2">
+                            <span class="text-[9px] font-black uppercase text-slate-500 group-hover:text-slate-300">WalletConnect</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
