@@ -8,9 +8,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract NFTMarketplace is ReentrancyGuard, Ownable {
+contract NFTMarketplace is ReentrancyGuard, AccessControl {
     using SafeERC20 for IERC20;
 
     struct Offer {
@@ -34,9 +34,10 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
 
-    constructor(address _paymentToken) Ownable(msg.sender) {
+    constructor(address initialAdmin, address _paymentToken) {
         paymentToken = IERC20(_paymentToken);
-        feeRecipient = msg.sender;
+        feeRecipient = initialAdmin;
+        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
     }
 
     /**
@@ -192,13 +193,13 @@ contract NFTMarketplace is ReentrancyGuard, Ownable {
         emit OfferRejected(nftContract, tokenId, buyer, msg.sender);
     }
 
-    function setProtocolFee(uint256 _feeBps) external onlyOwner {
+    function setProtocolFee(uint256 _feeBps) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_feeBps <= 1000, "Fee cannot exceed 10%");
         protocolFeeBps = _feeBps;
         emit ProtocolFeeUpdated(_feeBps);
     }
 
-    function setFeeRecipient(address _recipient) external onlyOwner {
+    function setFeeRecipient(address _recipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_recipient != address(0), "Invalid address");
         feeRecipient = _recipient;
         emit FeeRecipientUpdated(_recipient);
