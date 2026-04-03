@@ -170,21 +170,38 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
     /**
      * @dev Withdraw an ERC721 token back to the owner's wallet.
      */
-    function withdraw721(address nftContract, uint256 tokenId) external nonReentrant {
+    function withdraw721(address nftContract, uint256 tokenId) public nonReentrant {
         require(owner721[nftContract][tokenId] == msg.sender, "Not the owner");
         require(block.timestamp >= expiry721[nftContract][tokenId], "Exhibition not yet expired");
 
         owner721[nftContract][tokenId] = address(0);
-        // Do NOT clear expiry721 here, as it may be used by future deposits
         IERC721(nftContract).safeTransferFrom(address(this), msg.sender, tokenId);
 
         emit Withdrawn721(nftContract, tokenId, msg.sender);
     }
 
     /**
+     * @dev Batch withdraw multiple ERC721 tokens back to the owner's wallet.
+     */
+    function batchWithdraw721(address[] calldata nftContracts, uint256[] calldata tokenIds) external nonReentrant {
+        require(nftContracts.length == tokenIds.length, "Mismatched arrays");
+        for (uint256 i = 0; i < nftContracts.length; i++) {
+            address nftContract = nftContracts[i];
+            uint256 tokenId = tokenIds[i];
+            require(owner721[nftContract][tokenId] == msg.sender, "Not the owner");
+            require(block.timestamp >= expiry721[nftContract][tokenId], "Exhibition not yet expired");
+
+            owner721[nftContract][tokenId] = address(0);
+            IERC721(nftContract).safeTransferFrom(address(this), msg.sender, tokenId);
+
+            emit Withdrawn721(nftContract, tokenId, msg.sender);
+        }
+    }
+
+    /**
      * @dev Withdraw ERC1155 tokens back to the owner's wallet.
      */
-    function withdraw1155(address nftContract, uint256 tokenId, uint256 amount) external nonReentrant {
+    function withdraw1155(address nftContract, uint256 tokenId, uint256 amount) public nonReentrant {
         require(balances1155[nftContract][tokenId][msg.sender] >= amount, "Insufficient balance");
         require(block.timestamp >= expiry1155[nftContract][tokenId][msg.sender], "Exhibition not yet expired");
 
@@ -195,6 +212,29 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         IERC1155(nftContract).safeTransferFrom(address(this), msg.sender, tokenId, amount, "");
 
         emit Withdrawn1155(nftContract, tokenId, msg.sender, amount);
+    }
+
+    /**
+     * @dev Batch withdraw multiple ERC1155 tokens from the same contract back to the owner's wallet.
+     */
+    function batchWithdraw1155(address nftContract, uint256[] calldata ids, uint256[] calldata amounts) external nonReentrant {
+        require(ids.length == amounts.length, "Mismatched arrays");
+        for (uint256 i = 0; i < ids.length; i++) {
+            uint256 id = ids[i];
+            uint256 amount = amounts[i];
+            require(balances1155[nftContract][id][msg.sender] >= amount, "Insufficient balance");
+            require(block.timestamp >= expiry1155[nftContract][id][msg.sender], "Exhibition not yet expired");
+
+            balances1155[nftContract][id][msg.sender] -= amount;
+            if (balances1155[nftContract][id][msg.sender] == 0) {
+                expiry1155[nftContract][id][msg.sender] = 0;
+            }
+        }
+        IERC1155(nftContract).safeBatchTransferFrom(address(this), msg.sender, ids, amounts, "");
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            emit Withdrawn1155(nftContract, ids[i], msg.sender, amounts[i]);
+        }
     }
 
     /**
