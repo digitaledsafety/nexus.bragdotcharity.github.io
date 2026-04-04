@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import hre from "hardhat";
 import {
     createPublicClient,
     http,
@@ -26,22 +25,6 @@ const MINTER_ROLE = keccak256(stringToHex("MINTER_ROLE"));
 const TREASURY_ROLE = keccak256(stringToHex("TREASURY_ROLE"));
 const VERIFIER_ROLE = keccak256(stringToHex("VERIFIER_ROLE"));
 
-/**
- * Retrieves a configuration variable from either environment variables or Hardhat configuration variables.
- */
-function getConfig(key: string, defaultValue?: string): string {
-    if (process.env[key]) return process.env[key] as string;
-
-    // In Hardhat 3, configuration variables are defined in the config object
-    // or passed via environment variables. The hre.vars API is for the CLI.
-    // For programmatic access to variables defined via configVariable() in hardhat.config.ts:
-    const vars = (hre.config as any).vars;
-    if (vars && vars[key]) return vars[key];
-
-    if (defaultValue !== undefined) return defaultValue;
-    throw new Error(`Config variable ${key} is not set in process.env or hardhat config`);
-}
-
 async function main() {
     const networkName = process.env.HARDHAT_NETWORK || "localhost";
     let chain;
@@ -53,21 +36,19 @@ async function main() {
         chain = hardhatLocal;
     }
 
-    const alchemyApiKey = getConfig("ALCHEMY_API_KEY", "");
     const rpcUrl = process.env.RPC_URL ||
                    (networkName === "sepolia" ?
-                    (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`) :
+                    (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`) :
                     (networkName === "mainnet" ?
-                     (process.env.MAINNET_RPC_URL || `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) :
+                     (process.env.MAINNET_RPC_URL || `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`) :
                      "http://127.0.0.1:8545"));
 
-    let privateKey: string;
-    if (networkName === "sepolia") {
-        privateKey = getConfig("SEPOLIA_PRIVATE_KEY");
-    } else if (networkName === "mainnet") {
-        privateKey = getConfig("MAINNET_PRIVATE_KEY");
-    } else {
-        privateKey = process.env.LOCAL_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    let privateKey = (networkName === "sepolia" ? process.env.SEPOLIA_PRIVATE_KEY :
+                     (networkName === "mainnet" ? process.env.MAINNET_PRIVATE_KEY :
+                     "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")) as string;
+
+    if (!privateKey) {
+        throw new Error(`Missing private key for ${networkName}`);
     }
     if (privateKey && !privateKey.startsWith("0x")) {
         privateKey = `0x${privateKey}`;
