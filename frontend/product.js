@@ -123,6 +123,12 @@ async function loadProductData(contractAddr, tokenId) {
 
 function setupProductActions(contractAddr, tokenId, metadata) {
     document.getElementById('btnMakeOffer').onclick = async () => {
+        if (!userAddress) {
+            alert('Please connect your wallet to submit an offer.');
+            await connectWallet();
+            return;
+        }
+
         const priceStr = document.getElementById('offerAmount').value;
         if (!priceStr || parseFloat(priceStr) <= 0) return alert('Enter valid BRAG price');
 
@@ -145,7 +151,12 @@ function setupProductActions(contractAddr, tokenId, metadata) {
             await tx.wait();
             window.location.reload();
         } catch (e) {
-            alert('Offer failed: ' + (e.reason || e.message));
+            console.error("Offer Error Detail:", e);
+            if (e.code === 'CALL_EXCEPTION') {
+                alert('Offer failed: Contract call reverted. This often means the marketplace or token contract is not correctly deployed or configured on this network.');
+            } else {
+                alert('Offer failed: ' + (e.reason || e.message));
+            }
         }
     };
 

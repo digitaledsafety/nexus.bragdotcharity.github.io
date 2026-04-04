@@ -175,12 +175,22 @@ function getDeploymentAddress(name) {
     };
     const alias = aliases[name];
 
-    // Priority 1: localStorage overrides (from Manager)
-    let override = localStorage.getItem(`addr${name}`);
-    if (!override && alias) {
-        override = localStorage.getItem(`addr${alias}`);
+    // Priority 1: localStorage overrides scoped by chainId (from Manager)
+    if (network) {
+        const chainId = network.chainId.toString();
+        let override = localStorage.getItem(`addr${name}_${chainId}`);
+        if (!override && alias) {
+            override = localStorage.getItem(`addr${alias}_${chainId}`);
+        }
+        if (override && ethers.utils.isAddress(override)) return override;
+    } else {
+        // Fallback to legacy non-scoped localStorage overrides only if network not yet detected
+        let legacyOverride = localStorage.getItem(`addr${name}`);
+        if (!legacyOverride && alias) {
+            legacyOverride = localStorage.getItem(`addr${alias}`);
+        }
+        if (legacyOverride && ethers.utils.isAddress(legacyOverride)) return legacyOverride;
     }
-    if (override && ethers.utils.isAddress(override)) return override;
 
     // Priority 2: CONTRACT_DATA
     if (!network) return null;
