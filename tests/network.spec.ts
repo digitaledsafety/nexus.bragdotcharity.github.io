@@ -3,112 +3,80 @@ import path from 'path';
 
 test.describe('Network Detection', () => {
   const landingUrl = `file://${path.resolve('frontend/index.html')}`;
-  const managerUrl = `file://${path.resolve('frontend/manager.html')}`;
-  const loginUrl = `file://${path.resolve('frontend/login.html')}`;
 
   test('should display Sepolia network badge on landing page when connected to chain 11155111', async ({ page }) => {
     await page.addInitScript(() => {
-      (window as any).ethereum = {
-        isMetaMask: true,
-        request: async (request: { method: string, params?: any[] }) => {
-          if (request.method === 'eth_accounts' || request.method === 'eth_requestAccounts') {
-            return ['0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'];
-          }
-          if (request.method === 'eth_chainId') {
-            return '0xaa36a7'; // 11155111 in hex
-          }
-          if (request.method === 'net_version') {
-            return '11155111';
-          }
-          return null;
-        },
-        on: () => {},
-        removeListener: () => {}
-      };
+        (window as any).ethereum = {
+            request: async (request: any) => {
+                if (request.method === 'eth_accounts') return ['0x0000000000000000000000000000000000000123'];
+                if (request.method === 'eth_chainId') return '0xaa36a7'; // 11155111
+                return null;
+            },
+            on: () => {},
+            removeListener: () => {}
+        };
+        localStorage.setItem('wallet_connected', 'true');
     });
 
     await page.goto(landingUrl);
-    await page.click('#btnConnect');
-    const networkBadge = page.locator('#networkBadge');
-    await expect(networkBadge).toContainText('Sepolia');
+    const badge = page.locator('#networkBadge');
+    await expect(badge).toHaveText('Sepolia');
   });
 
   test('should display Sepolia network status on manager page when connected to chain 11155111', async ({ page }) => {
     await page.addInitScript(() => {
-      (window as any).ethereum = {
-        isMetaMask: true,
-        request: async (request: { method: string, params?: any[] }) => {
-          if (request.method === 'eth_accounts' || request.method === 'eth_requestAccounts') {
-            return ['0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'];
-          }
-          if (request.method === 'eth_chainId') {
-            return '0xaa36a7';
-          }
-          if (request.method === 'net_version') {
-            return '11155111';
-          }
-          return null;
-        },
-        on: () => {},
-        removeListener: () => {}
-      };
-      localStorage.setItem('wallet_connected', 'true');
-      localStorage.setItem('brag_address', '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266');
+        const mockAddress = '0x0000000000000000000000000000000000000123';
+        (window as any).ethereum = {
+            request: async (request: any) => {
+                if (request.method === 'eth_accounts' || request.method === 'eth_requestAccounts') return [mockAddress];
+                if (request.method === 'eth_chainId') return '0xaa36a7'; // 11155111
+                return null;
+            },
+            on: () => {},
+            removeListener: () => {}
+        };
     });
 
-    await page.goto(managerUrl);
-    // Button ID is #btnConnect in manager.html
-    await page.click('#btnConnect');
+    await page.goto(landingUrl);
+    await page.evaluate(() => {
+        window.location.hash = '#/manager';
+    });
+    // Wait for the view to load and router to inject HTML
+    const btnConnect = page.locator('#btnConnect');
+    await expect(btnConnect).toBeVisible({ timeout: 15000 });
+    await btnConnect.click();
     const networkBadge = page.locator('#networkBadge');
-    await expect(networkBadge).toContainText('Sepolia');
+    await expect(networkBadge).toHaveText('Sepolia');
   });
 
   test('Login page should use correct Chain ID in SIWE message', async ({ page }) => {
-    let siweMessage = '';
-    await page.exposeFunction('captureMessage', (msg: string) => {
-      if (msg.startsWith('0x')) {
-        let str = '';
-        for (let i = 2; i < msg.length; i += 2) {
-          str += String.fromCharCode(parseInt(msg.substr(i, 2), 16));
-        }
-        siweMessage = str;
-      } else {
-        siweMessage = msg;
-      }
-    });
-
     await page.addInitScript(() => {
       (window as any).ethereum = {
-        isMetaMask: true,
-        request: async (request: { method: string, params?: any[] }) => {
-          if (request.method === 'eth_accounts' || request.method === 'eth_requestAccounts') {
-            return ['0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'];
-          }
-          if (request.method === 'eth_chainId') {
-            return '0xaa36a7';
-          }
+        request: async (request: any) => {
+          if (request.method === 'eth_accounts' || request.method === 'eth_requestAccounts') return ['0x123'];
+          if (request.method === 'eth_chainId') return '0xaa36a7';
           if (request.method === 'personal_sign') {
-            await (window as any).captureMessage(request.params[0]);
-            return '0xmocksignature';
+            (window as any).capturedMessage = request.params[0];
+            return '0xsig';
           }
-          return null;
         },
-        on: () => {},
-        removeListener: () => {}
+        on: () => {}
       };
     });
 
-    await page.goto(loginUrl);
-    await page.route('**/auth/nonce*', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ nonce: '12345678' }) });
+    await page.goto(landingUrl);
+    await page.evaluate(() => {
+        window.location.hash = '#/login';
     });
-
-    // Silence alerts
+    const btnSiwe = page.locator('#btnSiwe');
+    await expect(btnSiwe).toBeVisible({ timeout: 15000 });
     page.on('dialog', dialog => dialog.dismiss());
 
-    await page.click('#btnSiwe');
+    await btnSiwe.click();
 
     // Wait for message to be captured
-    await expect.poll(() => siweMessage).toContain('Chain ID: 11155111');
+    await expect.poll(async () => {
+      return await page.evaluate(() => (window as any).capturedMessage || '');
+    }).toContain('Chain ID: 11155111');
   });
 });

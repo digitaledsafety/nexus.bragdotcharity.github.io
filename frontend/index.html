@@ -12,6 +12,12 @@
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 </head>
 <body class="min-h-screen flex flex-col">
+    <!-- Accessibility: Skip to Content -->
+    <a href="#app-root" class="sr-only focus:not-sr-only fixed top-4 left-4 z-[100] bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg">Skip to Content</a>
+
+    <!-- Accessibility: Route Announcer -->
+    <div id="route-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
     <!-- Risk Disclosure Sticky -->
     <div class="bg-red-900/30 border-b border-red-500/50 text-red-200 text-[10px] sm:text-xs py-2 px-4 text-center">
         <i class="fas fa-exclamation-triangle mr-2"></i> RISK DISCLOSURE: Donations involve inherent risks. NFTs are commemorative and not intended as investments.
@@ -22,13 +28,13 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-20 items-center">
                 <!-- Logo -->
-                <div class="flex items-center space-x-3 cursor-pointer" onclick="router.navigateTo('home')">
-                    <img src="https://digitaleducationsafety.org/assets/img/logo.jpg" alt="Logo" class="h-10 w-10 rounded-full border border-white/10 shadow-lg">
+                <button class="flex items-center space-x-3 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg p-1" onclick="router.navigateTo('home')" aria-label="Go to Home page">
+                    <img src="https://digitaleducationsafety.org/assets/img/logo.jpg" alt="" class="h-10 w-10 rounded-full border border-white/10 shadow-lg">
                     <div class="hidden xs:block">
                         <span class="text-2xl font-black bg-clip-text text-transparent brag-gradient">brag</span>
                         <span class="text-2xl font-light">.charity</span>
                     </div>
-                </div>
+                </button>
 
                 <!-- Desktop Nav -->
                 <div id="desktopNav" class="hidden md:flex items-center space-x-8 text-sm font-bold uppercase tracking-wider">
@@ -40,7 +46,7 @@
                 <!-- Wallet & Cart -->
                 <div class="flex items-center space-x-4">
                     <div id="networkBadge" class="hidden sm:block text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-white/5 border border-white/10 text-slate-400 font-bold">Not Connected</div>
-                    <button id="cartBtn" class="relative p-2 text-slate-400 hover:text-white transition-colors">
+                    <button id="cartBtn" class="relative p-2 text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg" aria-label="Open shopping cart">
                         <i class="fas fa-shopping-cart text-lg"></i>
                         <span id="cartCount" class="absolute -top-1 -right-1 bg-indigo-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full hidden">0</span>
                     </button>
@@ -48,7 +54,7 @@
                         Connect Wallet
                     </button>
                     <!-- Mobile Menu Toggle -->
-                    <button id="mobileMenuBtn" class="md:hidden text-slate-400 hover:text-white p-2">
+                    <button id="mobileMenuBtn" class="md:hidden text-slate-400 hover:text-white p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileMenu">
                         <i class="fas fa-bars text-xl"></i>
                     </button>
                 </div>
@@ -67,41 +73,41 @@
     </nav>
 
     <!-- Cart Sidebar -->
-    <div id="cartSidebar" class="fixed inset-y-0 right-0 w-80 bg-slate-900 border-l border-white/5 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col">
+    <div id="cartSidebar" class="fixed inset-y-0 right-0 w-80 bg-slate-900 border-l border-white/5 shadow-2xl transform translate-x-full transition-transform duration-300 z-[100] flex flex-col" role="dialog" aria-label="Shopping Cart">
         <div class="p-6 border-b border-white/5 flex justify-between items-center">
             <h3 class="text-xl font-black uppercase tracking-widest">Cart</h3>
-            <button id="closeCart" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+            <button id="closeCart" class="text-slate-400 hover:text-white p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg" aria-label="Close shopping cart"><i class="fas fa-times"></i></button>
         </div>
         <div id="cartItems" class="flex-grow overflow-y-auto p-6 space-y-6">
             <p class="text-slate-500 text-center py-12 text-sm italic">Your cart is empty</p>
         </div>
         <div class="p-6 border-t border-white/5 bg-white/5">
             <button class="w-full btn-primary py-4 rounded-2xl font-black uppercase tracking-widest text-xs mb-3">Proceed to Offers</button>
-            <button id="clearCart" class="w-full text-[10px] text-slate-500 hover:text-red-400 font-black uppercase tracking-widest transition-colors">Clear All</button>
+            <button id="clearCart" class="w-full text-[10px] text-slate-500 hover:text-red-400 font-black uppercase tracking-widest transition-colors focus:outline-none focus:underline" aria-label="Clear all items from cart">Clear All</button>
         </div>
     </div>
 
     <!-- Main Content Area -->
-    <div id="app-root" class="flex-grow">
+    <main id="app-root" class="flex-grow focus:outline-none" tabindex="-1">
         <!-- Views injected here -->
         <div class="flex items-center justify-center min-h-[60vh]">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent" role="status" aria-label="Loading page content"></div>
         </div>
-    </div>
+    </main>
 
-    <footer class="border-t border-white/5 py-12 px-4 sm:px-6 lg:px-8 bg-slate-950/20">
+    <footer class="border-t border-white/5 py-12 px-4 sm:px-6 lg:px-8 bg-slate-950/20" role="contentinfo">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
             <div class="text-slate-500 text-[10px] font-medium leading-relaxed text-center md:text-left">
                 &copy; 2026 Digital Education & Safety Foundation Inc. (DESF).<br>
                 brag.charity is an open ecosystem for transparent giving.
             </div>
-            <div class="flex flex-wrap justify-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+            <nav class="flex flex-wrap justify-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400" aria-label="Footer navigation">
                 <a href="#/home" class="hover:text-indigo-400 transition-colors">Home</a>
                 <a href="#/marketplace" class="hover:text-indigo-400 transition-colors">Marketplace</a>
                 <a href="#/privacy" class="hover:text-indigo-400 transition-colors">Privacy</a>
                 <a href="#/terms" class="hover:text-indigo-400 transition-colors">Terms</a>
                 <a href="#/manager" class="hover:text-indigo-400 transition-colors">Manager</a>
-            </div>
+            </nav>
         </div>
     </footer>
 

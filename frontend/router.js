@@ -4,13 +4,13 @@
 
 const router = {
     routes: {
-        'home': { view: 'views/home.html', init: typeof initHome !== 'undefined' ? initHome : null },
-        'marketplace': { view: 'views/marketplace.html', init: typeof initMarketplace !== 'undefined' ? initMarketplace : null },
-        'manager': { view: 'views/manager.html', init: typeof initManager !== 'undefined' ? initManager : null, protected: true },
-        'product': { view: 'views/product.html', init: typeof initProduct !== 'undefined' ? initProduct : null },
-        'login': { view: 'views/login.html', init: typeof initLogin !== 'undefined' ? initLogin : null },
-        'privacy': { view: 'views/privacy.html' },
-        'terms': { view: 'views/terms.html' }
+        'home': { view: 'views/home.html', title: 'Home | brag.charity', init: typeof initHome !== 'undefined' ? initHome : null },
+        'marketplace': { view: 'views/marketplace.html', title: 'Marketplace | brag.charity', init: typeof initMarketplace !== 'undefined' ? initMarketplace : null },
+        'manager': { view: 'views/manager.html', title: 'Manager | brag.charity', init: typeof initManager !== 'undefined' ? initManager : null, protected: true },
+        'product': { view: 'views/product.html', title: 'Product Detail | brag.charity', init: typeof initProduct !== 'undefined' ? initProduct : null },
+        'login': { view: 'views/login.html', title: 'Login | brag.charity', init: typeof initLogin !== 'undefined' ? initLogin : null },
+        'privacy': { view: 'views/privacy.html', title: 'Privacy Policy | brag.charity' },
+        'terms': { view: 'views/terms.html', title: 'Terms of Service | brag.charity' }
     },
 
     defaultRoute: 'home',
@@ -25,7 +25,7 @@ const router = {
         let [path, queryString] = hash.split('?');
 
         // Parse query params if any
-        const params = new URLSearchParams(queryString);
+        const params = new URLSearchParams(queryString || window.location.search);
 
         let route = this.routes[path];
 
@@ -39,6 +39,17 @@ const router = {
         if (route.protected && localStorage.getItem('wallet_connected') !== 'true') {
             this.navigateTo('login');
             return;
+        }
+
+        // Update Document Title
+        if (route.title) {
+            document.title = route.title;
+        }
+
+        // Accessibility: Announce route change to screen readers
+        const announcer = document.getElementById('route-announcer');
+        if (announcer) {
+            announcer.textContent = `Navigated to ${route.title || path}`;
         }
 
         await this.loadView(path, route);
@@ -68,6 +79,9 @@ const router = {
             const html = await response.text();
             root.innerHTML = html;
 
+            // Accessibility: Focus the content root for screen readers
+            root.focus();
+
             // Scroll to top or to specific anchor if present in query
             if (window.location.hash.includes('#donate')) {
                document.getElementById('donate')?.scrollIntoView();
@@ -89,12 +103,14 @@ const router = {
         document.querySelectorAll('[data-nav]').forEach(el => {
             if (el.getAttribute('data-nav') === path) {
                 el.classList.add('active');
+                el.setAttribute('aria-current', 'page');
                 if (el.classList.contains('text-slate-500')) {
                     el.classList.remove('text-slate-500');
                     el.classList.add('text-indigo-400');
                 }
             } else {
                 el.classList.remove('active');
+                el.removeAttribute('aria-current');
                 if (el.getAttribute('data-nav') === 'manager' && !el.classList.contains('text-slate-500')) {
                     el.classList.add('text-slate-500');
                 }
