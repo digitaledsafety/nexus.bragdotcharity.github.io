@@ -64,12 +64,30 @@ async function loadProductData(contractAddr, tokenId) {
         document.getElementById('dispMessage').textContent = messageAttr ? `"${messageAttr.value}"` : 'Impact NFT';
 
         // Media
-        const isAudio = metadata.animation_url && metadata.animation_url.includes('audio');
+        const animUrl = metadata.animation_url || '';
+        const isAudio = animUrl.includes('audio') || animUrl.match(/\.(mp3|wav|ogg|m4a|aac)$/i);
+        const isVideo = animUrl.includes('video') || animUrl.match(/\.(mp4|mov|ogv|webm|m4v)$/i);
+        const isGif = animUrl.includes('image/gif') || animUrl.match(/\.gif$/i);
+
         if (isAudio) {
             document.getElementById('nftImage').classList.add('hidden');
+            document.getElementById('videoPlayer').classList.add('hidden');
             document.getElementById('audioPlayer').classList.remove('hidden');
-            document.getElementById('nftAudio').src = metadata.animation_url;
+            document.getElementById('nftAudio').src = animUrl;
+        } else if (isVideo) {
+            document.getElementById('nftImage').classList.add('hidden');
+            document.getElementById('audioPlayer').classList.add('hidden');
+            document.getElementById('videoPlayer').classList.remove('hidden');
+            document.getElementById('nftVideo').src = animUrl;
+        } else if (isGif) {
+            document.getElementById('audioPlayer').classList.add('hidden');
+            document.getElementById('videoPlayer').classList.add('hidden');
+            document.getElementById('nftImage').classList.remove('hidden');
+            document.getElementById('nftImage').src = animUrl;
         } else {
+            document.getElementById('audioPlayer').classList.add('hidden');
+            document.getElementById('videoPlayer').classList.add('hidden');
+            document.getElementById('nftImage').classList.remove('hidden');
             document.getElementById('nftImage').src = metadata.image;
         }
 

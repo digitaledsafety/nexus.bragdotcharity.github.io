@@ -250,15 +250,16 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
         uint256 len = b.length;
         if (len < 4) return false;
 
-        // Check for "data:audio/" or "data:video/" prefix
+        // Check for "data:audio/", "data:video/" or "data:image/gif" prefix
         if (len >= 11) {
             if (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':') {
                 if (b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') return true;
-                if (len >= 11 && b[5] == 'v' && b[6] == 'i' && b[7] == 'd' && b[8] == 'e' && b[9] == 'o' && b[10] == '/') return true;
+                if (b[5] == 'v' && b[6] == 'i' && b[7] == 'd' && b[8] == 'e' && b[9] == 'o' && b[10] == '/') return true;
+                if (len >= 14 && b[5] == 'i' && b[6] == 'm' && b[7] == 'a' && b[8] == 'g' && b[9] == 'e' && b[10] == '/' && b[11] == 'g' && b[12] == 'i' && b[13] == 'f') return true;
             }
         }
 
-        // Check for 3-letter extensions: .mp3, .wav, .ogg, .m4a, .aac, .mp4, .mov, .ogv, .m4v
+        // Check for 3-letter extensions: .mp3, .wav, .ogg, .m4a, .aac, .mp4, .mov, .ogv, .m4v, .gif
         if (b[len - 4] == '.') {
             bytes1 b1 = b[len - 3];
             bytes1 b2 = b[len - 2];
@@ -273,6 +274,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
             if (b1 == 'm' && b2 == 'o' && b3 == 'v') return true;
             if (b1 == 'o' && b2 == 'g' && b3 == 'v') return true;
             if (b1 == 'm' && b2 == '4' && b3 == 'v') return true;
+            if (b1 == 'g' && b2 == 'i' && b3 == 'f') return true;
         }
 
         // Check for 4-letter extensions: .webm

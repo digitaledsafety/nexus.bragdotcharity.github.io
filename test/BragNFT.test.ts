@@ -235,8 +235,26 @@ describe("BragNFT and DonationReceipt", async function () {
         const audioUrl = `https://example.com/audio${i}${extensions[i]}`;
         await bragNFT.write.donate([`audio nft ${extensions[i]}`, audioUrl], { value: parseEther("0.1") });
         const uri = await bragNFT.read.tokenURI([BigInt(i)]);
-        const json = JSON.parse(atob(uri.split(",")[1]));
+        const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
         assert.equal(json.animation_url, audioUrl, `Failed for extension ${extensions[i]}`);
+    }
+  });
+
+  it("Should support GIF and MP4 formats as multimedia", async function () {
+    const { bragNFT, donor } = await deployContracts();
+    const mediaFormats = [
+        "https://example.com/image.gif",
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+        "https://example.com/video.mp4",
+        "data:video/mp4;base64,AAAAIGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAZptb292"
+    ];
+
+    for (let i = 0; i < mediaFormats.length; i++) {
+        await bragNFT.write.donate([`media test ${i}`, mediaFormats[i]], { value: parseEther("0.1") });
+        const uri = await bragNFT.read.tokenURI([BigInt(i)]);
+        const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+        assert.equal(json.animation_url, mediaFormats[i], `Failed for format: ${mediaFormats[i]}`);
+        assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Should have SVG fallback for image");
     }
   });
 

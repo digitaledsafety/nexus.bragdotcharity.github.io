@@ -78,13 +78,18 @@ async function renderNFTCard(contract, tokenId) {
             router.navigateTo('product', `?id=${tokenId}&addr=${contract.address}`);
         };
 
-        const isAudio = metadata.animation_url && metadata.animation_url.includes('audio');
+        const animUrl = metadata.animation_url || '';
+        const isAudio = animUrl.includes('audio') || animUrl.match(/\.(mp3|wav|ogg|m4a|aac)$/i);
+        const isVideo = animUrl.includes('video') || animUrl.match(/\.(mp4|mov|ogv|webm|m4v)$/i);
+        const isGif = animUrl.includes('image/gif') || animUrl.match(/\.gif$/i);
 
         card.innerHTML = `
             <div class="aspect-square bg-slate-900 flex items-center justify-center overflow-hidden relative">
                 ${isAudio
                     ? `<div class="text-center"><i class="fas fa-music text-4xl text-indigo-500 mb-2"></i></div>`
-                    : `<img src="${metadata.image}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">`
+                    : (isVideo
+                        ? `<div class="text-center"><i class="fas fa-video text-4xl text-indigo-500 mb-2"></i></div>`
+                        : `<img src="${isGif ? animUrl : metadata.image}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">`)
                 }
                 <div class="absolute top-4 right-4">
                     <span class="px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-black text-white/50 border border-white/5">#${tokenId}</span>
