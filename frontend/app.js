@@ -19,17 +19,30 @@ function log(message, type = 'info') {
 const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrNFTMarketplace'];
 
 function setupManagerListeners() {
+    const chainId = network?.chainId?.toString();
     addressFields.forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
 
-        // Load saved value
-        let saved = localStorage.getItem(id);
+        // Load saved value (prefer chain-scoped)
+        let saved = chainId ? localStorage.getItem(`${id}_${chainId}`) : null;
+        if (!saved && id === 'addrNFTMarketplace' && chainId) saved = localStorage.getItem(`addrMarketplace_${chainId}`);
+
+        // Fallback to legacy non-scoped if no scoped value exists
+        if (!saved) saved = localStorage.getItem(id);
         if (!saved && id === 'addrNFTMarketplace') saved = localStorage.getItem('addrMarketplace');
+
         if (saved) el.value = saved;
 
         // Save on any change (input or change event)
         const saver = (e) => {
+            const currentChainId = network?.chainId?.toString();
+            if (currentChainId) {
+                localStorage.setItem(`${id}_${currentChainId}`, e.target.value);
+                if (id === 'addrNFTMarketplace') localStorage.setItem(`addrMarketplace_${currentChainId}`, e.target.value);
+            }
+
+            // Legacy updates for backward compatibility
             localStorage.setItem(id, e.target.value);
             if (id === 'addrNFTMarketplace') localStorage.setItem('addrMarketplace', e.target.value);
 
@@ -214,6 +227,7 @@ async function initManager() {
     if (typeof initEnvControl === 'function') initEnvControl();
 
     // Auto-fill empty fields if we can find them in deployment data
+    const chainId = network?.chainId?.toString();
     addressFields.forEach(id => {
         const el = document.getElementById(id);
         if (el && !el.value) {
@@ -221,6 +235,10 @@ async function initManager() {
             const addr = getDeploymentAddress(contractName);
             if (addr) {
                 el.value = addr;
+                if (chainId) {
+                    localStorage.setItem(`${id}_${chainId}`, addr);
+                    if (id === 'addrNFTMarketplace') localStorage.setItem(`addrMarketplace_${chainId}`, addr);
+                }
                 localStorage.setItem(id, addr);
                 if (id === 'addrNFTMarketplace') localStorage.setItem('addrMarketplace', addr);
             }
