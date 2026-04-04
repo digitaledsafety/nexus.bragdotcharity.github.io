@@ -2,29 +2,31 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 
 test.describe('Authentication Flow', () => {
-  const loginUrl = `file://${path.resolve('frontend/login.html')}`;
-  const managerUrl = `file://${path.resolve('frontend/manager.html')}`;
+  const landingUrl = `file://${path.resolve('frontend/index.html')}`;
 
   test('should redirect unauthenticated users to login page', async ({ page }) => {
-    // Clear any existing connection
-    await page.goto(loginUrl);
+    await page.goto(landingUrl);
     await page.evaluate(() => {
         localStorage.removeItem('wallet_connected');
         localStorage.removeItem('brag_address');
     });
 
-    // Try to access manager page
-    await page.goto(managerUrl);
+    // Try to access manager page via hash
+    await page.goto(`${landingUrl}#/manager`);
 
-    // Should be redirected to login
-    await expect(page).toHaveURL(/login\.html/);
+    // Should be redirected to login view
+    await expect(page).toHaveURL(/#\/login/);
   });
 
   test('should show linking banner when token is present', async ({ page }) => {
-    await page.goto(`${loginUrl}?token=LINK123`);
+    // Navigate to landing and then set hash with query
+    await page.goto(landingUrl);
+    await page.evaluate(() => {
+        window.location.hash = '#/login?token=LINK123';
+    });
 
     const banner = page.locator('#linkingStatus');
-    await expect(banner).toBeVisible();
+    await expect(banner).toBeVisible({ timeout: 15000 });
     await expect(page.locator('#displayToken')).toHaveText('LINK123');
   });
 
@@ -42,39 +44,20 @@ test.describe('Authentication Flow', () => {
             on: () => {},
             removeListener: () => {}
         };
-        (window as any).ethers = {
-            providers: {
-                Web3Provider: class {
-                    constructor() {}
-                    async send(method: string) {
-                        if (method === 'eth_requestAccounts' || method === 'eth_accounts') return [mockAddress];
-                        return null;
-                    }
-                    getSigner() {
-                        return {
-                            getAddress: async () => mockAddress,
-                            signMessage: async () => '0xmocksignature'
-                        };
-                    }
-                    async getNetwork() { return { chainId: 1 }; }
-                },
-                JsonRpcProvider: class {
-                    constructor() {}
-                    async getNetwork() { return { chainId: 1 }; }
-                }
-            },
-            utils: {
-                isAddress: (addr: string) => addr.startsWith('0x') && addr.length === 42
-            }
-        };
     });
 
-    await page.goto(loginUrl);
+    await page.goto(landingUrl);
+    await page.evaluate(() => {
+        window.location.hash = '#/login';
+    });
 
-    await page.click('#btnSiwe');
+    // Wait for router/view to load
+    const btnSiwe = page.locator('#btnSiwe');
+    await expect(btnSiwe).toBeVisible({ timeout: 15000 });
+    await btnSiwe.click();
 
     // Should redirect to manager
-    await expect(page).toHaveURL(/manager\.html/);
+    await expect(page).toHaveURL(/#\/manager/);
 
     // Should show the mock address on the connect button
     const connectBtn = page.locator('#btnConnect');

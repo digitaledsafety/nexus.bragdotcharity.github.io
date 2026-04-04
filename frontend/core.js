@@ -202,7 +202,8 @@ function initNavbarUI() {
 
     if (mobileMenuBtn && mobileMenu) {
         mobileMenuBtn.onclick = () => {
-            mobileMenu.classList.toggle('hidden');
+            const isHidden = mobileMenu.classList.toggle('hidden');
+            mobileMenuBtn.setAttribute('aria-expanded', !isHidden);
         };
     }
 
@@ -278,7 +279,7 @@ function updateCartUI() {
                 <p class="text-xs font-bold truncate">${item.name || 'Brag NFT'}</p>
                 <p class="text-[8px] text-slate-500 font-black uppercase tracking-tighter">ID: ${item.id}</p>
             </div>
-            <button class="text-slate-600 hover:text-red-400 p-2 transition-colors remove-item">
+            <button class="text-slate-600 hover:text-red-400 p-2 transition-colors remove-item" aria-label="Remove item from cart">
                 <i class="fas fa-trash-alt text-xs"></i>
             </button>
         `;
