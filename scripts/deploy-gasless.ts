@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import hre from "hardhat";
 import {
     createPublicClient,
     http,
@@ -39,20 +40,39 @@ const MINTER_ROLE = keccak256(stringToHex("MINTER_ROLE"));
 const TREASURY_ROLE = keccak256(stringToHex("TREASURY_ROLE"));
 const VERIFIER_ROLE = keccak256(stringToHex("VERIFIER_ROLE"));
 
+/**
+ * Retrieves a configuration variable from either environment variables or Hardhat configuration variables.
+ */
+function getConfig(key: string, defaultValue?: string): string {
+    if (process.env[key]) return process.env[key] as string;
+    const vars = (hre.config as any).vars;
+    if (vars && vars[key]) return vars[key];
+
+    if (defaultValue !== undefined) return defaultValue;
+    throw new Error(`Config variable ${key} is not set in process.env or hardhat config`);
+}
+
 async function main() {
     const networkName = process.env.HARDHAT_NETWORK || "localhost";
     const isSepolia = networkName === "sepolia";
     const chain = isSepolia ? sepolia : hardhatLocal;
+    const alchemyApiKey = getConfig("ALCHEMY_API_KEY", "");
+    const gasPolicyId = getConfig("ALCHEMY_GAS_POLICY_ID", "");
     const rpcUrl = process.env.RPC_URL ||
                    (isSepolia ?
-                    (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`) :
+                    (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`) :
                     "http://127.0.0.1:8545");
 
-    if (isSepolia && (!process.env.ALCHEMY_API_KEY || !process.env.ALCHEMY_GAS_POLICY_ID)) {
+    if (isSepolia && (!alchemyApiKey || !gasPolicyId)) {
         throw new Error("Missing ALCHEMY_API_KEY or ALCHEMY_GAS_POLICY_ID for gasless Sepolia deployment.");
     }
 
-    let privateKey = (isSepolia ? process.env.SEPOLIA_PRIVATE_KEY : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80") as string;
+    let privateKey: string;
+    if (isSepolia) {
+        privateKey = getConfig("SEPOLIA_PRIVATE_KEY");
+    } else {
+        privateKey = process.env.LOCAL_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    }
     if (privateKey && !privateKey.startsWith("0x")) {
         privateKey = `0x${privateKey}`;
     }
@@ -68,7 +88,7 @@ async function main() {
     console.log(`Deploying contracts to ${networkName} gaslessly...`);
     console.log(`EOA Address (to become owner): ${eoaAddress}`);
 
-    const transport = http(isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}` : rpcUrl);
+    const transport = http(isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}` : rpcUrl);
 
     const smartAccountClient = await createAlchemySmartAccountClient({
         transport,
@@ -78,10 +98,10 @@ async function main() {
             chain,
             signer,
         }),
-        rpcUrl: isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}` : rpcUrl,
+        rpcUrl: isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}` : rpcUrl,
         ...(isSepolia ? {
             gasManagerConfig: {
-                policyId: process.env.ALCHEMY_GAS_POLICY_ID!,
+                policyId: gasPolicyId,
             }
         } : {}),
     });
