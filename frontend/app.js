@@ -51,18 +51,54 @@ function setupManagerListeners() {
         fileInput.accept = 'image/*,audio/*,video/*';
         btnUpload.onclick = () => fileInput.click();
 
-        fileInput.onchange = (e) => {
+        fileInput.onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                document.getElementById('mintTokenURI').value = event.target.result;
-                document.getElementById('mintOnChain').checked = true;
-                log(`File loaded as Data URI. On-chain storage selected.`, 'success');
-                document.getElementById('aiPreview').classList.add('hidden');
-            };
-            reader.readAsDataURL(file);
+            const UPLOAD_THRESHOLD = 100 * 1024; // 100KB
+
+            if (file.size > UPLOAD_THRESHOLD) {
+                log(`File size (${(file.size / 1024).toFixed(1)}KB) exceeds threshold. Uploading to bridge...`);
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const extension = file.name.split('.').pop();
+
+                    const response = await fetch('http://localhost:9000/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/octet-stream',
+                            'x-file-extension': extension
+                        },
+                        body: arrayBuffer
+                    });
+
+                    if (!response.ok) throw new Error(`Upload failed with status ${response.status}`);
+                    const data = await response.json();
+
+                    document.getElementById('mintTokenURI').value = data.url;
+                    document.getElementById('mintOnChain').checked = false;
+                    log(`File uploaded to bridge: ${data.url}. Off-chain storage selected to save gas.`, 'success');
+                    document.getElementById('aiPreview').classList.add('hidden');
+                } catch (error) {
+                    log(`Bridge upload failed: ${error.message}. Falling back to Data URI.`, 'error');
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        document.getElementById('mintTokenURI').value = event.target.result;
+                        document.getElementById('mintOnChain').checked = true;
+                        document.getElementById('aiPreview').classList.add('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            } else {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    document.getElementById('mintTokenURI').value = event.target.result;
+                    document.getElementById('mintOnChain').checked = true;
+                    log(`Small file loaded as Data URI. On-chain storage selected.`, 'success');
+                    document.getElementById('aiPreview').classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
         };
     }
 
@@ -84,7 +120,17 @@ function setupManagerListeners() {
                 const data = await response.json();
 
                 document.getElementById('mintTokenURI').value = data.image;
-                document.getElementById('mintOnChain').checked = true;
+                // AI images from the bridge are now stored as files on the bridge server
+                // and returned as HTTP URLs.
+                if (data.image.startsWith('http')) {
+                    document.getElementById('mintOnChain').checked = false;
+                    log('AI Image stored off-chain on bridge server.', 'success');
+                } else if (data.image.startsWith('data:') && data.image.length > 100 * 1024) {
+                     document.getElementById('mintOnChain').checked = false;
+                     log('AI Image is large, off-chain storage selected.', 'info');
+                } else {
+                     document.getElementById('mintOnChain').checked = true;
+                }
 
                 const preview = document.getElementById('aiPreview');
                 const previewImg = document.getElementById('aiPreviewImg');
