@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import hre from "hardhat";
 import {
     createPublicClient,
     createWalletClient,
@@ -37,27 +38,45 @@ import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
 // @ts-ignore
 import { LocalAccountSigner } from "@alchemy/aa-core";
 
+/**
+ * Retrieves a configuration variable from either environment variables or Hardhat configuration variables.
+ */
+function getConfig(key: string, defaultValue?: string): string {
+    if (process.env[key]) return process.env[key] as string;
+    const vars = (hre.config as any).vars;
+    if (vars && vars[key]) return vars[key];
+
+    if (defaultValue !== undefined) return defaultValue;
+    throw new Error(`Config variable ${key} is not set in process.env or hardhat config`);
+}
+
 async function main() {
     const networkName = process.env.HARDHAT_NETWORK || "localhost";
     const isSepolia = networkName === "sepolia";
     const chain = isSepolia ? sepolia : hardhatLocal;
+    const alchemyApiKey = getConfig("ALCHEMY_API_KEY", "");
     const rpcUrl = process.env.RPC_URL ||
                    (isSepolia ?
-                    (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`) :
+                    (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`) :
                     "http://127.0.0.1:8545");
 
-    if (isSepolia && (!process.env.ALCHEMY_API_KEY || !process.env.ALCHEMY_GAS_POLICY_ID)) {
+    if (isSepolia && (!alchemyApiKey || !getConfig("ALCHEMY_GAS_POLICY_ID", ""))) {
         console.warn("Missing ALCHEMY_API_KEY or ALCHEMY_GAS_POLICY_ID for Sepolia. Transactions might fail if not funded.");
     }
 
-    let privateKey0 = (isSepolia ? process.env.SEPOLIA_PRIVATE_KEY : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80") as string;
-    if (privateKey0 && !privateKey0.startsWith("0x")) {
-        privateKey0 = `0x${privateKey0}`;
+    let privateKey0: string;
+    let privateKey1: string;
+
+    if (isSepolia) {
+        privateKey0 = getConfig("SEPOLIA_PRIVATE_KEY");
+        privateKey1 = getConfig("SEPOLIA_BUYER_PRIVATE_KEY");
+    } else {
+        privateKey0 = process.env.LOCAL_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+        privateKey1 = process.env.LOCAL_BUYER_PRIVATE_KEY || "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
     }
-    let privateKey1 = (isSepolia ? process.env.SEPOLIA_BUYER_PRIVATE_KEY : "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d") as string;
-    if (privateKey1 && !privateKey1.startsWith("0x")) {
-        privateKey1 = `0x${privateKey1}`;
-    }
+
+    if (privateKey0 && !privateKey0.startsWith("0x")) privateKey0 = `0x${privateKey0}`;
+    if (privateKey1 && !privateKey1.startsWith("0x")) privateKey1 = `0x${privateKey1}`;
 
     const account0 = privateKeyToAccount(privateKey0 as Hex);
     const account1 = privateKeyToAccount(privateKey1 as Hex);
