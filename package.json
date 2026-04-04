@@ -2,6 +2,8 @@
   "scripts": {
     "node": "hardhat node",
     "deploy:local": "npx cross-env HARDHAT_IGNITION_CONFIRM_DEPLOYMENT=true hardhat ignition deploy ignition/modules/App.ts --network localhost && node scripts/export-abis.cjs",
+    "deploy:sepolia": "npx cross-env HARDHAT_NETWORK=sepolia npx hardhat run scripts/deploy.ts --network sepolia && node scripts/export-abis.cjs",
+    "deploy:mainnet": "npx cross-env HARDHAT_NETWORK=mainnet npx hardhat run scripts/deploy.ts --network mainnet && node scripts/export-abis.cjs",
     "deploy:sepolia:gasless": "npx cross-env HARDHAT_NETWORK=sepolia npx hardhat run scripts/deploy-gasless.ts --network sepolia && node scripts/export-abis.cjs",
     "seed:local": "hardhat run scripts/seed-data.ts --network localhost",
     "seed:sepolia": "npx cross-env HARDHAT_NETWORK=sepolia hardhat run scripts/seed-data.ts --network sepolia",
