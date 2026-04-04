@@ -4,6 +4,14 @@ async function initLogin() {
     const btnSiwe = document.getElementById('btnSiwe');
     if (!btnSiwe) return;
 
+    // Helper to get params from hash or query
+    const getParams = () => {
+        const hash = window.location.hash;
+        const hashQuery = hash.includes('?') ? hash.split('?')[1] : '';
+        const search = window.location.search.substring(1);
+        return new URLSearchParams(hashQuery || search);
+    };
+
     btnSiwe.onclick = async () => {
         try {
             if (!window.ethereum) {
@@ -31,10 +39,8 @@ async function initLogin() {
             localStorage.setItem('brag_address', address);
 
             // 4. Handle Account Linking if token present
-            const hash = window.location.hash;
-            const queryString = hash.includes('?') ? hash.split('?')[1] : '';
-            const urlParams = new URLSearchParams(queryString);
-            const token = urlParams.get('token');
+            const params = getParams();
+            const token = params.get('token');
             if (token) {
                 console.log('Attempting to link account with token:', token);
                 try {
@@ -60,10 +66,8 @@ async function initLogin() {
         }
     };
 
-    const hash = window.location.hash;
-    const queryString = hash.includes('?') ? hash.split('?')[1] : '';
-    const urlParams = new URLSearchParams(queryString);
-    const token = urlParams.get('token');
+    const params = getParams();
+    const token = params.get('token');
     const linkingStatus = document.getElementById('linkingStatus');
     const displayToken = document.getElementById('displayToken');
     if (token && linkingStatus && displayToken) {
