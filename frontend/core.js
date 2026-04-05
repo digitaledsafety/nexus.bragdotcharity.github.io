@@ -55,58 +55,7 @@ async function initCore() {
 }
 
 /**
- * Helper to resolve IPFS URLs to a public gateway
- */
-function resolveIPFS(url) {
-    if (!url) return url;
-    if (url.startsWith('ipfs://')) {
-        return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
-    }
-    return url;
-}
-
-/**
- * Common metadata parser and fetcher
- */
-async function fetchMetadata(tokenURI, tokenId = null) {
-    try {
-        if (!tokenURI) return null;
-
-        // Handle ERC1155 {id} substitution
-        if (tokenId && tokenURI.includes('{id}')) {
-            // Some contracts expect hex, some expect decimal.
-            // Most modern ones/OpenSea handle both or expect hex without 0x.
-            // Let's try decimal first as it's common.
-            tokenURI = tokenURI.replace('{id}', tokenId);
-        }
-
-        let metadata;
-        if (tokenURI.startsWith('data:application/json;base64,')) {
-            const base64 = tokenURI.split(',')[1];
-            metadata = JSON.parse(atob(base64));
-        } else if (tokenURI.startsWith('{')) {
-            metadata = JSON.parse(tokenURI);
-        } else {
-            // Handle external HTTP/IPFS links
-            const url = resolveIPFS(tokenURI);
-            const response = await fetch(url);
-            metadata = await response.json();
-        }
-
-        if (metadata) {
-            if (metadata.image) metadata.image = resolveIPFS(metadata.image);
-            if (metadata.animation_url) metadata.animation_url = resolveIPFS(metadata.animation_url);
-        }
-
-        return metadata;
-    } catch (e) {
-        console.warn("Metadata fetch/parse error", e);
-        return null;
-    }
-}
-
-/**
- * Legacy metadata parser for Base64 JSON (sync)
+ * Common metadata parser for Base64 JSON
  */
 function parseMetadata(tokenURI) {
     try {
