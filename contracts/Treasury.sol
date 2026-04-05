@@ -1,84 +1,291 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import {Account, IEntryPoint, PackedUserOperation} from "@openzeppelin/contracts/account/Account.sol";
+import {ERC4337Utils} from "@openzeppelin/contracts/account/utils/draft-ERC4337Utils.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 /**
  * @title Treasury
- * @dev A simple vault to hold ETH and NFTs. Implements receiver interfaces for compatibility.
- * Uses AccessControl for secure administrative control.
+ * @dev An EIP-4337 compliant multi-sig smart contract account.
+ * Supports a "proposal and multi-transaction" flow for M-of-N operations.
+ * Also supports direct 1-of-1 execution via AA or direct calls.
  */
-contract Treasury is ERC721Holder, ERC1155Holder, AccessControl {
-    using SafeERC20 for IERC20;
+contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
+    EnumerableSet.AddressSet private _owners;
+    uint256 public threshold;
+    IEntryPoint private immutable _entryPoint;
 
-    constructor(address _initialOwner) {
-        _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
-        _grantRole(TREASURY_ROLE, _initialOwner);
+    // Nonce -> Signer (to attribute actions across validation and execution)
+    mapping(uint256 => address) private _signerByNonce;
+
+    struct Proposal {
+        address target;
+        uint256 value;
+        bytes data;
+        bool executed;
+        bool canceled;
+        address proposer;
+        uint256 approvalCount;
+        mapping(address => bool) approved;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155Holder, AccessControl) returns (bool) {
-        return super.supportsInterface(interfaceId);
+    mapping(uint256 => Proposal) public proposals;
+    uint256 public proposalCount;
+
+    event OwnerAdded(address indexed owner);
+    event OwnerRemoved(address indexed owner);
+    event ThresholdChanged(uint256 threshold);
+    event Proposed(uint256 indexed proposalId, address indexed proposer, address target, uint256 value, bytes data);
+    event Approved(uint256 indexed proposalId, address indexed owner);
+    event Executed(uint256 indexed proposalId);
+    event Canceled(uint256 indexed proposalId);
+
+    error NotOwner();
+    error AlreadyOwner();
+    error InvalidThreshold();
+    error ProposalNotFound();
+    error AlreadyExecuted();
+    error AlreadyCanceled();
+    error AlreadyApproved();
+    error ThresholdNotMet();
+    error ExecutionFailed();
+    error NotProposer();
+    error InvalidOwner();
+
+    /**
+     * @dev Initialize the treasury with owners and threshold.
+     * @param initialOwners List of owner addresses.
+     * @param initialThreshold Required number of approvals for M-of-N operations.
+     * @param entryPointAddress The EIP-4337 EntryPoint contract address.
+     */
+    constructor(address[] memory initialOwners, uint256 initialThreshold, address entryPointAddress) {
+        require(initialOwners.length > 0, "No owners provided");
+        require(initialThreshold > 0 && initialThreshold <= initialOwners.length, "Invalid threshold");
+        require(entryPointAddress != address(0), "Invalid EntryPoint");
+
+        for (uint256 i = 0; i < initialOwners.length; i++) {
+            address owner = initialOwners[i];
+            require(owner != address(0), "Invalid owner");
+            if (_owners.add(owner)) {
+                emit OwnerAdded(owner);
+            }
+        }
+        threshold = initialThreshold;
+        _entryPoint = IEntryPoint(entryPointAddress);
+        emit ThresholdChanged(threshold);
+    }
+
+    modifier onlyOwner(uint256 nonce) {
+        _checkOwner(_getMsgSender(nonce));
+        _;
+    }
+
+    modifier onlySelf() {
+        if (msg.sender != address(this)) {
+            revert AccountUnauthorized(msg.sender);
+        }
+        _;
+    }
+
+    // --- AA Implementation ---
+
+    function entryPoint() public view override returns (IEntryPoint) {
+        return _entryPoint;
     }
 
     /**
-     * @dev Allows addresses with TREASURY_ROLE to withdraw ERC20 tokens.
+     * @dev Validates the signature of a UserOperation.
+     * Stores the signer in `_signerByNonce` so that the execution call knows who signed.
      */
-    function withdrawERC20(address token, address to, uint256 amount) external onlyRole(TREASURY_ROLE) {
-        IERC20(token).safeTransfer(to, amount);
+    function _validateUserOp(
+        PackedUserOperation calldata userOp,
+        bytes32 userOpHash,
+        bytes calldata signature
+    ) internal override returns (uint256) {
+        (address signer, ECDSA.RecoverError error, ) = ECDSA.tryRecover(userOpHash, signature);
+        if (error != ECDSA.RecoverError.NoError || !_owners.contains(signer)) {
+            // Fallback: Check for Ethereum Signed Message prefix
+            (signer, error, ) = ECDSA.tryRecover(MessageHashUtils.toEthSignedMessageHash(userOpHash), signature);
+            if (error != ECDSA.RecoverError.NoError || !_owners.contains(signer)) {
+                return ERC4337Utils.SIG_VALIDATION_FAILED;
+            }
+        }
+
+        _signerByNonce[userOp.nonce] = signer;
+        return ERC4337Utils.SIG_VALIDATION_SUCCESS;
+    }
+
+    function _rawSignatureValidation(bytes32 hash, bytes calldata signature) internal view override returns (bool) {
+        address signer = ECDSA.recover(hash, signature);
+        if (_owners.contains(signer)) return true;
+
+        signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(hash), signature);
+        return _owners.contains(signer);
+    }
+
+    // --- Multi-sig Logic (Proposal Flow) ---
+
+    /**
+     * @dev Propose a transaction. The proposer auto-approves it.
+     */
+    function propose(address target, uint256 value, bytes calldata data, uint256 nonce) external onlyOwner(nonce) returns (uint256) {
+        address proposer = _getMsgSender(nonce);
+        uint256 proposalId = proposalCount++;
+
+        Proposal storage p = proposals[proposalId];
+        p.target = target;
+        p.value = value;
+        p.data = data;
+        p.proposer = proposer;
+
+        emit Proposed(proposalId, proposer, target, value, data);
+
+        p.approved[proposer] = true;
+        p.approvalCount = 1;
+        emit Approved(proposalId, proposer);
+
+        return proposalId;
     }
 
     /**
-     * @dev Allows the contract to receive ETH.
+     * @dev Approve an existing proposal.
      */
-    receive() external payable {}
+    function approve(uint256 proposalId, uint256 nonce) public onlyOwner(nonce) {
+        address owner = _getMsgSender(nonce);
+        if (proposalId >= proposalCount) revert ProposalNotFound();
 
-    /**
-     * @dev Allows addresses with TREASURY_ROLE to withdraw ETH.
-     */
-    function withdrawETH(address payable to, uint256 amount) external onlyRole(TREASURY_ROLE) {
-        require(amount <= address(this).balance, "Insufficient balance");
-        (bool success, ) = to.call{value: amount}("");
-        require(success, "Transfer failed");
+        Proposal storage p = proposals[proposalId];
+        if (p.executed) revert AlreadyExecuted();
+        if (p.canceled) revert AlreadyCanceled();
+        if (p.approved[owner]) revert AlreadyApproved();
+
+        p.approved[owner] = true;
+        p.approvalCount++;
+
+        emit Approved(proposalId, owner);
     }
 
     /**
-     * @dev Emergency function to withdraw all ETH.
+     * @dev Execute a proposal that has reached the threshold.
      */
-    function withdrawAllETH(address payable to) external onlyRole(TREASURY_ROLE) {
-        uint256 balance = address(this).balance;
-        require(balance > 0, "No balance to withdraw");
-        (bool success, ) = to.call{value: balance}("");
-        require(success, "Transfer failed");
+    function executeProposal(uint256 proposalId) external payable {
+        if (proposalId >= proposalCount) revert ProposalNotFound();
+
+        Proposal storage p = proposals[proposalId];
+        if (p.executed) revert AlreadyExecuted();
+        if (p.canceled) revert AlreadyCanceled();
+        if (p.approvalCount < threshold) revert ThresholdNotMet();
+
+        p.executed = true;
+
+        (bool success, ) = p.target.call{value: p.value}(p.data);
+        if (!success) revert ExecutionFailed();
+
+        emit Executed(proposalId);
     }
 
     /**
-     * @dev Allows addresses with TREASURY_ROLE to withdraw ERC721 tokens.
+     * @dev Cancel a proposal (only by proposer or via treasury execution).
      */
-    function withdrawERC721(address nftContract, uint256 tokenId, address to) external onlyRole(TREASURY_ROLE) {
-        IERC721(nftContract).safeTransferFrom(address(this), to, tokenId);
+    function cancel(uint256 proposalId, uint256 nonce) external {
+        address caller = _getMsgSender(nonce);
+        if (proposalId >= proposalCount) revert ProposalNotFound();
+
+        Proposal storage p = proposals[proposalId];
+        if (p.executed) revert AlreadyExecuted();
+        if (p.canceled) revert AlreadyCanceled();
+
+        if (caller != p.proposer && msg.sender != address(this)) {
+             revert NotProposer();
+        }
+
+        p.canceled = true;
+        emit Canceled(proposalId);
     }
 
     /**
-     * @dev Allows addresses with TREASURY_ROLE to withdraw ERC1155 tokens.
+     * @dev Direct execution. Allowed if:
+     * 1. Called by EntryPoint (AA) and threshold is 1.
+     * 2. Called by the Treasury itself (e.g. via executeProposal).
+     * 3. Called by an owner and threshold is 1.
      */
-    function withdrawERC1155(address nftContract, uint256 tokenId, uint256 amount, address to) external onlyRole(TREASURY_ROLE) {
-        IERC1155(nftContract).safeTransferFrom(address(this), to, tokenId, amount, "");
+    function execute(address target, uint256 value, bytes calldata data, uint256 nonce) external {
+        if (msg.sender == address(entryPoint())) {
+            if (threshold != 1) revert InvalidThreshold();
+        } else if (msg.sender != address(this)) {
+            _checkOwner(msg.sender);
+            if (threshold != 1) revert InvalidThreshold();
+        }
+
+        (bool success, ) = target.call{value: value}(data);
+        if (!success) revert ExecutionFailed();
+
+        // Clean up signer data if called by EntryPoint
+        if (msg.sender == address(entryPoint())) {
+            delete _signerByNonce[nonce];
+        }
     }
 
-    /**
-     * @dev Generic execute function to allow the treasury to interact with other contracts.
-     */
-    function execute(address target, uint256 value, bytes calldata data) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bytes memory) {
-        (bool success, bytes memory result) = target.call{value: value}(data);
-        require(success, "External call failed");
-        return result;
+    // --- Owner & Threshold Management (Internal Actions) ---
+
+    function addOwner(address newOwner) external onlySelf {
+        if (newOwner == address(0)) revert InvalidOwner();
+        if (!_owners.add(newOwner)) revert AlreadyOwner();
+        emit OwnerAdded(newOwner);
     }
+
+    function removeOwner(address owner) external onlySelf {
+        if (!_owners.remove(owner)) revert NotOwner();
+        if (_owners.length() < threshold) revert InvalidThreshold();
+        if (_owners.length() == 0) revert InvalidThreshold();
+        emit OwnerRemoved(owner);
+    }
+
+    function changeThreshold(uint256 newThreshold) external onlySelf {
+        if (newThreshold == 0 || newThreshold > _owners.length()) revert InvalidThreshold();
+        threshold = newThreshold;
+        emit ThresholdChanged(threshold);
+    }
+
+    // --- Helpers ---
+
+    function _getMsgSender(uint256 nonce) internal view returns (address) {
+        if (msg.sender == address(entryPoint())) {
+            return _signerByNonce[nonce];
+        }
+        return msg.sender;
+    }
+
+    function _checkOwner(address account) internal view {
+        if (!_owners.contains(account)) revert NotOwner();
+    }
+
+    function isOwner(address account) public view returns (bool) {
+        return _owners.contains(account);
+    }
+
+    function getOwners() external view returns (address[] memory) {
+        return _owners.values();
+    }
+
+    function hasApproved(uint256 proposalId, address owner) external view returns (bool) {
+        return proposals[proposalId].approved[owner];
+    }
+
+    function isValidSignature(bytes32 hash, bytes calldata signature) external view override returns (bytes4) {
+        if (_rawSignatureValidation(hash, signature)) {
+            return IERC1271.isValidSignature.selector;
+        }
+        return 0xffffffff;
+    }
+
+    receive() external payable override(Account) {}
 }

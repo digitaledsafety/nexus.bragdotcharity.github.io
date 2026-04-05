@@ -19,7 +19,8 @@ describe("Contract Hardening Tests", async function () {
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
 
     // BragNFT & Dependencies
-    const treasury = await viem.deployContract("Treasury", [owner.account.address]);
+    const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
     const bragNFT = await viem.deployContract("BragNFT", [
       owner.account.address,
       treasury.address,
