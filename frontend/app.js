@@ -16,7 +16,7 @@ function log(message, type = 'info') {
 }
 
 // Persistent addresses logic for Admin
-const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrNFTMarketplace', 'addrTreasury'];
+const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrNFTMarketplace'];
 
 function setupManagerListeners() {
     addressFields.forEach(id => {
@@ -37,8 +37,6 @@ function setupManagerListeners() {
             const contractName = id.replace('addr', '');
             const explorerInput = document.getElementById(`explorerAddr_${contractName}`);
             if (explorerInput) explorerInput.value = e.target.value;
-
-            if (id === 'addrTreasury') refreshTreasuryInfo();
         };
 
         el.addEventListener('change', saver);
@@ -178,7 +176,6 @@ function setupManagerListeners() {
                     }
                 });
                 log('Addresses pre-filled from deployment data', 'success');
-                refreshTreasuryInfo();
             }
         };
     }
@@ -192,7 +189,7 @@ function getAdminContract(name, addressOverride = null) {
     if (!address || !ethers.utils.isAddress(address)) {
         throw new Error(`Invalid address for ${name}`);
     }
-    return new ethers.Contract(address, CONTRACT_DATA.contracts[name].abi, signer || provider);
+    return new ethers.Contract(address, CONTRACT_DATA.contracts[name].abi, signer);
 }
 
 async function txHandler(promise, successMsg) {
@@ -231,151 +228,5 @@ async function initManager() {
     });
 
     // Re-trigger wallet UI update specifically for manager elements
-    if (userAddress) {
-        updateWalletUI();
-        refreshTreasuryInfo();
-    }
-
-    // Treasury Button Listeners
-    document.getElementById('btnRefreshTreasury')?.addEventListener('click', refreshTreasuryInfo);
-
-    document.getElementById('btnTreasuryWithdraw')?.addEventListener('click', async () => {
-        const addr = document.getElementById('addrTreasury').value;
-        const recipient = document.getElementById('withdrawRecipient').value;
-        const amount = document.getElementById('withdrawAmount').value;
-        if (!ethers.utils.isAddress(recipient)) return log('Invalid recipient address', 'error');
-
-        try {
-            const treasury = getAdminContract('Treasury', addr);
-            const val = ethers.utils.parseEther(amount);
-            const threshold = await treasury.threshold();
-            const nonce = Math.floor(Date.now() / 1000);
-
-            if (threshold.eq(1)) {
-                await txHandler(treasury["execute(address,uint256,bytes,uint256)"](recipient, val, "0x", nonce), 'Withdrawal Executed');
-            } else {
-                await txHandler(treasury.propose(recipient, val, "0x", nonce), 'Withdrawal Proposed');
-            }
-            refreshTreasuryInfo();
-        } catch (e) {
-            log(e.message, 'error');
-        }
-    });
-
-    document.getElementById('btnTreasuryExecute')?.addEventListener('click', async () => {
-        const addr = document.getElementById('addrTreasury').value;
-        const target = document.getElementById('execTarget').value;
-        const value = document.getElementById('execValue').value || '0';
-        const data = document.getElementById('execData').value || '0x';
-        if (!ethers.utils.isAddress(target)) return log('Invalid target address', 'error');
-
-        try {
-            const treasury = getAdminContract('Treasury', addr);
-            const val = ethers.utils.parseEther(value);
-            const threshold = await treasury.threshold();
-            const nonce = Math.floor(Date.now() / 1000);
-
-            if (threshold.eq(1)) {
-                await txHandler(treasury["execute(address,uint256,bytes,uint256)"](target, val, data, nonce), 'Execution Successful');
-            } else {
-                await txHandler(treasury.propose(target, val, data, nonce), 'Proposal Created');
-            }
-            refreshTreasuryInfo();
-        } catch (e) {
-            log(e.message, 'error');
-        }
-    });
-}
-
-/**
- * Treasury Management Logic
- */
-async function refreshTreasuryInfo() {
-    const treasuryAddr = document.getElementById('addrTreasury')?.value;
-    if (!treasuryAddr || !ethers.utils.isAddress(treasuryAddr)) return;
-
-    try {
-        const treasury = getAdminContract('Treasury', treasuryAddr);
-
-        // 1. Get Balance
-        const balance = await provider.getBalance(treasuryAddr);
-        document.getElementById('treasuryBalance').innerText = `${ethers.utils.formatEther(balance)} ETH`;
-
-        // 2. Get Threshold & Owners
-        const threshold = await treasury.threshold();
-        const owners = await treasury.getOwners();
-        document.getElementById('treasuryThreshold').innerText = `${threshold} / ${owners.length}`;
-        document.getElementById('treasuryOwners').innerText = owners.join('\n');
-
-        // 3. Render Proposals
-        await renderProposals(treasury);
-
-    } catch (e) {
-        console.error("Treasury refresh error:", e);
-        log(`Failed to refresh treasury: ${e.message}`, 'error');
-    }
-}
-
-async function renderProposals(treasury) {
-    const list = document.getElementById('proposalList');
-    if (!list) return;
-
-    try {
-        const count = await treasury.proposalCount();
-        if (count.eq(0)) {
-            list.innerHTML = '<div class="text-center py-8 text-slate-600 text-xs italic">No proposals found.</div>';
-            return;
-        }
-
-        list.innerHTML = '';
-        // Show last 10 proposals
-        const start = count.gt(10) ? count.sub(10) : ethers.BigNumber.from(0);
-
-        for (let i = count.sub(1); i.gte(start); i = i.sub(1)) {
-            const p = await treasury.proposals(i);
-            const isApproved = userAddress ? await treasury.hasApproved(i, userAddress) : false;
-            const threshold = await treasury.threshold();
-
-            const div = document.createElement('div');
-            div.className = `bg-white/5 rounded-2xl p-4 border border-white/5 space-y-3 ${p.executed ? 'opacity-50' : ''}`;
-
-            let statusTag = '';
-            if (p.executed) statusTag = '<span class="text-[8px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 uppercase font-black">Executed</span>';
-            else if (p.canceled) statusTag = '<span class="text-[8px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 uppercase font-black">Canceled</span>';
-            else statusTag = `<span class="text-[8px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 uppercase font-black">${p.approvalCount} / ${threshold} Approved</span>`;
-
-            div.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-black text-slate-500 uppercase">Proposal #${i}</span>
-                    ${statusTag}
-                </div>
-                <div class="space-y-1">
-                    <div class="text-[10px] font-mono text-slate-400 truncate"><span class="text-slate-600 mr-2">Target:</span>${p.target}</div>
-                    <div class="text-[10px] font-mono text-slate-400"><span class="text-slate-600 mr-2">Value:</span>${ethers.utils.formatEther(p.value)} ETH</div>
-                </div>
-                ${!p.executed && !p.canceled ? `
-                <div class="flex space-x-2 pt-2">
-                    ${!isApproved ? `<button class="btn-approve btn-primary px-3 py-1.5 rounded-lg text-[9px] font-black uppercase" data-id="${i}">Approve</button>` : ''}
-                    ${p.approvalCount.gte(threshold) ? `<button class="btn-execute-prop btn-secondary px-3 py-1.5 rounded-lg text-[9px] font-black uppercase" data-id="${i}">Execute</button>` : ''}
-                </div>
-                ` : ''}
-            `;
-
-            // Add listener for buttons
-            div.querySelector('.btn-approve')?.addEventListener('click', async () => {
-                const nonce = Math.floor(Date.now() / 1000);
-                await txHandler(treasury.approve(i, nonce), `Proposal #${i} Approved`);
-                refreshTreasuryInfo();
-            });
-
-            div.querySelector('.btn-execute-prop')?.addEventListener('click', async () => {
-                await txHandler(treasury.executeProposal(i), `Proposal #${i} Executed`);
-                refreshTreasuryInfo();
-            });
-
-            list.appendChild(div);
-        }
-    } catch (e) {
-        console.error("Proposal render error:", e);
-    }
+    if (userAddress) updateWalletUI();
 }
