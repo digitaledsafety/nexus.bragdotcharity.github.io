@@ -153,6 +153,7 @@ async function main() {
     // --- Contract Deployments ---
     const minimumDonation = 1n;
     const externalTreasury = process.env.TREASURY_ADDRESS;
+    const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"; // v0.7.0
 
     let treasury: { address: `0x${string}`, abi: any };
     if (externalTreasury && externalTreasury !== "") {
@@ -161,7 +162,8 @@ async function main() {
         const treasuryArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8"));
         treasury = { address: getAddress(externalTreasury), abi: treasuryArtifact.abi };
     } else {
-        treasury = await deploy("Treasury", [scaAddress]);
+        // Deploy Treasury as 1-of-1 multi-sig with scaAddress as initial owner
+        treasury = await deploy("Treasury", [[scaAddress], 1n, entryPointAddress]);
     }
 
     const exhibitRegistry = await deploy("ExhibitRegistry", [scaAddress]);
@@ -230,22 +232,10 @@ async function main() {
     }
 
     // Treasury Roles
-    setupTxs.push({
-        to: treasury.address,
-        data: encodeFunctionData({
-            abi: treasury.abi,
-            functionName: "grantRole",
-            args: [DEFAULT_ADMIN_ROLE, eoaAddress]
-        })
-    });
-    setupTxs.push({
-        to: treasury.address,
-        data: encodeFunctionData({
-            abi: treasury.abi,
-            functionName: "grantRole",
-            args: [TREASURY_ROLE, eoaAddress]
-        })
-    });
+    // Note: The new Treasury multi-sig doesn't use AccessControl roles for withdrawals anymore.
+    // It uses multi-sig logic (propose/approve/execute or 1-of-1 execute).
+    // The smart account (scaAddress) is already an owner from deployment.
+    // To add the EOA as an owner, a proposal must be made from the smart account.
 
     // Exhibit Registry Roles
     setupTxs.push({

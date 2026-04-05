@@ -13,7 +13,8 @@ describe("AccessControl Security Tests", async function () {
   async function setup() {
     const [owner, attacker, other] = await viem.getWalletClients();
 
-    const treasury = await viem.deployContract("Treasury", [owner.account.address]);
+    const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
     const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const bragNFT = await viem.deployContract("BragNFT", [
@@ -95,27 +96,11 @@ describe("AccessControl Security Tests", async function () {
   });
 
   describe("Treasury Access", () => {
-    it("Should fail to withdrawETH without TREASURY_ROLE", async function () {
-      const { treasury, attacker } = await setup();
-      await assert.rejects(
-        treasury.write.withdrawETH([attacker.account.address, 1n], { account: attacker.account }),
-        /AccessControlUnauthorizedAccount/
-      );
-    });
-
-    it("Should fail to withdrawERC721 without TREASURY_ROLE", async function () {
-      const { treasury, attacker, bragNFT } = await setup();
-      await assert.rejects(
-        treasury.write.withdrawERC721([bragNFT.address, 0n, attacker.account.address], { account: attacker.account }),
-        /AccessControlUnauthorizedAccount/
-      );
-    });
-
-    it("Should fail to execute without ADMIN_ROLE", async function () {
+    it("Should fail to execute without being an owner", async function () {
       const { treasury, attacker, other } = await setup();
       await assert.rejects(
-        treasury.write.execute([other.account.address, 0n, "0x"], { account: attacker.account }),
-        /AccessControlUnauthorizedAccount/
+        treasury.write.execute([other.account.address, 0n, "0x", 0n], { account: attacker.account }),
+        /NotOwner/
       );
     });
   });

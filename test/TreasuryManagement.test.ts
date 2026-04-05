@@ -13,7 +13,8 @@ describe("Treasury Management", async function () {
     const initialSupply = parseEther("1000000");
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
 
-    const treasury = await viem.deployContract("Treasury", [owner.account.address]);
+    const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const bragNFT = await viem.deployContract("BragNFT", [
         owner.account.address,
@@ -42,7 +43,16 @@ describe("Treasury Management", async function () {
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(treasury.address));
 
     // Owner withdraws
-    await treasury.write.withdrawERC721([bragNFT.address, tokenId, owner.account.address], { account: owner.account });
+    const withdrawData = encodeFunctionData({
+        abi: [{
+            name: 'safeTransferFrom',
+            type: 'function',
+            inputs: [{ name: 'from', type: 'address' }, { name: 'to', type: 'address' }, { name: 'tokenId', type: 'uint256' }],
+            outputs: [],
+        }],
+        args: [treasury.address, owner.account.address, tokenId]
+    });
+    await treasury.write.execute([bragNFT.address, 0n, withdrawData, 0n], { account: owner.account });
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(owner.account.address));
   });
 
@@ -56,7 +66,16 @@ describe("Treasury Management", async function () {
     assert.equal(await bragToken.read.balanceOf([treasury.address]), amount);
 
     // Withdraw tokens from the treasury
-    await treasury.write.withdrawERC20([bragToken.address, recipient, amount], { account: owner.account });
+    const withdrawData = encodeFunctionData({
+        abi: [{
+            name: 'transfer',
+            type: 'function',
+            inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
+            outputs: [{ name: '', type: 'bool' }],
+        }],
+        args: [recipient, amount]
+    });
+    await treasury.write.execute([bragToken.address, 0n, withdrawData, 0n], { account: owner.account });
 
     assert.equal(await bragToken.read.balanceOf([treasury.address]), 0n);
     assert.equal(await bragToken.read.balanceOf([recipient]), amount);
@@ -94,7 +113,7 @@ describe("Treasury Management", async function () {
         ],
         args: [marketplace.address, tokenId]
     });
-    await treasury.write.execute([bragNFT.address, 0n, approveData], { account: owner.account });
+    await treasury.write.execute([bragNFT.address, 0n, approveData, 0n], { account: owner.account });
 
     // 4. Treasury owner accepts the offer through treasury.execute
     const acceptOfferData = encodeFunctionData({
@@ -115,7 +134,7 @@ describe("Treasury Management", async function () {
 
     const initialTreasuryBalance = await bragToken.read.balanceOf([treasury.address]);
 
-    await treasury.write.execute([marketplace.address, 0n, acceptOfferData], { account: owner.account });
+    await treasury.write.execute([marketplace.address, 0n, acceptOfferData, 0n], { account: owner.account });
 
     // 5. Verify results
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));

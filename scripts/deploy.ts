@@ -105,6 +105,7 @@ async function main() {
     // --- Contract Deployments ---
     const minimumDonation = 1n;
     const externalTreasury = process.env.TREASURY_ADDRESS;
+    const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"; // v0.7.0
 
     let treasury: { address: `0x${string}`, abi: any };
     if (externalTreasury && externalTreasury !== "") {
@@ -112,7 +113,8 @@ async function main() {
         const treasuryArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8"));
         treasury = { address: getAddress(externalTreasury), abi: treasuryArtifact.abi };
     } else {
-        treasury = await deploy("Treasury", [account.address]);
+        // Deploy Treasury as 1-of-1 multi-sig with EntryPoint
+        treasury = await deploy("Treasury", [[account.address], 1n, entryPointAddress]);
     }
 
     const exhibitRegistry = await deploy("ExhibitRegistry", [account.address]);
@@ -180,14 +182,9 @@ async function main() {
     await publicClient.waitForTransactionReceipt({ hash: verifierHash });
 
     // Additional Roles for Treasury
-    console.log("Setting up Treasury roles...");
-    const treasuryRoleHash = await walletClient.writeContract({
-        address: treasury.address,
-        abi: treasury.abi,
-        functionName: "grantRole",
-        args: [TREASURY_ROLE, account.address]
-    });
-    await publicClient.waitForTransactionReceipt({ hash: treasuryRoleHash });
+    // Note: The new Treasury multi-sig doesn't use AccessControl roles for withdrawals anymore.
+    // It uses multi-sig logic (propose/approve/execute or 1-of-1 execute).
+    // The account is already an owner from deployment.
 
     console.log("Setup complete!");
 

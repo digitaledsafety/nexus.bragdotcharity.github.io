@@ -11,7 +11,8 @@ describe("BragToken Integration", async function () {
     const [owner, donor] = await viem.getWalletClients();
 
     // Deploy contracts manually for the test to ensure clean state
-    const treasury = await viem.deployContract("Treasury", [owner.account.address]);
+    const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const bragNFT = await viem.deployContract("BragNFT", [
       owner.account.address,
