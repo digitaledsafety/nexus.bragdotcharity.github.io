@@ -9,11 +9,13 @@ export default buildModule("AppModule", (m) => {
   // This allows us to conditionally deploy the Treasury contract.
   const externalTreasury = process.env.TREASURY_ADDRESS;
 
+  const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"; // v0.7.0
+
   let treasury;
   if (externalTreasury && externalTreasury !== "") {
     treasury = externalTreasury;
   } else {
-    treasury = m.contract("Treasury", [initialOwner]);
+    treasury = m.contract("Treasury", [[initialOwner], 1n, entryPointAddress]);
   }
 
   // Deploy ExhibitRegistry

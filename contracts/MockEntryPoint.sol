@@ -7,7 +7,7 @@ import {IEntryPoint} from "@openzeppelin/contracts/interfaces/draft-IERC4337.sol
 contract MockEntryPoint is IEntryPoint {
     mapping(address => uint256) public nonces;
 
-    function handleOps(PackedUserOperation[] calldata ops, address payable beneficiary) external override {
+    function handleOps(PackedUserOperation[] calldata ops, address payable /*beneficiary*/) external override {
         for (uint256 i = 0; i < ops.length; i++) {
             // Use the consistent hashing method
             bytes32 userOpHash = getUserOpHash(ops[i]);
@@ -25,20 +25,20 @@ contract MockEntryPoint is IEntryPoint {
         }
     }
 
-    function handleAggregatedOps(UserOpsPerAggregator[] calldata opsPerAggregator, address payable beneficiary) external override {}
+    function handleAggregatedOps(UserOpsPerAggregator[] calldata /*opsPerAggregator*/, address payable /*beneficiary*/) external override {}
 
     function getUserOpHash(PackedUserOperation calldata userOp) public view returns (bytes32) {
         return keccak256(abi.encode(userOp, address(this), block.chainid));
     }
 
-    function getNonce(address sender, uint192 key) external view override returns (uint256) {
+    function getNonce(address sender, uint192 /*key*/) external view override returns (uint256) {
         return nonces[sender];
     }
 
-    function depositTo(address account) external payable override {}
-    function withdrawTo(address payable withdrawAddress, uint256 withdrawAmount) external override {}
-    function addStake(uint32 unstakeDelaySec) external payable override {}
+    function depositTo(address /*account*/) external payable override {}
+    function withdrawTo(address payable /*withdrawAddress*/, uint256 /*withdrawAmount*/) external override {}
+    function addStake(uint32 /*unstakeDelaySec*/) external payable override {}
     function unlockStake() external override {}
-    function withdrawStake(address payable withdrawAddress) external override {}
-    function balanceOf(address account) external view override returns (uint256) { return 0; }
+    function withdrawStake(address payable /*withdrawAddress*/) external override {}
+    function balanceOf(address /*account*/) external pure override returns (uint256) { return 0; }
 }
