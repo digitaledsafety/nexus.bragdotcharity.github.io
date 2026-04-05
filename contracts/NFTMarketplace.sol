@@ -30,6 +30,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
+    event OfferUpdated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 newPrice, uint256 newAmount);
     event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller);
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
@@ -144,6 +145,36 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         paymentToken.safeTransfer(msg.sender, offer.price);
 
         emit OfferCanceled(nftContract, tokenId, msg.sender);
+    }
+
+    /**
+     * @notice Update an existing offer
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token being offered on
+     * @param newAmount New number of tokens to buy
+     * @param newPrice New total price in payment tokens
+     */
+    function updateOffer(address nftContract, uint256 tokenId, uint256 newAmount, uint256 newPrice) external nonReentrant {
+        Offer storage offer = offers[nftContract][tokenId][msg.sender];
+        require(offer.price > 0, "Offer does not exist");
+        require(newPrice > 0, "New price must be greater than 0");
+        require(newAmount > 0, "New amount must be greater than 0");
+
+        uint256 oldPrice = offer.price;
+
+        if (newPrice > oldPrice) {
+            // Transfer additional tokens from buyer
+            paymentToken.safeTransferFrom(msg.sender, address(this), newPrice - oldPrice);
+        } else if (newPrice < oldPrice) {
+            // Refund the difference to buyer
+            paymentToken.safeTransfer(msg.sender, oldPrice - newPrice);
+        }
+
+        offer.price = newPrice;
+        offer.amount = newAmount;
+        offer.timestamp = block.timestamp;
+
+        emit OfferUpdated(nftContract, tokenId, msg.sender, newPrice, newAmount);
     }
 
     /**

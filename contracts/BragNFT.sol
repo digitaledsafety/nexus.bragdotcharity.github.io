@@ -261,9 +261,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
 
         // Check for 3-letter extensions: .mp3, .wav, .ogg, .m4a, .aac, .mp4, .mov, .ogv, .m4v, .gif
         if (b[len - 4] == '.') {
-            bytes1 b1 = b[len - 3];
-            bytes1 b2 = b[len - 2];
-            bytes1 b3 = b[len - 1];
+            bytes1 b1 = _toLower(b[len - 3]);
+            bytes1 b2 = _toLower(b[len - 2]);
+            bytes1 b3 = _toLower(b[len - 1]);
 
             if (b1 == 'm' && b2 == 'p' && b3 == '3') return true;
             if (b1 == 'w' && b2 == 'a' && b3 == 'v') return true;
@@ -279,10 +279,22 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
 
         // Check for 4-letter extensions: .webm
         if (len >= 5 && b[len - 5] == '.') {
-            if (b[len - 4] == 'w' && b[len - 3] == 'e' && b[len - 2] == 'b' && b[len - 1] == 'm') return true;
+            bytes1 b1 = _toLower(b[len - 4]);
+            bytes1 b2 = _toLower(b[len - 3]);
+            bytes1 b3 = _toLower(b[len - 2]);
+            bytes1 b4 = _toLower(b[len - 1]);
+
+            if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'm') return true;
         }
 
         return false;
+    }
+
+    function _toLower(bytes1 b) internal pure returns (bytes1) {
+        if (uint8(b) >= 65 && uint8(b) <= 90) {
+            return bytes1(uint8(b) + 32);
+        }
+        return b;
     }
 
     /**
