@@ -8,19 +8,19 @@ export default buildModule("AppModule", (m) => {
   // --- Treasury ---
   const treasuryImpl = m.contract("Treasury", []);
   const treasuryProxy = m.contract("BragProxy", [treasuryImpl, "0x"], { id: "TreasuryProxy" });
-  const treasury = m.getContractAt("Treasury", treasuryProxy, { id: "TreasuryInstance" });
+  const treasury = m.contractAt("Treasury", treasuryProxy, { id: "TreasuryInstance" });
   m.call(treasury, "initialize", [[initialOwner], 1n, entryPointAddress]);
 
   // --- ExhibitRegistry ---
   const registryImpl = m.contract("ExhibitRegistry", []);
   const registryProxy = m.contract("BragProxy", [registryImpl, "0x"], { id: "ExhibitRegistryProxy" });
-  const exhibitRegistry = m.getContractAt("ExhibitRegistry", registryProxy, { id: "ExhibitRegistryInstance" });
+  const exhibitRegistry = m.contractAt("ExhibitRegistry", registryProxy, { id: "ExhibitRegistryInstance" });
   m.call(exhibitRegistry, "initialize", [initialOwner]);
 
   // --- DonationReceipt ---
   const receiptImpl = m.contract("DonationReceipt", []);
   const receiptProxy = m.contract("BragProxy", [receiptImpl, "0x"], { id: "DonationReceiptProxy" });
-  const donationReceipt = m.getContractAt("DonationReceipt", receiptProxy, { id: "DonationReceiptInstance" });
+  const donationReceipt = m.contractAt("DonationReceipt", receiptProxy, { id: "DonationReceiptInstance" });
   m.call(donationReceipt, "initialize", [initialOwner]);
 
   // --- BragToken ---
@@ -28,19 +28,19 @@ export default buildModule("AppModule", (m) => {
   const maxSupply = m.getParameter("maxSupply", 1000000000000000000000000000n);
   const tokenImpl = m.contract("BragToken", []);
   const tokenProxy = m.contract("BragProxy", [tokenImpl, "0x"], { id: "BragTokenProxy" });
-  const bragToken = m.getContractAt("BragToken", tokenProxy, { id: "BragTokenInstance" });
+  const bragToken = m.contractAt("BragToken", tokenProxy, { id: "BragTokenInstance" });
   m.call(bragToken, "initialize", [initialOwner, initialSupply, maxSupply]);
 
   // --- BragNFT ---
   const nftImpl = m.contract("BragNFT", []);
   const nftProxy = m.contract("BragProxy", [nftImpl, "0x"], { id: "BragNFTProxy" });
-  const bragNFT = m.getContractAt("BragNFT", nftProxy, { id: "BragNFTInstance" });
+  const bragNFT = m.contractAt("BragNFT", nftProxy, { id: "BragNFTInstance" });
   m.call(bragNFT, "initialize", [initialOwner, treasury, minimumDonation]);
 
   // --- NFTMarketplace ---
   const marketplaceImpl = m.contract("NFTMarketplace", []);
   const marketplaceProxy = m.contract("BragProxy", [marketplaceImpl, "0x"], { id: "NFTMarketplaceProxy" });
-  const marketplace = m.getContractAt("NFTMarketplace", marketplaceProxy, { id: "NFTMarketplaceInstance" });
+  const marketplace = m.contractAt("NFTMarketplace", marketplaceProxy, { id: "NFTMarketplaceInstance" });
   m.call(marketplace, "initialize", [initialOwner, bragToken]);
 
   // --- Setup relationships ---
