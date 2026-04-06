@@ -21,11 +21,21 @@ const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrNFTMarketplace
 function setupManagerListeners() {
     // Gasless Toggle Logic
     const toggleGasless = document.getElementById('toggleGasless');
+    const gaslessConfig = document.getElementById('gaslessConfig');
+    const alchemyApiKeyInput = document.getElementById('alchemyApiKey');
+    const alchemyPolicyIdInput = document.getElementById('alchemyPolicyId');
+
     if (toggleGasless) {
         isGaslessMode = localStorage.getItem('gasless_mode') === 'true';
         toggleGasless.checked = isGaslessMode;
+
+        // Load saved Alchemy credentials
+        if (alchemyApiKeyInput) alchemyApiKeyInput.value = localStorage.getItem('alchemyApiKey') || '';
+        if (alchemyPolicyIdInput) alchemyPolicyIdInput.value = localStorage.getItem('alchemyPolicyId') || '';
+
         if (isGaslessMode) {
             document.getElementById('scaInfo')?.classList.remove('hidden');
+            gaslessConfig?.classList.remove('hidden');
         }
 
         toggleGasless.onchange = async (e) => {
@@ -35,13 +45,35 @@ function setupManagerListeners() {
             if (isGaslessMode) {
                 log('Initializing Gasless Mode...');
                 document.getElementById('scaInfo')?.classList.remove('hidden');
+                gaslessConfig?.classList.remove('hidden');
                 await initSmartAccount();
                 log('Gasless Mode Active', 'success');
             } else {
                 document.getElementById('scaInfo')?.classList.add('hidden');
+                gaslessConfig?.classList.add('hidden');
                 log('Gasless Mode Disabled');
             }
         };
+
+        if (alchemyApiKeyInput) {
+            alchemyApiKeyInput.onchange = async (e) => {
+                localStorage.setItem('alchemyApiKey', e.target.value);
+                if (isGaslessMode && e.target.value) {
+                    log('API Key updated, re-initializing Smart Account...');
+                    await initSmartAccount();
+                }
+            };
+        }
+
+        if (alchemyPolicyIdInput) {
+            alchemyPolicyIdInput.onchange = async (e) => {
+                localStorage.setItem('alchemyPolicyId', e.target.value);
+                if (isGaslessMode && e.target.value) {
+                    log('Policy ID updated, re-initializing Smart Account...');
+                    await initSmartAccount();
+                }
+            };
+        }
     }
 
     addressFields.forEach(id => {
