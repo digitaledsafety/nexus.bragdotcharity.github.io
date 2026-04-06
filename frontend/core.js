@@ -115,10 +115,10 @@ async function initSmartAccount() {
         const uiApiKey = localStorage.getItem('alchemyApiKey');
         const uiPolicyId = localStorage.getItem('alchemyPolicyId');
 
-        const apiKey = uiApiKey || baseConfig?.apiKey;
-        const policyId = uiPolicyId || baseConfig?.gasPolicyId;
+        const apiKey = (uiApiKey && uiApiKey !== "") ? uiApiKey : baseConfig?.apiKey;
+        const policyId = (uiPolicyId && uiPolicyId !== "") ? uiPolicyId : baseConfig?.gasPolicyId;
 
-        if (!apiKey || apiKey === "REPLACE_WITH_ALCHEMY_API_KEY" || apiKey === "") {
+        if (!apiKey || apiKey === "__ALCHEMY_API_KEY__" || apiKey === "") {
             throw new Error("Alchemy API Key missing. Please provide it in the Setup section.");
         }
 
