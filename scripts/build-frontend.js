@@ -32,21 +32,6 @@ function main() {
   // Since we are now a SPA, index.html is the only entry point and it handles its own "includes" via the router/shell
   copyRecursiveSync(SRC_DIR, DIST_DIR);
 
-  // --- Environment Injection ---
-  const configPath = path.join(DIST_DIR, 'config.js');
-  if (fs.existsSync(configPath)) {
-      let content = fs.readFileSync(configPath, 'utf8');
-
-      const apiKey = process.env.ALCHEMY_API_KEY || '';
-      const policyId = process.env.ALCHEMY_GAS_POLICY_ID || '';
-
-      console.log(`Injecting environment variables into config.js...`);
-      content = content.replace(/__ALCHEMY_API_KEY__/g, apiKey);
-      content = content.replace(/__ALCHEMY_GAS_POLICY_ID__/g, policyId);
-
-      fs.writeFileSync(configPath, content);
-      console.log('Environment injection complete.');
-  }
 
   console.log('Build complete!');
 }

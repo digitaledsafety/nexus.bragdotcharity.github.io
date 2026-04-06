@@ -118,7 +118,7 @@ async function initSmartAccount() {
         const apiKey = (uiApiKey && uiApiKey !== "") ? uiApiKey : baseConfig?.apiKey;
         const policyId = (uiPolicyId && uiPolicyId !== "") ? uiPolicyId : baseConfig?.gasPolicyId;
 
-        if (!apiKey || apiKey === "__ALCHEMY_API_KEY__" || apiKey === "") {
+        if (!apiKey || apiKey === "") {
             throw new Error("Alchemy API Key missing. Please provide it in the Setup section.");
         }
 
