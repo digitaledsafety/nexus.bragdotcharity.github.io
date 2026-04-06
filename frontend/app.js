@@ -19,6 +19,31 @@ function log(message, type = 'info') {
 const addressFields = ['addrBragNFT', 'addrExhibitRegistry', 'addrNFTMarketplace', 'addrTreasury'];
 
 function setupManagerListeners() {
+    // Gasless Toggle Logic
+    const toggleGasless = document.getElementById('toggleGasless');
+    if (toggleGasless) {
+        isGaslessMode = localStorage.getItem('gasless_mode') === 'true';
+        toggleGasless.checked = isGaslessMode;
+        if (isGaslessMode) {
+            document.getElementById('scaInfo')?.classList.remove('hidden');
+        }
+
+        toggleGasless.onchange = async (e) => {
+            isGaslessMode = e.target.checked;
+            localStorage.setItem('gasless_mode', isGaslessMode);
+
+            if (isGaslessMode) {
+                log('Initializing Gasless Mode...');
+                document.getElementById('scaInfo')?.classList.remove('hidden');
+                await initSmartAccount();
+                log('Gasless Mode Active', 'success');
+            } else {
+                document.getElementById('scaInfo')?.classList.add('hidden');
+                log('Gasless Mode Disabled');
+            }
+        };
+    }
+
     addressFields.forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -115,7 +140,21 @@ function setupManagerListeners() {
             try {
                 const contract = getAdminContract('BragNFT', addr);
                 const val = ethers.utils.parseEther(amount);
-                await txHandler(contract["donate(string,string,bool)"](message, tokenURI, onChain, { value: val }), 'NFT Minted');
+
+                // Max gas if huge file
+                let gasOverride = null;
+                if (onChain && tokenURI.length > 50000) {
+                    gasOverride = BigInt(APP_CONFIG.gasLimits.hugeCalldataGasLimit);
+                    log(`Large file detected (${Math.round(tokenURI.length/1024)}KB). Applying gas limit override: ${gasOverride.toString()}`);
+                }
+
+                await txHandler(
+                    contract,
+                    "donate(string,string,bool)",
+                    [message, tokenURI, onChain, { value: val }],
+                    'NFT Minted',
+                    gasOverride
+                );
             } catch (e) {
                 log(e.message, 'error');
             }
@@ -126,6 +165,10 @@ function setupManagerListeners() {
     if (btnDeployVault) {
         btnDeployVault.onclick = async () => {
             try {
+                if (isGaslessMode) {
+                    throw new Error("Contract deployment not yet supported in Gasless mode via Manager. Use standard mode.");
+                }
+
                 const factory = new ethers.ContractFactory(
                     CONTRACT_DATA.contracts.ExhibitVault.abi,
                     CONTRACT_DATA.contracts.ExhibitVault.bytecode,
@@ -150,7 +193,7 @@ function setupManagerListeners() {
             const addr = document.getElementById('addrExhibitRegistry').value;
             const vault = document.getElementById('regVaultAddr').value;
             const contract = getAdminContract('ExhibitRegistry', addr);
-            await txHandler(contract.verifyVault(vault, 0, "Managed Vault", "Registry via Manager"), 'Vault Registered');
+            await txHandler(contract, 'verifyVault', [vault, 0, "Managed Vault", "Registry via Manager"], 'Vault Registered');
         };
     }
 
@@ -195,17 +238,96 @@ function getAdminContract(name, addressOverride = null) {
     return new ethers.Contract(address, CONTRACT_DATA.contracts[name].abi, signer || provider);
 }
 
-async function txHandler(promise, successMsg) {
+/**
+ * Unified Transaction Handler
+ * Routes through EOA (ethers) or SCA (viem/aa-sdk) depending on mode.
+ */
+async function txHandler(contractOrTarget, functionNameOrData, argsOrValue = [], successMsg = "Success", gasOverride = null) {
     try {
-        log('Transaction sent... awaiting confirmation.');
-        const tx = await promise;
-        log(`Tx Hash: ${tx.hash}`);
-        const receipt = await tx.wait();
-        log(`${successMsg} (Block: ${receipt.blockNumber})`, 'success');
-        return receipt;
+        if (isGaslessMode && smartAccountClient) {
+            log('Sending Gasless UserOperation...');
+
+            let target, data, value = 0n;
+
+            if (typeof contractOrTarget === 'string') {
+                // Raw call
+                target = contractOrTarget;
+                data = functionNameOrData;
+                value = BigInt(argsOrValue?.value?.toString() || 0);
+            } else {
+                // Ethers contract instance
+                target = contractOrTarget.address;
+
+                // Separate arguments from overrides (like {value: ...})
+                let encodedArgs = argsOrValue;
+                const lastArg = argsOrValue[argsOrValue.length - 1];
+                if (lastArg && typeof lastArg === 'object' && (lastArg.value || lastArg.gasLimit)) {
+                    if (lastArg.value) value = BigInt(lastArg.value.toString());
+                    encodedArgs = argsOrValue.slice(0, -1);
+                }
+
+                // Encode using ethers
+                data = contractOrTarget.interface.encodeFunctionData(functionNameOrData, encodedArgs);
+            }
+
+            const uoResponse = await smartAccountClient.sendUserOperation({
+                uo: {
+                    target,
+                    data,
+                    value,
+                },
+                overrides: gasOverride ? {
+                    callGasLimit: gasOverride
+                } : undefined
+            });
+
+            log(`UserOp Hash: ${uoResponse.hash}`);
+            const txHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
+            log(`Tx Hash: ${txHash}`);
+
+            // Wait for receipt
+            const receipt = await smartAccountClient.waitForTransactionReceipt({ hash: txHash });
+
+            log(`${successMsg} (Block: ${receipt.blockNumber})`, 'success');
+            return receipt;
+
+        } else {
+            // Standard EOA flow
+            log('Sending EOA Transaction...');
+            let tx;
+            if (typeof contractOrTarget === 'string') {
+                 // Raw execution from Manager UI
+                 const signer = provider.getSigner();
+                 tx = await signer.sendTransaction({
+                     to: contractOrTarget,
+                     data: functionNameOrData,
+                     value: argsOrValue.value || 0,
+                     gasLimit: gasOverride ? ethers.BigNumber.from(gasOverride.toString()) : undefined
+                 });
+            } else {
+                // Standard ethers contract call
+                let finalArgs = [...argsOrValue];
+                if (gasOverride) {
+                    const lastArg = finalArgs[finalArgs.length - 1];
+                    if (lastArg && typeof lastArg === 'object') {
+                        lastArg.gasLimit = ethers.BigNumber.from(gasOverride.toString());
+                    } else {
+                        finalArgs.push({ gasLimit: ethers.BigNumber.from(gasOverride.toString()) });
+                    }
+                }
+                tx = await contractOrTarget[functionNameOrData](...finalArgs);
+            }
+
+            log(`Tx Hash: ${tx.hash}`);
+            const receipt = await tx.wait();
+            log(`${successMsg} (Block: ${receipt.blockNumber})`, 'success');
+            return receipt;
+        }
     } catch (error) {
         console.error(error);
-        log(`Transaction failed: ${error.reason || error.message}`, 'error');
+        const errMsg = error.reason || error.message || "Unknown error";
+        log(`Transaction failed: ${errMsg}`, 'error');
+        throw error;
     }
 }
 
@@ -252,9 +374,9 @@ async function initManager() {
             const nonce = Math.floor(Date.now() / 1000);
 
             if (threshold.eq(1)) {
-                await txHandler(treasury["execute(address,uint256,bytes,uint256)"](recipient, val, "0x", nonce), 'Withdrawal Executed');
+                await txHandler(treasury, "execute(address,uint256,bytes,uint256)", [recipient, val, "0x", nonce], 'Withdrawal Executed');
             } else {
-                await txHandler(treasury.propose(recipient, val, "0x", nonce), 'Withdrawal Proposed');
+                await txHandler(treasury, 'propose', [recipient, val, "0x", nonce], 'Withdrawal Proposed');
             }
             refreshTreasuryInfo();
         } catch (e) {
@@ -276,9 +398,9 @@ async function initManager() {
             const nonce = Math.floor(Date.now() / 1000);
 
             if (threshold.eq(1)) {
-                await txHandler(treasury["execute(address,uint256,bytes,uint256)"](target, val, data, nonce), 'Execution Successful');
+                await txHandler(treasury, "execute(address,uint256,bytes,uint256)", [target, val, data, nonce], 'Execution Successful');
             } else {
-                await txHandler(treasury.propose(target, val, data, nonce), 'Proposal Created');
+                await txHandler(treasury, 'propose', [target, val, data, nonce], 'Proposal Created');
             }
             refreshTreasuryInfo();
         } catch (e) {
@@ -364,12 +486,12 @@ async function renderProposals(treasury) {
             // Add listener for buttons
             div.querySelector('.btn-approve')?.addEventListener('click', async () => {
                 const nonce = Math.floor(Date.now() / 1000);
-                await txHandler(treasury.approve(i, nonce), `Proposal #${i} Approved`);
+                await txHandler(treasury, 'approve', [i, nonce], `Proposal #${i} Approved`);
                 refreshTreasuryInfo();
             });
 
             div.querySelector('.btn-execute-prop')?.addEventListener('click', async () => {
-                await txHandler(treasury.executeProposal(i), `Proposal #${i} Executed`);
+                await txHandler(treasury, 'executeProposal', [i], `Proposal #${i} Executed`);
                 refreshTreasuryInfo();
             });
 
