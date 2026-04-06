@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./IDonationReceipt.sol";
 
 interface IBragToken {
@@ -18,7 +20,7 @@ interface IBragToken {
  * @dev A transferable NFT that can be exhibited. Minted upon donation along with a soulbound receipt.
  * Uses AccessControl for flexible permissions.
  */
-contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
+contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpgradeable, ReentrancyGuard, UUPSUpgradeable, IERC2981 {
     using Strings for uint256;
 
     uint256 private _nextTokenId;
@@ -29,7 +31,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     IBragToken public bragToken;
 
     // EIP-2981 Royalty Support
-    uint96 public royaltyFeeNumerator = 500; // 5% by default
+    uint96 public royaltyFeeNumerator;
 
     // Link between BragNFT tokenId and DonationReceipt tokenId
     mapping(uint256 => uint256) public nftToReceipt;
@@ -39,14 +41,24 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
 
     event Donated(address indexed donor, uint256 amount, uint256 nftTokenId, uint256 receiptTokenId, string message);
 
-    constructor(address _initialOwner, address _treasury, uint256 _minimumDonation)
-        ERC721("BragNFT", "BRAGNFT")
-    {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _initialOwner, address _treasury, uint256 _minimumDonation) public initializer {
+        __ERC721_init("BragNFT", "BRAGNFT");
+        __ERC721URIStorage_init();
+        __AccessControl_init();
+
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
         minimumDonation = _minimumDonation;
         maxSupply = 100; // Default max supply
+        royaltyFeeNumerator = 500; // 5% by default
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     function totalSupply() public view returns (uint256) {
         return _nextTokenId;
@@ -56,7 +68,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
         maxSupply = _maxSupply;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721URIStorage, AccessControl, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721URIStorageUpgradeable, AccessControlUpgradeable, IERC165) returns (bool) {
         return interfaceId == type(IERC2981).interfaceId || super.supportsInterface(interfaceId);
     }
 
@@ -69,7 +81,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
      * @dev EIP-2981 royaltyInfo implementation.
      */
     function royaltyInfo(uint256, uint256 salePrice) external view override returns (address, uint256) {
-        uint256 royaltyAmount = (salePrice * royaltyFeeNumerator) / 10000;
+        uint256 royaltyAmount = (salePrice * uint256(royaltyFeeNumerator)) / 10000;
         return (treasury, royaltyAmount);
     }
 

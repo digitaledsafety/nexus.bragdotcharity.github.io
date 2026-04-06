@@ -10,7 +10,8 @@ import {
     encodeFunctionData,
     createWalletClient,
     walletActions,
-    defineChain
+    defineChain,
+    decodeEventLog
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia, mainnet, localhost } from "viem/chains";
@@ -23,21 +24,12 @@ const hardhatLocal = defineChain({
 
 const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex;
 const MINTER_ROLE = keccak256(stringToHex("MINTER_ROLE"));
-const TREASURY_ROLE = keccak256(stringToHex("TREASURY_ROLE"));
 const VERIFIER_ROLE = keccak256(stringToHex("VERIFIER_ROLE"));
 
-/**
- * Retrieves a configuration variable from either environment variables or Hardhat configuration variables.
- */
 function getConfig(key: string, defaultValue?: string): string {
     if (process.env[key]) return process.env[key] as string;
-
-    // In Hardhat 3, configuration variables are defined in the config object
-    // or passed via environment variables. The hre.vars API is for the CLI.
-    // For programmatic access to variables defined via configVariable() in hardhat.config.ts:
     const vars = (hre.config as any).vars;
     if (vars && vars[key]) return vars[key];
-
     if (defaultValue !== undefined) return defaultValue;
     throw new Error(`Config variable ${key} is not set in process.env or hardhat config`);
 }
@@ -85,48 +77,89 @@ async function main() {
         transport: http(rpcUrl)
     }).extend(walletActions);
 
-    console.log(`Deploying contracts to ${networkName}...`);
+    console.log(`Deploying upgradeable contracts to ${networkName}...`);
     console.log(`Deployer Address: ${account.address}`);
 
     async function deploy(name: string, args: any[]) {
-        console.log(`Deploying ${name}...`);
         const artifactPath = path.join(process.cwd(), `artifacts/contracts/${name}.sol/${name}.json`);
-        if (!fs.existsSync(artifactPath)) {
-            throw new Error(`Artifact for ${name} not found. Did you run npm run compile?`);
-        }
         const { abi, bytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-
         const hash = await walletClient.deployContract({ abi, bytecode, args });
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        console.log(`${name} deployed at ${receipt.contractAddress}`);
         return { address: receipt.contractAddress!, abi };
     }
 
-    // --- Contract Deployments ---
+    async function deployProxy(name: string, initializeArgs: any[]) {
+        console.log(`Deploying implementation for ${name}...`);
+        const implementation = await deploy(name, []);
+        console.log(`${name} implementation at ${implementation.address}`);
+
+        console.log(`Deploying proxy for ${name}...`);
+        const proxyArtifactPath = path.join(process.cwd(), "artifacts/contracts/Proxy.sol/BragProxy.json");
+        const { abi: proxyAbi, bytecode: proxyBytecode } = JSON.parse(fs.readFileSync(proxyArtifactPath, "utf8"));
+
+        const initData = encodeFunctionData({
+            abi: implementation.abi,
+            functionName: "initialize",
+            args: initializeArgs
+        });
+
+        const hash = await walletClient.deployContract({
+            abi: proxyAbi,
+            bytecode: proxyBytecode,
+            args: [implementation.address, initData]
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        console.log(`${name} proxy deployed at ${receipt.contractAddress}`);
+
+        return { address: receipt.contractAddress!, abi: implementation.abi };
+    }
+
     const minimumDonation = 1n;
     const externalTreasury = process.env.TREASURY_ADDRESS;
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"; // v0.7.0
 
-    let treasury: { address: `0x${string}`, abi: any };
+    let treasuryProxy: { address: `0x${string}`, abi: any };
     if (externalTreasury && externalTreasury !== "") {
         console.log(`Using external treasury: ${externalTreasury}`);
         const treasuryArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8"));
-        treasury = { address: getAddress(externalTreasury), abi: treasuryArtifact.abi };
+        treasuryProxy = { address: getAddress(externalTreasury), abi: treasuryArtifact.abi };
     } else {
-        // Deploy Treasury as 1-of-1 multi-sig with EntryPoint
-        treasury = await deploy("Treasury", [[account.address], 1n, entryPointAddress]);
+        const treasuryImpl = await deploy("Treasury", []);
+        const treasuryFactory = await deploy("TreasuryFactory", [treasuryImpl.address]);
+
+        console.log("Creating Treasury through Factory...");
+        const salt = keccak256(stringToHex(`brag-treasury-${Date.now()}`));
+        const hash = await walletClient.writeContract({
+            address: treasuryFactory.address,
+            abi: treasuryFactory.abi,
+            functionName: "createTreasury",
+            args: [[account.address], 1n, entryPointAddress, salt]
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+        // Parse log to get treasury address
+        const log = receipt.logs.find(l => l.address.toLowerCase() === treasuryFactory.address.toLowerCase());
+        const event = decodeEventLog({
+            abi: treasuryFactory.abi,
+            eventName: "TreasuryCreated",
+            data: log!.data,
+            topics: log!.topics
+        });
+        const treasuryAddress = (event.args as any).treasury;
+        console.log(`Treasury proxy created at ${treasuryAddress}`);
+
+        treasuryProxy = { address: treasuryAddress, abi: treasuryImpl.abi };
     }
 
-    const exhibitRegistry = await deploy("ExhibitRegistry", [account.address]);
-    const donationReceipt = await deploy("DonationReceipt", [account.address]);
-    const bragNFT = await deploy("BragNFT", [account.address, treasury.address, minimumDonation]);
+    const exhibitRegistry = await deployProxy("ExhibitRegistry", [account.address]);
+    const donationReceipt = await deployProxy("DonationReceipt", [account.address]);
+    const bragNFT = await deployProxy("BragNFT", [account.address, treasuryProxy.address, minimumDonation]);
 
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
-    const bragToken = await deploy("BragToken", [account.address, initialSupply, maxSupply]);
-    const marketplace = await deploy("NFTMarketplace", [account.address, bragToken.address]);
+    const bragToken = await deployProxy("BragToken", [account.address, initialSupply, maxSupply]);
+    const marketplace = await deployProxy("NFTMarketplace", [account.address, bragToken.address]);
 
-    // --- Setup Transactions ---
     console.log("Setting up contract relationships and roles...");
 
     const setupCalls = [
@@ -157,6 +190,13 @@ async function main() {
             abi: bragToken.abi,
             functionName: "grantRole",
             args: [MINTER_ROLE, bragNFT.address]
+        },
+        {
+            name: "ExhibitRegistry.grantRole(VERIFIER_ROLE, account)",
+            to: exhibitRegistry.address,
+            abi: exhibitRegistry.abi,
+            functionName: "grantRole",
+            args: [VERIFIER_ROLE, account.address]
         }
     ];
 
@@ -171,24 +211,8 @@ async function main() {
         await publicClient.waitForTransactionReceipt({ hash });
     }
 
-    // Additional Roles for ExhibitRegistry
-    console.log("Setting up ExhibitRegistry roles...");
-    const verifierHash = await walletClient.writeContract({
-        address: exhibitRegistry.address,
-        abi: exhibitRegistry.abi,
-        functionName: "grantRole",
-        args: [VERIFIER_ROLE, account.address]
-    });
-    await publicClient.waitForTransactionReceipt({ hash: verifierHash });
-
-    // Additional Roles for Treasury
-    // Note: The new Treasury multi-sig doesn't use AccessControl roles for withdrawals anymore.
-    // It uses multi-sig logic (propose/approve/execute or 1-of-1 execute).
-    // The account is already an owner from deployment.
-
     console.log("Setup complete!");
 
-    // --- Save Deployment Artifacts ---
     const chainId = await publicClient.getChainId();
     const deploymentDir = path.join(process.cwd(), `ignition/deployments/chain-${chainId}`);
     if (!fs.existsSync(deploymentDir)) {
@@ -201,7 +225,7 @@ async function main() {
         "AppModule#DonationReceipt": donationReceipt.address,
         "AppModule#ExhibitRegistry": exhibitRegistry.address,
         "AppModule#NFTMarketplace": marketplace.address,
-        "AppModule#Treasury": treasury.address,
+        "AppModule#Treasury": treasuryProxy.address,
     };
 
     fs.writeFileSync(

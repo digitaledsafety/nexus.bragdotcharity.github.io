@@ -14,7 +14,8 @@ import {
     encodeFunctionData,
     createWalletClient,
     walletActions,
-    defineChain
+    defineChain,
+    decodeEventLog
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia, localhost } from "viem/chains";
@@ -31,23 +32,14 @@ const hardhatLocal = defineChain({
     id: 31337,
 });
 
-/** * CORRECTED ROLES: 
- * Using keccak256(stringToHex()) ensures exactly 32 bytes (64 hex chars + 0x).
- * This prevents AbiEncodingBytesSizeMismatchError.
- */
 const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex;
 const MINTER_ROLE = keccak256(stringToHex("MINTER_ROLE"));
-const TREASURY_ROLE = keccak256(stringToHex("TREASURY_ROLE"));
 const VERIFIER_ROLE = keccak256(stringToHex("VERIFIER_ROLE"));
 
-/**
- * Retrieves a configuration variable from either environment variables or Hardhat configuration variables.
- */
 function getConfig(key: string, defaultValue?: string): string {
     if (process.env[key]) return process.env[key] as string;
     const vars = (hre.config as any).vars;
     if (vars && vars[key]) return vars[key];
-
     if (defaultValue !== undefined) return defaultValue;
     throw new Error(`Config variable ${key} is not set in process.env or hardhat config`);
 }
@@ -110,37 +102,21 @@ async function main() {
     console.log(`Smart Contract Account Address: ${scaAddress}`);
 
     async function deploy(name: string, args: any[]) {
-        console.log(`Deploying ${name}...`);
+        console.log(`Deploying implementation ${name}...`);
         const artifactPath = path.join(process.cwd(), `artifacts/contracts/${name}.sol/${name}.json`);
         const { abi, bytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-
         const deployData = encodeDeployData({ abi, args, bytecode });
 
         if (isSepolia) {
             const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
             const salt = keccak256(toHex(`${name}-${Date.now()}`));
             const data = concat([salt, deployData]);
-
-            try {
-                const uoResponse = await smartAccountClient.sendUserOperation({
-                    uo: { target: factoryAddress, data }
-                });
-                const txHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
-                await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-                const deployedAddress = getContractAddress({
-                    bytecode: deployData,
-                    from: factoryAddress,
-                    opcode: "CREATE2",
-                    salt
-                });
-
-                console.log(`${name} deployed at ${deployedAddress}`);
-                return { address: deployedAddress, abi };
-            } catch (e: any) {
-                console.error(`Factory deployment failed for ${name}: ${e.message}`);
-                throw e;
-            }
+            const uoResponse = await smartAccountClient.sendUserOperation({ uo: { target: factoryAddress, data } });
+            const txHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
+            await publicClient.waitForTransactionReceipt({ hash: txHash });
+            const deployedAddress = getContractAddress({ bytecode: deployData, from: factoryAddress, opcode: "CREATE2", salt });
+            console.log(`${name} deployed at ${deployedAddress}`);
+            return { address: deployedAddress, abi };
         } else {
             const eoaClient = createWalletClient({ account: viemAccount, chain, transport: http(rpcUrl) }).extend(walletActions);
             const hash = await eoaClient.deployContract({ abi, bytecode, args });
@@ -150,124 +126,128 @@ async function main() {
         }
     }
 
-    // --- Contract Deployments ---
+    async function deployProxy(name: string, initializeArgs: any[]) {
+        const implementation = await deploy(name, []);
+        console.log(`Deploying proxy for ${name}...`);
+        const proxyArtifactPath = path.join(process.cwd(), "artifacts/contracts/Proxy.sol/BragProxy.json");
+        const { abi: proxyAbi, bytecode: proxyBytecode } = JSON.parse(fs.readFileSync(proxyArtifactPath, "utf8"));
+        const initData = encodeFunctionData({ abi: implementation.abi, functionName: "initialize", args: initializeArgs });
+        const deployData = encodeDeployData({ abi: proxyAbi, args: [implementation.address, initData], bytecode: proxyBytecode });
+
+        if (isSepolia) {
+            const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
+            const salt = keccak256(toHex(`${name}-proxy-${Date.now()}`));
+            const data = concat([salt, deployData]);
+            const uoResponse = await smartAccountClient.sendUserOperation({ uo: { target: factoryAddress, data } });
+            const txHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
+            await publicClient.waitForTransactionReceipt({ hash: txHash });
+            const proxyAddress = getContractAddress({ bytecode: deployData, from: factoryAddress, opcode: "CREATE2", salt });
+            console.log(`${name} proxy deployed at ${proxyAddress}`);
+            return { address: proxyAddress, abi: implementation.abi };
+        } else {
+            const eoaClient = createWalletClient({ account: viemAccount, chain, transport: http(rpcUrl) }).extend(walletActions);
+            const hash = await eoaClient.deployContract({ abi: proxyAbi, bytecode: proxyBytecode, args: [implementation.address, initData] });
+            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            console.log(`${name} proxy deployed at ${receipt.contractAddress}`);
+            return { address: receipt.contractAddress!, abi: implementation.abi };
+        }
+    }
+
     const minimumDonation = 1n;
     const externalTreasury = process.env.TREASURY_ADDRESS;
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"; // v0.7.0
 
-    let treasury: { address: `0x${string}`, abi: any };
+    let treasuryAddress: `0x${string}`;
+    let treasuryAbi: any;
     if (externalTreasury && externalTreasury !== "") {
-        console.log(`Using external treasury: ${externalTreasury}`);
-        // We still need the Treasury ABI for role granting later
+        treasuryAddress = getAddress(externalTreasury);
         const treasuryArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8"));
-        treasury = { address: getAddress(externalTreasury), abi: treasuryArtifact.abi };
+        treasuryAbi = treasuryArtifact.abi;
     } else {
-        // Deploy Treasury as 1-of-1 multi-sig with scaAddress as initial owner
-        treasury = await deploy("Treasury", [[scaAddress], 1n, entryPointAddress]);
+        const treasuryImpl = await deploy("Treasury", []);
+        const treasuryFactory = await deploy("TreasuryFactory", [treasuryImpl.address]);
+
+        console.log("Creating Treasury through Factory...");
+        const salt = keccak256(toHex(`brag-treasury-${Date.now()}`));
+        const initData = encodeFunctionData({
+            abi: treasuryFactory.abi,
+            functionName: "createTreasury",
+            args: [[scaAddress], 1n, entryPointAddress, salt]
+        });
+
+        const uoResponse = await smartAccountClient.sendUserOperation({
+            uo: { target: treasuryFactory.address, data: initData }
+        });
+        const txHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+        const log = receipt.logs.find(l => l.address.toLowerCase() === treasuryFactory.address.toLowerCase());
+        const event = decodeEventLog({
+            abi: treasuryFactory.abi,
+            eventName: "TreasuryCreated",
+            data: log!.data,
+            topics: log!.topics
+        });
+        treasuryAddress = (event.args as any).treasury;
+        treasuryAbi = treasuryImpl.abi;
+        console.log(`Treasury proxy created at ${treasuryAddress}`);
     }
 
-    const exhibitRegistry = await deploy("ExhibitRegistry", [scaAddress]);
-    const donationReceipt = await deploy("DonationReceipt", [scaAddress]);
-    const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation]);
+    const exhibitRegistry = await deployProxy("ExhibitRegistry", [scaAddress]);
+    const donationReceipt = await deployProxy("DonationReceipt", [scaAddress]);
+    const bragNFT = await deployProxy("BragNFT", [scaAddress, treasuryAddress, minimumDonation]);
 
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
-    const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
-    const marketplace = await deploy("NFTMarketplace", [scaAddress, bragToken.address]);
+    const bragToken = await deployProxy("BragToken", [scaAddress, initialSupply, maxSupply]);
+    const marketplace = await deployProxy("NFTMarketplace", [scaAddress, bragToken.address]);
 
-    // --- Batch Setup Transactions ---
     console.log("Batching setup and ownership transfer...");
     const setupTxs: any[] = [
         {
             to: donationReceipt.address,
-            data: encodeFunctionData({
-                abi: donationReceipt.abi,
-                functionName: "grantRole",
-                args: [MINTER_ROLE, bragNFT.address]
-            })
+            data: encodeFunctionData({ abi: donationReceipt.abi, functionName: "grantRole", args: [MINTER_ROLE, bragNFT.address] })
         },
         {
             to: bragNFT.address,
-            data: encodeFunctionData({
-                abi: bragNFT.abi,
-                functionName: "setReceiptContract",
-                args: [donationReceipt.address]
-            })
+            data: encodeFunctionData({ abi: bragNFT.abi, functionName: "setReceiptContract", args: [donationReceipt.address] })
         },
         {
             to: bragNFT.address,
-            data: encodeFunctionData({
-                abi: bragNFT.abi,
-                functionName: "setBragToken",
-                args: [bragToken.address]
-            })
+            data: encodeFunctionData({ abi: bragNFT.abi, functionName: "setBragToken", args: [bragToken.address] })
         },
         {
             to: bragToken.address,
-            data: encodeFunctionData({
-                abi: bragToken.abi,
-                functionName: "grantRole",
-                args: [MINTER_ROLE, bragNFT.address]
-            })
+            data: encodeFunctionData({ abi: bragToken.abi, functionName: "grantRole", args: [MINTER_ROLE, bragNFT.address] })
         }
     ];
 
-    // Grant Admin Roles to EOA
     const contractsToTransfer = [
         { name: "DonationReceipt", contract: donationReceipt },
         { name: "BragNFT", contract: bragNFT },
         { name: "BragToken", contract: bragToken },
-        { name: "NFTMarketplace", contract: marketplace }
+        { name: "NFTMarketplace", contract: marketplace },
+        { name: "ExhibitRegistry", contract: exhibitRegistry }
     ];
 
     for (const item of contractsToTransfer) {
         setupTxs.push({
             to: item.contract.address,
-            data: encodeFunctionData({
-                abi: item.contract.abi,
-                functionName: "grantRole",
-                args: [DEFAULT_ADMIN_ROLE, eoaAddress]
-            })
+            data: encodeFunctionData({ abi: item.contract.abi, functionName: "grantRole", args: [DEFAULT_ADMIN_ROLE, eoaAddress] })
         });
     }
 
-    // Treasury Roles
-    // Note: The new Treasury multi-sig doesn't use AccessControl roles for withdrawals anymore.
-    // It uses multi-sig logic (propose/approve/execute or 1-of-1 execute).
-    // The smart account (scaAddress) is already an owner from deployment.
-    // To add the EOA as an owner, a proposal must be made from the smart account.
-
-    // Exhibit Registry Roles
     setupTxs.push({
         to: exhibitRegistry.address,
-        data: encodeFunctionData({
-            abi: exhibitRegistry.abi,
-            functionName: "grantRole",
-            args: [DEFAULT_ADMIN_ROLE, eoaAddress]
-        })
-    });
-    setupTxs.push({
-        to: exhibitRegistry.address,
-        data: encodeFunctionData({
-            abi: exhibitRegistry.abi,
-            functionName: "grantRole",
-            args: [VERIFIER_ROLE, eoaAddress]
-        })
+        data: encodeFunctionData({ abi: exhibitRegistry.abi, functionName: "grantRole", args: [VERIFIER_ROLE, eoaAddress] })
     });
 
     console.log(`Sending batch of ${setupTxs.length} transactions...`);
-    const uoResponse = await smartAccountClient.sendUserOperation({
-        uo: setupTxs.map(tx => ({
-            target: tx.to,
-            data: tx.data
-        }))
-    });
-    
+    const uoResponse = await smartAccountClient.sendUserOperation({ uo: setupTxs.map(tx => ({ target: tx.to, data: tx.data })) });
     const batchTxHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
     await publicClient.waitForTransactionReceipt({ hash: batchTxHash });
     console.log("Batch setup complete!");
 
-    // --- Save Deployment Artifacts ---
     const chainId = await publicClient.getChainId();
     const deploymentDir = path.join(process.cwd(), `ignition/deployments/chain-${chainId}`);
     if (!fs.existsSync(deploymentDir)) {
@@ -280,13 +260,10 @@ async function main() {
         "AppModule#DonationReceipt": donationReceipt.address,
         "AppModule#ExhibitRegistry": exhibitRegistry.address,
         "AppModule#NFTMarketplace": marketplace.address,
-        "AppModule#Treasury": treasury.address,
+        "AppModule#Treasury": treasuryAddress,
     };
 
-    fs.writeFileSync(
-        path.join(deploymentDir, "deployed_addresses.json"),
-        JSON.stringify(deployedAddresses, null, 2)
-    );
+    fs.writeFileSync(path.join(deploymentDir, "deployed_addresses.json"), JSON.stringify(deployedAddresses, null, 2));
 
     console.log("Deployment complete! Artifacts saved.");
     console.log(deployedAddresses);

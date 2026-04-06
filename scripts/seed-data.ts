@@ -103,8 +103,6 @@ async function main() {
     // If Sepolia, use Alchemy Smart Accounts
     if (isSepolia) {
         console.log("Setting up Alchemy Smart Accounts for Sepolia...");
-        // This is a simplified setup. In a real scenario, you'd use the Alchemy SDK more extensively.
-        // For the sake of this script, we'll try to use the Smart Account Clients if possible.
         try {
             const transport = http(`https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`);
 
@@ -158,7 +156,6 @@ async function main() {
 
     console.log("Contracts:", { bragNFTAddr, bragTokenAddr, registryAddr, marketplaceAddr });
 
-    // Use dust ETH for Sepolia donation as requested
     const donationAmount = isSepolia ? parseEther("0.00000001") : parseEther("0.001");
 
     async function ensureFunding(smartAccountClient: any, eoaAccount: any, label: string) {
@@ -173,7 +170,7 @@ async function main() {
             });
             const hash = await eoaClient.sendTransaction({
                 to: smartAccountClient.account.address,
-                value: parseEther("0.000000001"), // Transfer some dust
+                value: parseEther("0.000000001"),
             });
             await publicClient.waitForTransactionReceipt({ hash });
             console.log(`Transferred 0.000000001 ETH from EOA to ${label}`);
@@ -185,7 +182,6 @@ async function main() {
         await ensureFunding(client1, account1, "Smart Account 1");
     }
 
-    // Helper to send multiple transactions (batched if supported)
     async function sendTransactions(client: any, requests: any[]) {
         if (isSepolia) {
             const uoResponse = await client.sendUserOperation({
@@ -211,34 +207,20 @@ async function main() {
     }
 
     async function waitForTx(client: any, uoResponse: any) {
-        // Check if this is an Alchemy UserOperation response
         if (uoResponse && typeof uoResponse === 'object' && 'hash' in uoResponse) {
             console.log("Waiting for UserOp to be bundled...", uoResponse.hash);
-
-            // 1. Wait for the Bundler to turn the UserOp into a real Transaction
-            // This returns the standard Ethereum Tx Hash
             const txHash = await client.waitForUserOperationTransaction({
                 hash: uoResponse.hash
             });
-
             console.log("UserOp bundled! Tx Hash:", txHash);
-
-            // 2. Wait for the actual block confirmation
             return await publicClient.waitForTransactionReceipt({ hash: txHash });
         }
-
-        // Fallback for standard EOA string hashes
         const hash = typeof uoResponse === 'string' ? uoResponse : uoResponse?.hash;
         return await publicClient.waitForTransactionReceipt({ hash });
     }
 
-
-
-
-    // 1. User A: Mint BragNFT by donating
     console.log("User A: Minting BragNFT with AI-generated media...");
 
-    // Try to get AI media from the bridge
     let aiMedia = "https://picsum.photos/400";
     try {
         console.log("Requesting AI image from bridge...");
@@ -257,7 +239,6 @@ async function main() {
 
     let donateTxHash;
     if (isSepolia) {
-        // Using sendUserOperation instead of sendTransaction for Gasless/AA
         donateTxHash = await client0.sendUserOperation({
             uo: {
                 target: bragNFTAddr,
@@ -279,7 +260,6 @@ async function main() {
             }
         });
     } else {
-        // Standard EOA transaction for local
         donateTxHash = await client0.sendTransaction({
             to: bragNFTAddr,
             data: encodeFunctionData({
@@ -302,8 +282,6 @@ async function main() {
 
     const donateReceipt = await waitForTx(client0, donateTxHash);
 
-    // Get tokenId from logs
-    // We'll look for the Donated event in BragNFT
     const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
 
     let tokenId = 0n;
@@ -319,84 +297,66 @@ async function main() {
                 break;
             }
         } catch (e) {
-            // Ignore logs that don't match the ABI
         }
     }
     console.log(`Using Token ID: ${tokenId}`);
 
-    // 2. User A: Deploy 5 ExhibitVault instances
     const vaultNames = ["server-1", "server-2", "gallery-1", "custom-1"];
     const vaultAddresses: string[] = [];
 
-    // We need the ExhibitVault bytecode. We'll read it from artifacts.
     const artifactPath = path.join(process.cwd(), "artifacts/contracts/ExhibitVault.sol/ExhibitVault.json");
     const { abi: vaultAbi, bytecode: vaultBytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
-    console.log("Deploying and registering 5 vaults...");
-    const vaultBatch: any[] = [];
+    const proxyArtifactPath = path.join(process.cwd(), "artifacts/@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol/ERC1967Proxy.json");
+    const { abi: proxyAbi, bytecode: proxyBytecode } = JSON.parse(fs.readFileSync(proxyArtifactPath, "utf8"));
+
+    console.log("Deploying and registering 4 upgradeable vaults...");
     const timestamp = Date.now();
 
     for (const name of vaultNames) {
-        const salt = keccak256(toHex(`${name}-${timestamp}`));
-        const vaultDeployData = encodeDeployData({ abi: vaultAbi, args: [registryAddr], bytecode: vaultBytecode });
-        const vaultAddr = getContractAddress({
-            bytecode: vaultDeployData,
-            from: "0x4e59b44847b379578588920cA78FbF26c0B4956C",
-            opcode: "CREATE2",
-            salt
+        console.log(`Deploying upgradeable vault ${name}...`);
+        const eoaClient = createWalletClient({ account: account0, chain, transport: http(rpcUrl) }).extend(walletActions);
+
+        const implHash = await eoaClient.deployContract({
+            abi: vaultAbi,
+            bytecode: vaultBytecode,
+            args: [] // Upgradeable vault has no constructor args anymore
+        });
+        const implReceipt = await publicClient.waitForTransactionReceipt({ hash: implHash });
+        const implAddr = implReceipt.contractAddress!;
+
+        const initData = encodeFunctionData({
+            abi: vaultAbi,
+            functionName: "initialize",
+            args: [registryAddr, account0.address]
         });
 
-        if (isSepolia) {
-            const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
-            const data = concat([salt, vaultDeployData]);
-            vaultBatch.push({ target: factoryAddress, data });
+        const proxyHash = await eoaClient.deployContract({
+            abi: proxyAbi,
+            bytecode: proxyBytecode,
+            args: [implAddr, initData]
+        });
+        const proxyReceipt = await publicClient.waitForTransactionReceipt({ hash: proxyHash });
+        const proxyAddr = proxyReceipt.contractAddress!;
 
-            // Register call
-            vaultBatch.push({
-                target: registryAddr,
-                data: encodeFunctionData({
-                    abi: [{ name: 'verifyVault', type: 'function', inputs: [{ name: 'vault', type: 'address' }, { name: 'locationType', type: 'uint8' }, { name: 'name', type: 'string' }, { name: 'description', type: 'string' }], outputs: [] }],
-                    args: [vaultAddr, 0, name, `Seeded vault for ${name}`]
-                })
-            });
-            vaultAddresses.push(vaultAddr);
-        } else {
-            console.log(`Deploying ${name} via EOA (Local)...`);
-            const eoaClient = createWalletClient({ account: account0, chain, transport: http(rpcUrl) }).extend(walletActions);
-            const hash = await eoaClient.deployContract({
-                abi: vaultAbi,
-                bytecode: vaultBytecode,
-                args: [registryAddr]
-            });
-            const receipt = await publicClient.waitForTransactionReceipt({ hash });
-            const deployedAddr = receipt.contractAddress!;
-            console.log(`Deployed ${name} at ${deployedAddr}`);
-            vaultAddresses.push(deployedAddr);
+        console.log(`Deployed ${name} proxy at ${proxyAddr} (impl: ${implAddr})`);
+        vaultAddresses.push(proxyAddr);
 
-            const regTx = await client0.sendTransaction({
-                to: registryAddr,
-                data: encodeFunctionData({
-                    abi: [{ name: 'verifyVault', type: 'function', inputs: [{ name: 'vault', type: 'address' }, { name: 'locationType', type: 'uint8' }, { name: 'name', type: 'string' }, { name: 'description', type: 'string' }], outputs: [] }],
-                    args: [deployedAddr, 0, name, `Seeded vault for ${name}`]
-                })
-            });
-            await waitForTx(client0, regTx);
-        }
+        const regTx = await client0.sendTransaction({
+            to: registryAddr,
+            data: encodeFunctionData({
+                abi: [{ name: 'verifyVault', type: 'function', inputs: [{ name: 'vault', type: 'address' }, { name: 'locationType', type: 'uint8' }, { name: 'name', type: 'string' }, { name: 'description', type: 'string' }], outputs: [] }],
+                args: [proxyAddr, 0, name, `Seeded vault for ${name}`]
+            })
+        });
+        await waitForTx(client0, regTx);
     }
 
-    if (vaultBatch.length > 0) {
-        console.log(`Sending batch/sequence of ${vaultBatch.length} deployment/registration transactions...`);
-        await sendTransactions(client0, vaultBatch);
-        console.log("Vault batch complete!");
-    }
-
-    // 3-5. User A actions: Exhibit, Move, Withdraw
     console.log("Batching User A actions (Exhibit, Move, Withdraw)...");
     const vault1 = vaultAddresses[0];
     const vault2 = vaultAddresses[1];
 
     const userAActions: any[] = [
-        // Exhibit
         {
             target: bragNFTAddr,
             data: encodeFunctionData({
@@ -404,7 +364,6 @@ async function main() {
                 args: [client0.account.address, vault1, tokenId, "0x"]
             })
         },
-        // Move
         {
             target: vault1,
             data: encodeFunctionData({
@@ -412,7 +371,6 @@ async function main() {
                 args: [bragNFTAddr, tokenId, vault2]
             })
         },
-        // Withdraw
         {
             target: vault2,
             data: encodeFunctionData({
@@ -424,12 +382,10 @@ async function main() {
 
     await sendTransactions(client0, userAActions);
 
-    // 6. User B: Create an offer for the BragNFT in the NFTMarketplace using BragToken
     console.log("User B: Creating offer on Marketplace...");
     const offerPrice = parseEther("0.000000001");
 
-    // First, ensure User B has enough tokens.
-    // Since client0 (Account #0) is the admin, it can grant itself MINTER_ROLE and mint tokens.
+    const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex;
     const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6" as Hex;
 
     console.log("User B: Minting and Offering...");
@@ -469,7 +425,6 @@ async function main() {
     ];
     await sendTransactions(client1, userBOfferTxs);
 
-    // 7. User A: Accept the offer
     console.log("User A: Accepting offer...");
     const userAAcceptTxs: any[] = [
         {
@@ -491,7 +446,6 @@ async function main() {
 
     console.log("Offer accepted! NFT should now be owned by User B.");
 
-    // Summary of addresses
     const artifacts = {
         network: networkName,
         chainId,

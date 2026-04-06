@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./IDonationReceipt.sol";
 
 /**
@@ -10,20 +12,28 @@ import "./IDonationReceipt.sol";
  * @dev A Soulbound NFT that serves as a permanent, non-transferable record of a donation.
  * Uses AccessControl to manage minters (e.g., BragNFT).
  */
-contract DonationReceipt is ERC721, AccessControl, IDonationReceipt {
+contract DonationReceipt is Initializable, ERC721Upgradeable, AccessControlUpgradeable, UUPSUpgradeable, IDonationReceipt {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     uint256 private _nextTokenId;
     mapping(uint256 => Receipt) public receipts;
 
     event ReceiptMinted(uint256 indexed tokenId, address indexed donor, uint256 amount);
 
-    constructor(address _initialOwner)
-        ERC721("DonationReceipt", "BRAGRECEIPT")
-    {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _initialOwner) public initializer {
+        __ERC721_init("DonationReceipt", "BRAGRECEIPT");
+        __AccessControl_init();
+
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, AccessControl) returns (bool) {
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721Upgradeable, AccessControlUpgradeable) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
