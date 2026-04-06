@@ -8,8 +8,8 @@ window.APP_CONFIG = {
     alchemy: {
         // Sepolia (Chain ID: 11155111)
         11155111: {
-            apiKey: "", // Injected during build or provide in Manager UI
-            gasPolicyId: "", // Injected during build or provide in Manager UI
+            apiKey: "", // Provide in Manager UI
+            gasPolicyId: "", // Provide in Manager UI
             rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/",
             entryPointAddress: "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
             factoryAddress: "0x00000055C0b539bb096732644b679ae3218d1217"
