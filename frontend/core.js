@@ -98,7 +98,10 @@ async function initSmartAccount() {
             account: await createMultiOwnerLightAccount({
                 transport: http(config.rpcUrl),
                 chain,
-                signer: new WalletClientSigner(walletClient, "json-rpc")
+                signer: new WalletClientSigner(walletClient, "json-rpc"),
+                version: "v2.0.0", // v0.7 Entrypoint
+                entryPointAddress: config.entryPointAddress,
+                factoryAddress: config.factoryAddress
             }),
             ...(config.gasPolicyId ? {
                 gasManagerConfig: {
