@@ -307,7 +307,7 @@ async function main() {
     const artifactPath = path.join(process.cwd(), "artifacts/contracts/ExhibitVault.sol/ExhibitVault.json");
     const { abi: vaultAbi, bytecode: vaultBytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
-    const proxyArtifactPath = path.join(process.cwd(), "artifacts/@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol/ERC1967Proxy.json");
+    const proxyArtifactPath = path.join(process.cwd(), "artifacts/contracts/Proxy.sol/BragProxy.json");
     const { abi: proxyAbi, bytecode: proxyBytecode } = JSON.parse(fs.readFileSync(proxyArtifactPath, "utf8"));
 
     console.log("Deploying and registering 4 upgradeable vaults...");
@@ -320,7 +320,7 @@ async function main() {
         const implHash = await eoaClient.deployContract({
             abi: vaultAbi,
             bytecode: vaultBytecode,
-            args: [] // Upgradeable vault has no constructor args anymore
+            args: []
         });
         const implReceipt = await publicClient.waitForTransactionReceipt({ hash: implHash });
         const implAddr = implReceipt.contractAddress!;
