@@ -9,6 +9,11 @@ let network;
 let userAddress;
 let cart = [];
 
+// Account Abstraction State
+let smartAccountClient;
+let scaAddress;
+let isGaslessMode = false;
+
 let resolveCoreReady;
 const coreReady = new Promise(resolve => { resolveCoreReady = resolve; });
 
@@ -52,6 +57,72 @@ async function initCore() {
 
     initNavbarUI();
     resolveCoreReady();
+}
+
+/**
+ * Initialize Alchemy Smart Contract Account (Light Account)
+ */
+async function initSmartAccount() {
+    if (!userAddress || !window.AlchemyAA || !APP_CONFIG) return;
+
+    try {
+        const chainId = network.chainId;
+        const config = APP_CONFIG.alchemy[chainId];
+
+        if (!config || !config.apiKey) {
+            console.warn(`Gasless mode not configured for chain ${chainId}`);
+            return;
+        }
+
+        const {
+            createPublicClient, http, custom, createWalletClient,
+            sepolia, localhost,
+            createMultiOwnerLightAccount,
+            createAlchemySmartAccountClient,
+            WalletClientSigner
+        } = window.AlchemyAA;
+
+        const chain = chainId === 11155111 ? sepolia : (chainId === 31337 ? { ...localhost, id: 31337 } : sepolia);
+
+        // 1. Create a viem wallet client from the EOA
+        const walletClient = createWalletClient({
+            account: userAddress,
+            chain,
+            transport: custom(window.ethereum)
+        });
+
+        // 2. Create the SCA Client
+        smartAccountClient = await createAlchemySmartAccountClient({
+            transport: http(config.rpcUrl),
+            chain,
+            account: await createMultiOwnerLightAccount({
+                transport: http(config.rpcUrl),
+                chain,
+                signer: new WalletClientSigner(walletClient, "json-rpc")
+            }),
+            ...(config.gasPolicyId ? {
+                gasManagerConfig: {
+                    policyId: config.gasPolicyId,
+                }
+            } : {})
+        });
+
+        scaAddress = smartAccountClient.account.address;
+        console.log("Smart Account Initialized:", scaAddress);
+
+        // Update UI
+        const scaDisp = document.getElementById('scaAddress');
+        if (scaDisp) {
+            scaDisp.innerText = scaAddress;
+            scaDisp.classList.remove('italic');
+        }
+        document.getElementById('scaInfo')?.classList.remove('hidden');
+
+        return smartAccountClient;
+    } catch (e) {
+        console.error("Failed to initialize Smart Account:", e);
+        // alert("Gasless initialization failed. Check console for details.");
+    }
 }
 
 /**
@@ -155,6 +226,11 @@ async function connectWallet(silent = false) {
             localStorage.setItem('brag_address', userAddress);
 
             updateWalletUI();
+
+            // Handle Gasless initialization if already toggled on
+            if (localStorage.getItem('gasless_mode') === 'true') {
+                initSmartAccount();
+            }
 
             // Event Listeners
             window.ethereum.on('accountsChanged', (newAccounts) => {
