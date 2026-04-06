@@ -9,6 +9,8 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title Treasury
@@ -16,12 +18,12 @@ import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155
  * Supports a "proposal and multi-transaction" flow for M-of-N operations.
  * Also supports direct 1-of-1 execution via AA or direct calls.
  */
-contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
+contract Treasury is Initializable, Account, ERC721Holder, ERC1155Holder, UUPSUpgradeable, IERC1271 {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     EnumerableSet.AddressSet private _owners;
     uint256 public threshold;
-    IEntryPoint private immutable _entryPoint;
+    IEntryPoint private _entryPoint;
 
     // Nonce -> Signer (to attribute actions across validation and execution)
     mapping(uint256 => address) private _signerByNonce;
@@ -60,13 +62,18 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     error NotProposer();
     error InvalidOwner();
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @dev Initialize the treasury with owners and threshold.
      * @param initialOwners List of owner addresses.
      * @param initialThreshold Required number of approvals for M-of-N operations.
      * @param entryPointAddress The EIP-4337 EntryPoint contract address.
      */
-    constructor(address[] memory initialOwners, uint256 initialThreshold, address entryPointAddress) {
+    function initialize(address[] memory initialOwners, uint256 initialThreshold, address entryPointAddress) public initializer {
         require(initialOwners.length > 0, "No owners provided");
         require(initialThreshold > 0 && initialThreshold <= initialOwners.length, "Invalid threshold");
         require(entryPointAddress != address(0), "Invalid EntryPoint");
@@ -82,6 +89,8 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
         _entryPoint = IEntryPoint(entryPointAddress);
         emit ThresholdChanged(threshold);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlySelf {}
 
     modifier onlyOwner(uint256 nonce) {
         _checkOwner(_getMsgSender(nonce));

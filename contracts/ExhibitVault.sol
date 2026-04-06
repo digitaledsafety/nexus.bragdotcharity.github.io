@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 interface IExhibitRegistry {
     struct VaultInfo {
@@ -24,7 +27,7 @@ interface IExhibitRegistry {
  * It tracks the original owner and allows them to withdraw or move the NFT,
  * with optional time-gating (duration).
  */
-contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
+contract ExhibitVault is Initializable, ERC721Holder, ERC1155Holder, ReentrancyGuard, UUPSUpgradeable, OwnableUpgradeable {
     IExhibitRegistry public registry;
 
     // Track original owner of ERC721 tokens
@@ -46,9 +49,18 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
     event Moved721(address indexed nftContract, uint256 indexed tokenId, address indexed owner, address destinationVault);
     event Moved1155(address indexed nftContract, uint256 indexed tokenId, address indexed owner, uint256 amount, address destinationVault);
 
-    constructor(address _registry) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _registry, address _initialOwner) public initializer {
+        __Ownable_init(_initialOwner);
+
         registry = IExhibitRegistry(_registry);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /**
      * @dev ERC721 tokens are exhibited by sending them to this contract via safeTransferFrom.
@@ -58,7 +70,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         address from,
         uint256 tokenId,
         bytes memory data
-    ) public override nonReentrant returns (bytes4) {
+    ) public override returns (bytes4) {
         address actualOwner = (from == address(0)) ? operator : from;
         uint256 duration = 0;
 
@@ -97,7 +109,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256 id,
         uint256 value,
         bytes memory data
-    ) public override nonReentrant returns (bytes4) {
+    ) public override returns (bytes4) {
         address actualOwner = (from == address(0)) ? operator : from;
         uint256 duration = 0;
 
@@ -133,7 +145,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256[] memory ids,
         uint256[] memory values,
         bytes memory data
-    ) public override nonReentrant returns (bytes4) {
+    ) public override returns (bytes4) {
         address actualOwner = (from == address(0)) ? operator : from;
         uint256 duration = 0;
 

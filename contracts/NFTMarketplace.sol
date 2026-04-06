@@ -5,12 +5,14 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract NFTMarketplace is ReentrancyGuard, AccessControl {
+contract NFTMarketplace is Initializable, ReentrancyGuard, AccessControlUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     struct Offer {
@@ -22,7 +24,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     // Mapping from NFT contract -> Token ID -> Buyer -> Offer
     mapping(address => mapping(uint256 => mapping(address => Offer))) public offers;
 
-    IERC20 public immutable paymentToken;
+    IERC20 public paymentToken;
 
     uint256 public protocolFeeBps; // e.g., 250 for 2.5%
     address public feeRecipient;
@@ -35,11 +37,20 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
 
-    constructor(address initialAdmin, address _paymentToken) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialAdmin, address _paymentToken) public initializer {
+        __AccessControl_init();
+
         paymentToken = IERC20(_paymentToken);
         feeRecipient = initialAdmin;
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /**
      * @notice Create an offer for an NFT

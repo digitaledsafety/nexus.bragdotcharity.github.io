@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title ExhibitRegistry
@@ -9,7 +11,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * Each vault represents a location (Game, Gallery, Website, etc.) where an NFT can be "exhibited".
  * Uses AccessControl for flexible permissions.
  */
-contract ExhibitRegistry is AccessControl {
+contract ExhibitRegistry is Initializable, AccessControlUpgradeable, UUPSUpgradeable {
     bytes32 public constant VERIFIER_ROLE = keccak256("VERIFIER_ROLE");
 
     enum LocationType { Game, Physical, Website, Gallery, Other }
@@ -27,10 +29,19 @@ contract ExhibitRegistry is AccessControl {
     event VaultVerified(address indexed vault, LocationType locationType, string name);
     event VaultRemoved(address indexed vault);
 
-    constructor(address initialOwner) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialOwner) public initializer {
+        __AccessControl_init();
+
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
         _grantRole(VERIFIER_ROLE, initialOwner);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /**
      * @dev Register and verify a vault address.
