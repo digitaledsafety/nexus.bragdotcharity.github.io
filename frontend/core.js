@@ -81,11 +81,11 @@ async function initSmartAccount() {
         if (retry % 10 === 0) console.log(`Waiting for AA libraries... (${retry}/${maxRetries})`);
     }
 
-    if (!window.AlchemyAA) {
-        const errorMsg = "AA Libraries not loaded. Check internet connection or esm.sh status.";
+    if (!window.AlchemyAA || Object.keys(window.AlchemyAA).length === 0) {
+        const errorMsg = window.AlchemyAA_Error || "AA Libraries not loaded or empty. Check internet connection or CDN status.";
         console.error(errorMsg);
         if (scaDisp) {
-            scaDisp.innerText = "Error: Libraries not loaded";
+            scaDisp.innerText = `Error: ${errorMsg}`;
             scaDisp.classList.add('text-red-400');
         }
         return;
@@ -118,7 +118,7 @@ async function initSmartAccount() {
         const apiKey = (uiApiKey && uiApiKey !== "") ? uiApiKey : baseConfig?.apiKey;
         const policyId = (uiPolicyId && uiPolicyId !== "") ? uiPolicyId : baseConfig?.gasPolicyId;
 
-        if (!apiKey || apiKey === "") {
+        if (!apiKey || apiKey === "__ALCHEMY_API_KEY__" || apiKey === "") {
             throw new Error("Alchemy API Key missing. Please provide it in the Setup section.");
         }
 
