@@ -63,16 +63,66 @@ async function initCore() {
  * Initialize Alchemy Smart Contract Account (Light Account)
  */
 async function initSmartAccount() {
-    if (!userAddress || !window.AlchemyAA || !APP_CONFIG) return;
+    if (!userAddress) return;
+
+    const scaDisp = document.getElementById('scaAddress');
+    if (scaDisp) {
+        scaDisp.innerText = "Connecting...";
+        scaDisp.classList.add('italic');
+        scaDisp.classList.remove('text-red-400');
+    }
+
+    // 1. Wait for AlchemyAA to be available (it's loaded via type="module")
+    let retry = 0;
+    const maxRetries = 100;
+    while (!window.AlchemyAA && retry < maxRetries) {
+        await new Promise(r => setTimeout(r, 100));
+        retry++;
+        if (retry % 10 === 0) console.log(`Waiting for AA libraries... (${retry}/${maxRetries})`);
+    }
+
+    if (!window.AlchemyAA) {
+        const errorMsg = "AA Libraries not loaded. Check internet connection or esm.sh status.";
+        console.error(errorMsg);
+        if (scaDisp) {
+            scaDisp.innerText = "Error: Libraries not loaded";
+            scaDisp.classList.add('text-red-400');
+        }
+        return;
+    }
+
+    const configData = window.APP_CONFIG || (typeof APP_CONFIG !== 'undefined' ? APP_CONFIG : null);
+    if (!configData) {
+        console.error("APP_CONFIG not found.");
+        if (scaDisp) scaDisp.innerText = "Error: Config missing";
+        return;
+    }
 
     try {
-        const chainId = network.chainId;
-        const config = APP_CONFIG.alchemy[chainId];
-
-        if (!config || !config.apiKey) {
-            console.warn(`Gasless mode not configured for chain ${chainId}`);
-            return;
+        if (!network || !network.chainId) {
+            // Try to get network if not set
+            if (provider) {
+                network = await provider.getNetwork();
+            }
         }
+
+        const chainId = network?.chainId;
+        if (!chainId) throw new Error("Network not detected. Please connect your wallet.");
+
+        const baseConfig = configData.alchemy[chainId];
+
+        // Allow UI overrides from Manager page inputs
+        const uiApiKey = localStorage.getItem('alchemyApiKey');
+        const uiPolicyId = localStorage.getItem('alchemyPolicyId');
+
+        const apiKey = uiApiKey || baseConfig?.apiKey;
+        const policyId = uiPolicyId || baseConfig?.gasPolicyId;
+
+        if (!apiKey || apiKey === "REPLACE_WITH_ALCHEMY_API_KEY" || apiKey === "") {
+            throw new Error("Alchemy API Key missing. Please provide it in the Setup section.");
+        }
+
+        const rpcUrl = chainId === 11155111 ? `https://eth-sepolia.g.alchemy.com/v2/${apiKey}` : (baseConfig?.rpcUrl || "http://127.0.0.1:8545");
 
         const {
             createPublicClient, http, custom, createWalletClient,
@@ -82,30 +132,42 @@ async function initSmartAccount() {
             WalletClientSigner
         } = window.AlchemyAA;
 
+        // Determine chain object for viem
         const chain = chainId === 11155111 ? sepolia : (chainId === 31337 ? { ...localhost, id: 31337 } : sepolia);
 
-        // 1. Create a viem wallet client from the EOA
+        // Create a viem wallet client from the EOA provider (MetaMask)
         const walletClient = createWalletClient({
             account: userAddress,
             chain,
             transport: custom(window.ethereum)
         });
 
-        // 2. Create the SCA Client
-        smartAccountClient = await createAlchemySmartAccountClient({
-            transport: http(config.rpcUrl),
+        const signer = new WalletClientSigner(walletClient, "json-rpc");
+
+        // Initialize the Smart Account Client
+        console.log("Creating Smart Account Client for chain", chainId);
+
+        // Ensure we are using the correct EntryPoint and Factory for Alchemy Light Account v2 (v0.7)
+        const entryPointAddress = baseConfig?.entryPointAddress || "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+        const factoryAddress = baseConfig?.factoryAddress || "0x00000055C0b539bb096732644b679ae3218d1217";
+
+        const account = await createMultiOwnerLightAccount({
+            transport: http(rpcUrl), // Use Alchemy RPC for counterfactual calculation
             chain,
-            account: await createMultiOwnerLightAccount({
-                transport: http(config.rpcUrl),
-                chain,
-                signer: new WalletClientSigner(walletClient, "json-rpc"),
-                version: "v2.0.0", // v0.7 Entrypoint
-                entryPointAddress: config.entryPointAddress,
-                factoryAddress: config.factoryAddress
-            }),
-            ...(config.gasPolicyId ? {
+            signer,
+            owners: [userAddress],
+            entryPointAddress,
+            factoryAddress,
+            version: "v2.0.0"
+        });
+
+        smartAccountClient = await createAlchemySmartAccountClient({
+            transport: http(rpcUrl),
+            chain,
+            account,
+            ...(policyId ? {
                 gasManagerConfig: {
-                    policyId: config.gasPolicyId,
+                    policyId: policyId,
                 }
             } : {})
         });
@@ -113,18 +175,20 @@ async function initSmartAccount() {
         scaAddress = smartAccountClient.account.address;
         console.log("Smart Account Initialized:", scaAddress);
 
-        // Update UI
-        const scaDisp = document.getElementById('scaAddress');
         if (scaDisp) {
             scaDisp.innerText = scaAddress;
-            scaDisp.classList.remove('italic');
+            scaDisp.classList.remove('italic', 'text-red-400');
+            scaDisp.classList.add('text-slate-400');
         }
         document.getElementById('scaInfo')?.classList.remove('hidden');
 
         return smartAccountClient;
     } catch (e) {
-        console.error("Failed to initialize Smart Account:", e);
-        // alert("Gasless initialization failed. Check console for details.");
+        console.error("Smart Account Initialization Failed:", e);
+        if (scaDisp) {
+            scaDisp.innerText = `Error: ${e.message || "Failed to initialize"}`;
+            scaDisp.classList.add('text-red-400');
+        }
     }
 }
 
