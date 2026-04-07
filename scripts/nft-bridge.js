@@ -12,6 +12,11 @@ const CHAIN_ID = process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID) : 31337;
 const isMain = process.argv[1] && (path.resolve(process.argv[1]) === path.resolve('scripts/nft-bridge.js'));
 const MAPPINGS_FILE = path.join(process.cwd(), 'mappings.json');
 const CONFIG_FILE = path.join(process.cwd(), 'bridge-config.json');
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
 
 // --- Configuration ---
 let serverConfigs = {
@@ -326,8 +331,7 @@ async function setupEventListeners() {
 export const handleRequest = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-file-extension');
 
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
@@ -335,7 +339,56 @@ export const handleRequest = async (req, res) => {
     const pathname = url.pathname;
     const searchParams = url.searchParams;
 
+    // Static file serving for uploads (Securely)
+    if (pathname.startsWith('/uploads/')) {
+        const relativePath = pathname.replace('/uploads/', '');
+        const safePath = path.normalize(relativePath).replace(/^(\.\.[\/\\])+/, '');
+        const filePath = path.join(UPLOADS_DIR, safePath);
+
+        // Ensure the path is still within UPLOADS_DIR after resolution
+        if (filePath.startsWith(UPLOADS_DIR) && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeTypes = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif',
+                '.mp3': 'audio/mpeg',
+                '.wav': 'audio/wav',
+                '.mp4': 'video/mp4',
+                '.webm': 'video/webm'
+            };
+            res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+            fs.createReadStream(filePath).pipe(res);
+            return;
+        }
+        res.writeHead(404);
+        res.end(JSON.stringify({ error: "File not found or access denied" }));
+        return;
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+
     try {
+        if (pathname === '/upload' && req.method === 'POST') {
+            const chunks = [];
+            for await (const chunk of req) chunks.push(chunk);
+            const buffer = Buffer.concat(chunks);
+
+            const ext = req.headers['x-file-extension'] || 'bin';
+            const fileName = `${randomUUID()}.${ext}`;
+            const filePath = path.join(UPLOADS_DIR, fileName);
+
+            fs.writeFileSync(filePath, buffer);
+
+            res.writeHead(200);
+            res.end(JSON.stringify({
+                url: `http://localhost:${PORT}/uploads/${fileName}`,
+                fileName
+            }));
+            return;
+        }
+
         if (searchParams.get('path') === 'check-platform') {
             const platformId = searchParams.get('platformId');
             const data = await getPlatformStatus(platformId);
@@ -411,12 +464,18 @@ export const handleRequest = async (req, res) => {
             console.log(`Generating AI NFT with prompt: ${prompt}`);
 
             if (!GEMINI_API_KEY || GEMINI_API_KEY === "MOCK_KEY") {
-                console.log("No Gemini API key found, returning mock image");
+                console.log("No Gemini API key found, returning mock image as URL");
                 // Return a mock base64 image (a simple blue square)
                 const mockImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA6jnS7gAAAABJRU5ErkJggg==";
+                const fileName = `mock-${randomUUID()}.png`;
+                const filePath = path.join(UPLOADS_DIR, fileName);
+                const mockBase64 = mockImage.split(',')[1];
+                fs.writeFileSync(filePath, Buffer.from(mockBase64, 'base64'));
+                const url = `http://localhost:${PORT}/uploads/${fileName}`;
+
                 res.writeHead(200);
                 res.end(JSON.stringify({
-                    image: mockImage,
+                    image: url,
                     prompt: prompt,
                     isMock: true
                 }));
@@ -473,11 +532,14 @@ export const handleRequest = async (req, res) => {
                     throw new Error("Invalid response format from Gemini API: " + JSON.stringify(result));
                 }
 
-                const dataUri = `data:image/png;base64,${base64Image}`;
+                const fileName = `${randomUUID()}.png`;
+                const filePath = path.join(UPLOADS_DIR, fileName);
+                fs.writeFileSync(filePath, Buffer.from(base64Image, 'base64'));
+                const url = `http://localhost:${PORT}/uploads/${fileName}`;
 
                 res.writeHead(200);
                 res.end(JSON.stringify({
-                    image: dataUri,
+                    image: url,
                     prompt: prompt,
                     isMock: false
                 }));
