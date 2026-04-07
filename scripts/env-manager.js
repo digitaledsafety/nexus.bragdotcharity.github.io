@@ -87,18 +87,57 @@ async function checkManagerStatus() {
     }
 }
 
+function checkDependencies() {
+    const nodeModulesPath = path.join(ROOT, 'node_modules');
+    const viemPath = path.join(nodeModulesPath, 'viem');
+    if (!fs.existsSync(nodeModulesPath) || !fs.existsSync(viemPath)) {
+        console.log('Dependencies missing or incomplete. Installing...');
+        try {
+            execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
+            console.log('Dependencies installed successfully.');
+        } catch (e) {
+            console.error('Failed to install dependencies:', e.message);
+            throw e;
+        }
+    }
+}
+
+async function waitForHardhat(timeoutMs = 30000) {
+    console.log('Waiting for Hardhat node to be ready...');
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        try {
+            const res = await fetch('http://127.0.0.1:8545', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_chainId', params: [], id: 1 })
+            });
+            if (res.ok) {
+                console.log('Hardhat node is ready.');
+                return true;
+            }
+        } catch (e) {
+            // Node not ready yet
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    throw new Error(`Hardhat node failed to become ready within ${timeoutMs}ms`);
+}
+
 async function initEnvironment() {
-    if (services.hardhat.status === 'initializing') return;
+    if (services.hardhat.status === 'initializing') return false;
     services.hardhat.status = 'initializing';
 
     console.log('--- Initializing Environment ---');
 
     try {
+        checkDependencies();
+
         // 1. Start Hardhat Node
         startService('hardhat');
 
         // Wait for node to be ready
-        await new Promise(resolve => setTimeout(resolve, 8000));
+        await waitForHardhat();
 
         console.log('Deploying contracts...');
         await new Promise((resolve, reject) => {
@@ -118,9 +157,11 @@ async function initEnvironment() {
 
         console.log('Environment initialized successfully.');
         services.hardhat.status = 'running';
+        return true;
     } catch (e) {
         console.error('Initialization failed:', e.message);
         services.hardhat.status = 'stopped';
+        return false;
     }
 }
 
@@ -243,9 +284,14 @@ const server = http.createServer((req, res) => {
 
 const mode = process.argv[2];
 if (mode === 'init') {
-    initEnvironment().then(() => {
-        startService('bridge');
-        startService('frontend');
+    initEnvironment().then((success) => {
+        if (success) {
+            startService('bridge');
+            startService('frontend');
+        } else {
+            console.error('Initialization failed. Bridge and frontend will not be started.');
+            process.exit(1);
+        }
     });
 } else if (mode === 'start') {
     startService('hardhat');
