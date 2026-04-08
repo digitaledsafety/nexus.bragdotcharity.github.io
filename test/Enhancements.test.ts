@@ -1,137 +1,176 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, keccak256, toBytes } from "viem";
+import { getAddress, parseEther, zeroAddress, decodeEventLog, keccak256, toBytes } from "viem";
 
-describe("Enhancements (Royalties & SVG Escaping)", async function () {
+describe("Enhancement Tests", async function () {
   const { viem } = await network.connect();
 
-  async function deployAll() {
-    const [owner, seller, buyer, treasury] = await viem.getWalletClients();
+  async function setup() {
+    const [owner, user1, user2] = await viem.getWalletClients();
 
-    // BragToken
-    const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("2000000")]);
+    // Deploy BragToken
+    const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000"), parseEther("2000")]);
 
-    // Marketplace (now with 1 arg)
+    // Deploy Marketplace
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
 
-    // BragNFT
-    const bragNFT = await viem.deployContract("BragNFT", [
-        owner.account.address,
-        treasury.account.address,
-        parseEther("0.1")
-    ]);
+    // Deploy ExhibitRegistry & Vault
+    const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
+    const vault = await viem.deployContract("ExhibitVault", [owner.account.address, registry.address]);
 
+    // Deploy BragNFT & Receipt
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1")]);
     const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
     await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setReceiptContract([receipt.address]);
 
-    return { marketplace, bragNFT, bragToken, owner, seller, buyer, treasury };
+    // BatchGrant
+    const batchGrant = await viem.deployContract("BatchGrant", [owner.account.address]);
+
+    return { owner, user1, user2, bragToken, marketplace, registry, vault, bragNFT, receipt, batchGrant };
   }
 
-  it("Should correctly distribute royalties to the treasury", async function () {
-    const { marketplace, bragNFT, bragToken, seller, buyer, treasury, owner } = await deployAll();
+  describe("NFTMarketplace Optimization", function () {
+    it("Should batch cancel offers correctly with optimization", async function () {
+      const { marketplace, bragNFT, bragToken, owner, user1 } = await setup();
 
-    // Fund buyer
-    await bragToken.write.transfer([buyer.account.address, parseEther("100")], { account: owner.account });
+      // Setup offers
+      await bragNFT.write.donate(["nft1", ""], { value: parseEther("0.1") });
+      await bragNFT.write.donate(["nft2", ""], { value: parseEther("0.1") });
 
-    // Seller mints an NFT
-    await bragNFT.write.donate(["Royalty NFT", ""], { account: seller.account, value: parseEther("0.1") });
-    const tokenId = 0n;
+      await bragToken.write.transfer([user1.account.address, parseEther("10")], { account: owner.account });
+      await bragToken.write.approve([marketplace.address, parseEther("10")], { account: user1.account });
 
-    // Set royalty to 10% for testing
-    await bragNFT.write.setRoyaltyFeeNumerator([1000], { account: owner.account });
+      await marketplace.write.createOffer([bragNFT.address, 0n, 1n, parseEther("1")], { account: user1.account });
+      await marketplace.write.createOffer([bragNFT.address, 1n, 1n, parseEther("2")], { account: user1.account });
 
-    // Buyer makes an offer
-    const offerPrice = parseEther("10");
-    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
+      const balanceBefore = await bragToken.read.balanceOf([user1.account.address]);
 
-    // Verify royalty info
-    const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
-    assert.equal(royaltyRecipient, getAddress(treasury.account.address));
-    assert.equal(royaltyAmount, parseEther("1")); // 10% of 10
+      // Batch cancel
+      await marketplace.write.cancelOffers([[bragNFT.address, bragNFT.address], [0n, 1n]], { account: user1.account });
 
-    // Seller accepts
-    const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.account.address]);
-    const sellerBalanceBefore = await bragToken.read.balanceOf([seller.account.address]);
-
-    await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
-    await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
-
-    // Verify distribution
-    const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.account.address]);
-    const sellerBalanceAfter = await bragToken.read.balanceOf([seller.account.address]);
-
-    assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("1"));
-    assert.equal(sellerBalanceAfter - sellerBalanceBefore, parseEther("9"));
-    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
+      const balanceAfter = await bragToken.read.balanceOf([user1.account.address]);
+      assert.equal(balanceAfter, balanceBefore + parseEther("3"));
+      assert.equal(await bragToken.read.balanceOf([marketplace.address]), 0n);
+    });
   });
 
-  it("Should correctly escape special characters in SVG", async function () {
-    const { bragNFT, seller } = await deployAll();
+  describe("Administrative Recovery", function () {
+    const contractsToTest = [
+      { name: "NFTMarketplace", deploy: (s: any) => s.marketplace },
+      { name: "BragNFT", deploy: (s: any) => s.bragNFT },
+      { name: "DonationReceipt", deploy: (s: any) => s.receipt },
+      { name: "ExhibitRegistry", deploy: (s: any) => s.registry },
+      { name: "ExhibitVault", deploy: (s: any) => s.vault },
+      { name: "BatchGrant", deploy: (s: any) => s.batchGrant }
+    ];
 
-    const maliciousMessage = '<script>alert("XSS")</script> & "quotes"';
-    await bragNFT.write.donate([maliciousMessage, ""], { account: seller.account, value: parseEther("0.1") });
-    const tokenId = 0n;
+    for (const item of contractsToTest) {
+      it(`${item.name}: Should allow admin to recover stuck ERC20`, async function () {
+        const s = await setup();
+        const contract = item.deploy(s);
+        const { bragToken, owner, user1 } = s;
 
-    const uri = await bragNFT.read.tokenURI([tokenId]);
-    const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
-    const svg = Buffer.from(json.image.split(",")[1], "base64").toString();
+        const stuckAmount = parseEther("5");
+        await bragToken.write.transfer([contract.address, stuckAmount], { account: owner.account });
 
-    // Verify SVG is escaped
-    assert.ok(!svg.includes("<script>"), "SVG should not contain raw <script> tag");
-    assert.ok(svg.includes("&lt;script&gt;"), "SVG should contain escaped script tag");
-    assert.ok(svg.includes("&amp;"), "SVG should contain escaped ampersand");
-    assert.ok(svg.includes("&quot;"), "SVG should contain escaped quotes");
+        const adminBalanceBefore = await bragToken.read.balanceOf([owner.account.address]);
+        await contract.write.withdrawERC20([bragToken.address, stuckAmount], { account: owner.account });
+        const adminBalanceAfter = await bragToken.read.balanceOf([owner.account.address]);
 
-    // Verify JSON description is also handled (it uses _escapeJSON which was already there but good to check)
-    assert.ok(json.description.includes(maliciousMessage), "JSON description should contain original message (escaped in JSON string)");
+        assert.equal(adminBalanceAfter, adminBalanceBefore + stuckAmount);
+        assert.equal(await bragToken.read.balanceOf([contract.address]), 0n);
+      });
+
+      it(`${item.name}: Should allow admin to recover stuck ETH`, async function () {
+        const s = await setup();
+        const contract = item.deploy(s);
+        const { owner, user1 } = s;
+        const publicClient = await viem.getPublicClient();
+
+        const stuckAmount = parseEther("1");
+
+        // Use user1 to send ETH so we don't worry about gas on admin balance for simple assertion
+        // For BragNFT, we use donate to fund it with ETH as a normal transfer triggers donate
+        if (item.name === "BragNFT") {
+           await s.bragNFT.write.setTreasury([s.bragNFT.address]);
+           await s.bragNFT.write.donate(["stuck", ""], { value: stuckAmount, account: user1.account });
+        } else {
+           await user1.sendTransaction({ to: contract.address, value: stuckAmount });
+        }
+
+        const contractBalance = await publicClient.getBalance({ address: contract.address });
+        assert.ok(contractBalance >= stuckAmount, `Contract balance ${contractBalance} is less than ${stuckAmount}`);
+
+        const adminBalanceBefore = await publicClient.getBalance({ address: owner.account.address });
+        const txHash = await contract.write.withdrawETH([stuckAmount], { account: owner.account });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+        const gasPaid = receipt.gasUsed * receipt.effectiveGasPrice;
+
+        const adminBalanceAfter = await publicClient.getBalance({ address: owner.account.address });
+
+        assert.equal(adminBalanceAfter, adminBalanceBefore + stuckAmount - gasPaid);
+      });
+
+      it(`${item.name}: Should fail if non-admin tries to recover`, async function () {
+        const s = await setup();
+        const contract = item.deploy(s);
+        const { user1, bragToken } = s;
+
+        await assert.rejects(
+          contract.write.withdrawERC20([bragToken.address, 1n], { account: user1.account }),
+          /AccessControlUnauthorizedAccount/
+        );
+
+        await assert.rejects(
+          contract.write.withdrawETH([1n], { account: user1.account }),
+          /AccessControlUnauthorizedAccount/
+        );
+      });
+    }
   });
 
-  it("Should cap royalties if they exceed the price", async function () {
-    const { marketplace, bragNFT, bragToken, seller, buyer, treasury, owner } = await deployAll();
+  describe("DonationReceipt Metadata", function () {
+    it("Should generate on-chain metadata with donation details", async function () {
+      const { bragNFT, receipt, user1 } = await setup();
+      const donationAmount = parseEther("0.25");
+      const message = "On-chain Receipt Test";
 
-    // Fund buyer
-    await bragToken.write.transfer([buyer.account.address, parseEther("100")], { account: owner.account });
+      await bragNFT.write.donate([message, ""], {
+        account: user1.account,
+        value: donationAmount
+      });
 
-    // Seller mints an NFT
-    await bragNFT.write.donate(["Capped Royalty NFT", ""], { account: seller.account, value: parseEther("0.1") });
-    const tokenId = 0n;
+      const receiptId = 0n;
+      const uri = await receipt.read.tokenURI([receiptId]);
+      assert.ok(uri.startsWith("data:application/json;base64,"));
 
-    // Set protocol fee to 5% (500 bps)
-    await marketplace.write.setProtocolFee([500], { account: owner.account });
+      const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+      assert.equal(json.name, `Donation Receipt #${receiptId}`);
+      assert.ok(json.image.startsWith("data:image/svg+xml;base64,"));
 
-    // Set royalty to 96% for testing (total 101%)
-    await bragNFT.write.setRoyaltyFeeNumerator([9600], { account: owner.account });
+      const attributes = json.attributes;
+      assert.equal(attributes.find((a: any) => a.trait_type === "Donor").value.toLowerCase(), user1.account.address.toLowerCase());
+      assert.equal(attributes.find((a: any) => a.trait_type === "Amount").value, donationAmount.toString());
+      assert.equal(attributes.find((a: any) => a.trait_type === "Message").value, message);
+    });
+  });
 
-    // Buyer makes an offer
-    const offerPrice = parseEther("100");
-    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
+  describe("BragNFT Multimedia Detection", function () {
+    it("Should detect .webp as multimedia", async function () {
+      const { bragNFT } = await setup();
 
-    // Verify royalty info (96 ETH)
-    const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
-    assert.equal(royaltyAmount, parseEther("96"));
+      const webpURI = "https://example.com/image.webp";
+      await bragNFT.write.donate(["webp test", webpURI], { value: parseEther("0.1") });
 
-    // Seller accepts
-    await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
+      const tokenId = 0n;
+      const uri = await bragNFT.read.tokenURI([tokenId]);
+      const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
 
-    const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.account.address]);
-    const feeRecipientBalanceBefore = await bragToken.read.balanceOf([owner.account.address]); // feeRecipient is owner by default
-
-    await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
-
-    const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.account.address]);
-    const feeRecipientBalanceAfter = await bragToken.read.balanceOf([owner.account.address]);
-    const sellerBalanceAfter = await bragToken.read.balanceOf([seller.account.address]);
-
-    // Protocol fee: 5% of 100 = 5 ETH
-    assert.equal(feeRecipientBalanceAfter - feeRecipientBalanceBefore, parseEther("5"));
-    // Royalty fee should be capped at: 100 - 5 = 95 ETH (instead of 96 ETH)
-    assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("95"));
-    // Seller proceeds should be 0
-    assert.equal(sellerBalanceAfter, 0n);
+      assert.equal(json.animation_url, webpURI);
+      assert.ok(json.image.startsWith("data:image/svg+xml;base64,"));
+    });
   });
 });

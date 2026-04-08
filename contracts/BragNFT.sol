@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./IDonationReceipt.sol";
 
 interface IBragToken {
@@ -20,6 +22,7 @@ interface IBragToken {
  */
 contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     using Strings for uint256;
+    using SafeERC20 for IERC20;
 
     uint256 private _nextTokenId;
     uint256 public maxSupply;
@@ -166,8 +169,11 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
         }
 
         // 6. Transfer to treasury (Interaction)
-        (bool success, ) = treasury.call{value: msg.value}("");
-        require(success, "Transfer to treasury failed");
+        // If treasury is address(this), we don't transfer, effectively keeping it in the contract (for tests/admin recovery)
+        if (treasury != address(this)) {
+            (bool success, ) = treasury.call{value: msg.value}("");
+            require(success, "Transfer to treasury failed");
+        }
 
         emit Donated(msg.sender, msg.value, nftTokenId, receiptTokenId, message);
     }
@@ -277,7 +283,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
             if (b1 == 'g' && b2 == 'i' && b3 == 'f') return true;
         }
 
-        // Check for 4-letter extensions: .webm
+        // Check for 4-letter extensions: .webm, .webp
         if (len >= 5 && b[len - 5] == '.') {
             bytes1 b1 = _toLower(b[len - 4]);
             bytes1 b2 = _toLower(b[len - 3]);
@@ -285,7 +291,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
             bytes1 b4 = _toLower(b[len - 1]);
 
             if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'm') return true;
+            if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'p') return true;
         }
+
 
         return false;
     }
@@ -389,5 +397,20 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
             }
         }
         return string(outputBytes);
+    }
+
+    /**
+     * @dev Allows the admin to recover ERC20 tokens sent to the contract.
+     */
+    function withdrawERC20(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(msg.sender, amount);
+    }
+
+    /**
+     * @dev Allows the admin to recover ETH sent to the contract.
+     */
+    function withdrawETH(uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "ETH transfer failed");
     }
 }

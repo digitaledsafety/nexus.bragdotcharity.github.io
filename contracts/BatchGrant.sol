@@ -76,4 +76,19 @@ contract BatchGrant is AccessControl {
             require(success, "ETH transfer failed");
         }
     }
+
+    /**
+     * @dev Allows the admin to recover ERC20 tokens sent to the contract.
+     */
+    function withdrawERC20(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(msg.sender, amount);
+    }
+
+    /**
+     * @dev Allows the admin to recover ETH sent to the contract.
+     */
+    function withdrawETH(uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "ETH transfer failed");
+    }
 }
