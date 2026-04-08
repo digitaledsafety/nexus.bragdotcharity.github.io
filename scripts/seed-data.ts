@@ -338,7 +338,7 @@ async function main() {
 
     for (const name of vaultNames) {
         const salt = keccak256(toHex(`${name}-${timestamp}`));
-        const vaultDeployData = encodeDeployData({ abi: vaultAbi, args: [registryAddr], bytecode: vaultBytecode });
+        const vaultDeployData = encodeDeployData({ abi: vaultAbi, args: [client0.account.address, registryAddr], bytecode: vaultBytecode });
         const vaultAddr = getContractAddress({
             bytecode: vaultDeployData,
             from: "0x4e59b44847b379578588920cA78FbF26c0B4956C",
@@ -366,7 +366,7 @@ async function main() {
             const hash = await eoaClient.deployContract({
                 abi: vaultAbi,
                 bytecode: vaultBytecode,
-                args: [registryAddr]
+                args: [client0.account.address, registryAddr]
             });
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
             const deployedAddr = receipt.contractAddress!;

@@ -2,6 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title ExhibitRegistry
@@ -10,6 +12,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * Uses AccessControl for flexible permissions.
  */
 contract ExhibitRegistry is AccessControl {
+    using SafeERC20 for IERC20;
+
     bytes32 public constant VERIFIER_ROLE = keccak256("VERIFIER_ROLE");
 
     enum LocationType { Game, Physical, Website, Gallery, Other }
@@ -76,4 +80,21 @@ contract ExhibitRegistry is AccessControl {
     function getVaultInfo(address vault) external view returns (VaultInfo memory) {
         return vaults[vault];
     }
+
+    /**
+     * @dev Allows the admin to recover ERC20 tokens sent to the contract.
+     */
+    function withdrawERC20(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(msg.sender, amount);
+    }
+
+    /**
+     * @dev Allows the admin to recover ETH sent to the contract.
+     */
+    function withdrawETH(uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "ETH transfer failed");
+    }
+
+    receive() external payable {}
 }
