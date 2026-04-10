@@ -26,6 +26,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
 
     uint256 public protocolFeeBps; // e.g., 250 for 2.5%
     address public feeRecipient;
+    uint256 public minOfferPrice;
 
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
@@ -34,6 +35,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller);
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
+    event MinOfferPriceUpdated(uint256 newMinPrice);
 
     constructor(address initialAdmin, address _paymentToken) {
         paymentToken = IERC20(_paymentToken);
@@ -50,6 +52,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
      */
     function createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price) external nonReentrant {
         require(price > 0, "Offer price must be greater than 0");
+        require(price >= minOfferPrice, "Price below minimum");
         require(amount > 0, "Amount must be greater than 0");
         require(offers[nftContract][tokenId][msg.sender].price == 0, "Offer already exists");
 
@@ -158,6 +161,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         Offer storage offer = offers[nftContract][tokenId][msg.sender];
         require(offer.price > 0, "Offer does not exist");
         require(newPrice > 0, "New price must be greater than 0");
+        require(newPrice >= minOfferPrice, "Price below minimum");
         require(newAmount > 0, "New amount must be greater than 0");
 
         uint256 oldPrice = offer.price;
@@ -234,5 +238,10 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         require(_recipient != address(0), "Invalid address");
         feeRecipient = _recipient;
         emit FeeRecipientUpdated(_recipient);
+    }
+
+    function setMinOfferPrice(uint256 _minPrice) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        minOfferPrice = _minPrice;
+        emit MinOfferPriceUpdated(_minPrice);
     }
 }

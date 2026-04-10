@@ -77,20 +77,20 @@ describe("Treasury Multi-sig Smart Wallet", async function () {
       const value = parseEther("0.1");
       const data = "0x";
 
-      await treasury.write.propose([target, value, data, 0n], { account: owner1.account });
+      await treasury.write.propose([[target], [value], [data as `0x${string}`], 0n], { account: owner1.account });
 
-      const proposal = await treasury.read.proposals([0n]);
-      assert.equal(proposal[0], getAddress(target));
-      assert.equal(proposal[1], value);
+      const proposal = await treasury.read.getProposal([0n]);
+      assert.equal(proposal[0][0], getAddress(target));
+      assert.equal(proposal[1][0], value);
       assert.equal(proposal[5], getAddress(owner1.account.address));
       assert.equal(proposal[6], 1n);
     });
 
     it("Should allow other owners to approve", async () => {
-      await treasury.write.propose([nonOwner.account.address, parseEther("0.1"), "0x", 0n], { account: owner1.account });
+      await treasury.write.propose([[nonOwner.account.address], [parseEther("0.1")], ["0x" as `0x${string}`], 0n], { account: owner1.account });
       await treasury.write.approve([0n, 0n], { account: owner2.account });
 
-      const proposal = await treasury.read.proposals([0n]);
+      const proposal = await treasury.read.getProposal([0n]);
       assert.equal(proposal[6], 2n);
       assert.ok(await treasury.read.hasApproved([0n, owner2.account.address]));
     });
@@ -100,7 +100,7 @@ describe("Treasury Multi-sig Smart Wallet", async function () {
       const value = parseEther("0.1");
       const initialBalance = await publicClient.getBalance({ address: target });
 
-      await treasury.write.propose([target, value, "0x", 0n], { account: owner1.account });
+      await treasury.write.propose([[target], [value], ["0x" as `0x${string}`], 0n], { account: owner1.account });
       await treasury.write.approve([0n, 0n], { account: owner2.account });
 
       await treasury.write.executeProposal([0n]);
