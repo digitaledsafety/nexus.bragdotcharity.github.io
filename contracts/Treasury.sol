@@ -27,9 +27,9 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     mapping(uint256 => address) private _signerByNonce;
 
     struct Proposal {
-        address target;
-        uint256 value;
-        bytes data;
+        address[] targets;
+        uint256[] values;
+        bytes[] datas;
         bool executed;
         bool canceled;
         address proposer;
@@ -43,7 +43,7 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     event OwnerAdded(address indexed owner);
     event OwnerRemoved(address indexed owner);
     event ThresholdChanged(uint256 threshold);
-    event Proposed(uint256 indexed proposalId, address indexed proposer, address target, uint256 value, bytes data);
+    event Proposed(uint256 indexed proposalId, address indexed proposer, address[] targets, uint256[] values, bytes[] datas);
     event Approved(uint256 indexed proposalId, address indexed owner);
     event Executed(uint256 indexed proposalId);
     event Canceled(uint256 indexed proposalId);
@@ -134,19 +134,22 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     // --- Multi-sig Logic (Proposal Flow) ---
 
     /**
-     * @dev Propose a transaction. The proposer auto-approves it.
+     * @dev Propose multiple transactions. The proposer auto-approves it.
      */
-    function propose(address target, uint256 value, bytes calldata data, uint256 nonce) external onlyOwner(nonce) returns (uint256) {
+    function propose(address[] calldata targets, uint256[] calldata values, bytes[] calldata datas, uint256 nonce) external onlyOwner(nonce) returns (uint256) {
+        require(targets.length > 0, "No targets provided");
+        require(targets.length == values.length && values.length == datas.length, "Mismatched arrays");
+
         address proposer = _getMsgSender(nonce);
         uint256 proposalId = proposalCount++;
 
         Proposal storage p = proposals[proposalId];
-        p.target = target;
-        p.value = value;
-        p.data = data;
+        p.targets = targets;
+        p.values = values;
+        p.datas = datas;
         p.proposer = proposer;
 
-        emit Proposed(proposalId, proposer, target, value, data);
+        emit Proposed(proposalId, proposer, targets, values, datas);
 
         p.approved[proposer] = true;
         p.approvalCount = 1;
@@ -186,8 +189,10 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
         p.executed = true;
 
-        (bool success, ) = p.target.call{value: p.value}(p.data);
-        if (!success) revert ExecutionFailed();
+        for (uint256 i = 0; i < p.targets.length; i++) {
+            (bool success, ) = p.targets[i].call{value: p.values[i]}(p.datas[i]);
+            if (!success) revert ExecutionFailed();
+        }
 
         emit Executed(proposalId);
     }
@@ -278,6 +283,20 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
     function hasApproved(uint256 proposalId, address owner) external view returns (bool) {
         return proposals[proposalId].approved[owner];
+    }
+
+    function getProposal(uint256 proposalId) external view returns (
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory datas,
+        bool executed,
+        bool canceled,
+        address proposer,
+        uint256 approvalCount
+    ) {
+        if (proposalId >= proposalCount) revert ProposalNotFound();
+        Proposal storage p = proposals[proposalId];
+        return (p.targets, p.values, p.datas, p.executed, p.canceled, p.proposer, p.approvalCount);
     }
 
     function isValidSignature(bytes32 hash, bytes calldata signature) external view override returns (bytes4) {

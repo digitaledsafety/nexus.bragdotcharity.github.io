@@ -123,4 +123,53 @@ describe("Bug Fixes", async function () {
         }
     }
   });
+
+  it("NFTMarketplace: Should enforce minOfferPrice", async function () {
+    const { marketplace, mockNFT, bragToken, seller, buyer, owner } = await deployMarketplace();
+
+    const minPrice = parseEther("0.5");
+    await marketplace.write.setMinOfferPrice([minPrice], { account: owner.account });
+
+    // Fund buyer
+    await bragToken.write.transfer([buyer.account.address, parseEther("10")], { account: owner.account });
+    await bragToken.write.approve([marketplace.address, parseEther("10")], { account: buyer.account });
+
+    const tokenId = 1n;
+    await mockNFT.write.mint([seller.account.address, tokenId]);
+
+    // Create offer below minPrice should fail
+    await assert.rejects(
+        marketplace.write.createOffer([mockNFT.address, tokenId, 1n, parseEther("0.1")], { account: buyer.account }),
+        /Price below minimum/
+    );
+
+    // Create offer at minPrice should succeed
+    await marketplace.write.createOffer([mockNFT.address, tokenId, 1n, minPrice], { account: buyer.account });
+
+    // Update offer below minPrice should fail
+    await assert.rejects(
+        marketplace.write.updateOffer([mockNFT.address, tokenId, 1n, parseEther("0.4")], { account: buyer.account }),
+        /Price below minimum/
+    );
+  });
+
+  it("ExhibitVault: Should correctly handle data with refactored _parseDepositData", async function () {
+    const [owner] = await viem.getWalletClients();
+    const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
+    const vault = await viem.deployContract("ExhibitVault", [registry.address]);
+    const mock721 = await viem.deployContract("MockRoyaltyNFT", ["Mock", "MCK"]);
+
+    const tokenId = 1n;
+    await mock721.write.mint([owner.account.address, tokenId]);
+
+    // Test with duration (32 bytes)
+    const duration = 3600n;
+    const data = "0x" + duration.toString(16).padStart(64, '0'); // abi.encode(uint256)
+
+    await mock721.write.safeTransferFrom([owner.account.address, vault.address, tokenId, data as `0x${string}`]);
+
+    assert.equal(await vault.read.owner721([mock721.address, tokenId]), getAddress(owner.account.address));
+    const expiry = await vault.read.expiry721([mock721.address, tokenId]);
+    assert.ok(expiry > 0n, "Expiry should be set");
+  });
 });

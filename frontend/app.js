@@ -408,7 +408,7 @@ async function initManager() {
             if (threshold.eq(1)) {
                 await txHandler(treasury, "execute(address,uint256,bytes,uint256)", [recipient, val, "0x", nonce], 'Withdrawal Executed');
             } else {
-                await txHandler(treasury, 'propose', [recipient, val, "0x", nonce], 'Withdrawal Proposed');
+                await txHandler(treasury, 'propose', [[recipient], [val], ["0x"], nonce], 'Withdrawal Proposed');
             }
             refreshTreasuryInfo();
         } catch (e) {
@@ -432,7 +432,7 @@ async function initManager() {
             if (threshold.eq(1)) {
                 await txHandler(treasury, "execute(address,uint256,bytes,uint256)", [target, val, data, nonce], 'Execution Successful');
             } else {
-                await txHandler(treasury, 'propose', [target, val, data, nonce], 'Proposal Created');
+                await txHandler(treasury, 'propose', [[target], [val], [data], nonce], 'Proposal Created');
             }
             refreshTreasuryInfo();
         } catch (e) {
@@ -486,7 +486,7 @@ async function renderProposals(treasury) {
         const start = count.gt(10) ? count.sub(10) : ethers.BigNumber.from(0);
 
         for (let i = count.sub(1); i.gte(start); i = i.sub(1)) {
-            const p = await treasury.proposals(i);
+            const p = await treasury.getProposal(i);
             const isApproved = userAddress ? await treasury.hasApproved(i, userAddress) : false;
             const threshold = await treasury.threshold();
 
@@ -498,14 +498,17 @@ async function renderProposals(treasury) {
             else if (p.canceled) statusTag = '<span class="text-[8px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 uppercase font-black">Canceled</span>';
             else statusTag = `<span class="text-[8px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 uppercase font-black">${p.approvalCount} / ${threshold} Approved</span>`;
 
+            const batchInfo = p.targets.length > 1 ? `<div class="text-[8px] text-indigo-400 font-bold uppercase mt-1">Batch: ${p.targets.length} Operations</div>` : '';
+
             div.innerHTML = `
                 <div class="flex items-center justify-between">
                     <span class="text-[10px] font-black text-slate-500 uppercase">Proposal #${i}</span>
                     ${statusTag}
                 </div>
+                ${batchInfo}
                 <div class="space-y-1">
-                    <div class="text-[10px] font-mono text-slate-400 truncate"><span class="text-slate-600 mr-2">Target:</span>${p.target}</div>
-                    <div class="text-[10px] font-mono text-slate-400"><span class="text-slate-600 mr-2">Value:</span>${ethers.utils.formatEther(p.value)} ETH</div>
+                    <div class="text-[10px] font-mono text-slate-400 truncate"><span class="text-slate-600 mr-2">Target:</span>${p.targets[0]}${p.targets.length > 1 ? '...' : ''}</div>
+                    <div class="text-[10px] font-mono text-slate-400"><span class="text-slate-600 mr-2">Value:</span>${ethers.utils.formatEther(p.values[0])} ETH${p.targets.length > 1 ? '...' : ''}</div>
                 </div>
                 ${!p.executed && !p.canceled ? `
                 <div class="flex space-x-2 pt-2">
