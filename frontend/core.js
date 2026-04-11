@@ -354,7 +354,12 @@ function getContract(name, addressOverride = null) {
         console.warn(`No valid address for contract ${name} on network ${network?.chainId}`);
         return null;
     }
-    const abi = CONTRACT_DATA.contracts[name].abi;
+    const contractData = CONTRACT_DATA.contracts[name];
+    if (!contractData || !contractData.abi) {
+        console.warn(`No ABI found for contract ${name} in CONTRACT_DATA`);
+        return null;
+    }
+    const abi = contractData.abi;
     // Use signer if available (for writes), otherwise fallback to provider (read-only)
     return new ethers.Contract(address, abi, signer || provider);
 }
