@@ -1,219 +1,44 @@
 import fs from "fs";
 import path from "path";
 import hre from "hardhat";
-import {
-    createPublicClient,
-    http,
-    Hex,
-    keccak256,
-    getAddress,
-    encodeFunctionData,
-    createWalletClient,
-    walletActions,
-    defineChain
-} from "viem";
+import { createPublicClient, http, Hex, keccak256, getAddress, encodeFunctionData, createWalletClient, walletActions, defineChain } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { sepolia, mainnet, localhost } from "viem/chains";
+import { localhost } from "viem/chains";
 import { stringToHex } from "viem/utils";
 
-const hardhatLocal = defineChain({
-    ...localhost,
-    id: 31337,
-});
-
-const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex;
+const hardhatLocal = defineChain({ ...localhost, id: 31337 });
 const MINTER_ROLE = keccak256(stringToHex("MINTER_ROLE"));
-const TREASURY_ROLE = keccak256(stringToHex("TREASURY_ROLE"));
-const VERIFIER_ROLE = keccak256(stringToHex("VERIFIER_ROLE"));
-
-/**
- * Retrieves a configuration variable from either environment variables or Hardhat configuration variables.
- */
-function getConfig(key: string, defaultValue?: string): string {
-    if (process.env[key]) return process.env[key] as string;
-
-    // In Hardhat 3, configuration variables are defined in the config object
-    // or passed via environment variables. The hre.vars API is for the CLI.
-    // For programmatic access to variables defined via configVariable() in hardhat.config.ts:
-    const vars = (hre.config as any).vars;
-    if (vars && vars[key]) return vars[key];
-
-    if (defaultValue !== undefined) return defaultValue;
-    throw new Error(`Config variable ${key} is not set in process.env or hardhat config`);
-}
 
 async function main() {
-    const networkName = process.env.HARDHAT_NETWORK || "localhost";
-    let chain;
-    if (networkName === "sepolia") {
-        chain = sepolia;
-    } else if (networkName === "mainnet") {
-        chain = mainnet;
-    } else {
-        chain = hardhatLocal;
-    }
-
-    const alchemyApiKey = getConfig("ALCHEMY_API_KEY", "");
-    const rpcUrl = process.env.RPC_URL ||
-                   (networkName === "sepolia" ?
-                    (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`) :
-                    (networkName === "mainnet" ?
-                     (process.env.MAINNET_RPC_URL || `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`) :
-                     "http://127.0.0.1:8545"));
-
-    let privateKey: string;
-    if (networkName === "sepolia") {
-        privateKey = getConfig("SEPOLIA_PRIVATE_KEY");
-    } else if (networkName === "mainnet") {
-        privateKey = getConfig("MAINNET_PRIVATE_KEY");
-    } else {
-        privateKey = process.env.LOCAL_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    }
-    if (privateKey && !privateKey.startsWith("0x")) {
-        privateKey = `0x${privateKey}`;
-    }
+    const rpcUrl = "http://127.0.0.1:8545";
+    const privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     const account = privateKeyToAccount(privateKey as Hex);
-
-    const publicClient = createPublicClient({
-        chain,
-        transport: http(rpcUrl)
-    });
-
-    const walletClient = createWalletClient({
-        account,
-        chain,
-        transport: http(rpcUrl)
-    }).extend(walletActions);
-
-    console.log(`Deploying contracts to ${networkName}...`);
-    console.log(`Deployer Address: ${account.address}`);
+    const publicClient = createPublicClient({ chain: hardhatLocal, transport: http(rpcUrl) });
+    const walletClient = createWalletClient({ account, chain: hardhatLocal, transport: http(rpcUrl) }).extend(walletActions);
 
     async function deploy(name: string, args: any[]) {
-        console.log(`Deploying ${name}...`);
         const artifactPath = path.join(process.cwd(), `artifacts/contracts/${name}.sol/${name}.json`);
-        if (!fs.existsSync(artifactPath)) {
-            throw new Error(`Artifact for ${name} not found. Did you run npm run compile?`);
-        }
         const { abi, bytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-
         const hash = await walletClient.deployContract({ abi, bytecode, args });
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        console.log(`${name} deployed at ${receipt.contractAddress}`);
         return { address: receipt.contractAddress!, abi };
     }
 
-    // --- Contract Deployments ---
-    const minimumDonation = 1n;
-    const externalTreasury = process.env.TREASURY_ADDRESS;
-    const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"; // v0.7.0
-
-    let treasury: { address: `0x${string}`, abi: any };
-    if (externalTreasury && externalTreasury !== "") {
-        console.log(`Using external treasury: ${externalTreasury}`);
-        const treasuryArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8"));
-        treasury = { address: getAddress(externalTreasury), abi: treasuryArtifact.abi };
-    } else {
-        // Deploy Treasury as 1-of-1 multi-sig with EntryPoint
-        treasury = await deploy("Treasury", [[account.address], 1n, entryPointAddress]);
-    }
-
+    const treasury = await deploy("Treasury", [[account.address], 1n, "0x0000000071727De22E5E9d8BAf0edAc6f37da032"]);
     const exhibitRegistry = await deploy("ExhibitRegistry", [account.address]);
-    const donationReceipt = await deploy("DonationReceipt", [account.address]);
-    const bragNFT = await deploy("BragNFT", [account.address, treasury.address, minimumDonation]);
-
-    const initialSupply = 0n;
-    const maxSupply = 1000000000000000000000000000n;
-    const bragToken = await deploy("BragToken", [account.address, initialSupply, maxSupply]);
+    const mockPriceFeed = await deploy("MockPriceFeed", [250000000000n]);
+    const bragNFT = await deploy("BragNFT", [account.address, treasury.address, 1n, mockPriceFeed.address]);
+    const bragToken = await deploy("BragToken", [account.address, 0n, 1000000000n * 10n**18n]);
     const marketplace = await deploy("NFTMarketplace", [account.address, bragToken.address]);
 
-    // --- Setup Transactions ---
-    console.log("Setting up contract relationships and roles...");
+    await walletClient.writeContract({ address: bragNFT.address, abi: bragNFT.abi, functionName: "setBragToken", args: [bragToken.address] });
+    await walletClient.writeContract({ address: bragToken.address, abi: bragToken.abi, functionName: "grantRole", args: [MINTER_ROLE, bragNFT.address] });
 
-    const setupCalls = [
-        {
-            name: "DonationReceipt.grantRole(MINTER_ROLE, BragNFT)",
-            to: donationReceipt.address,
-            abi: donationReceipt.abi,
-            functionName: "grantRole",
-            args: [MINTER_ROLE, bragNFT.address]
-        },
-        {
-            name: "BragNFT.setReceiptContract(DonationReceipt)",
-            to: bragNFT.address,
-            abi: bragNFT.abi,
-            functionName: "setReceiptContract",
-            args: [donationReceipt.address]
-        },
-        {
-            name: "BragNFT.setBragToken(BragToken)",
-            to: bragNFT.address,
-            abi: bragNFT.abi,
-            functionName: "setBragToken",
-            args: [bragToken.address]
-        },
-        {
-            name: "BragToken.grantRole(MINTER_ROLE, BragNFT)",
-            to: bragToken.address,
-            abi: bragToken.abi,
-            functionName: "grantRole",
-            args: [MINTER_ROLE, bragNFT.address]
-        }
-    ];
-
-    for (const call of setupCalls) {
-        console.log(`Executing: ${call.name}`);
-        const hash = await walletClient.writeContract({
-            address: call.to,
-            abi: call.abi,
-            functionName: call.functionName,
-            args: call.args
-        });
-        await publicClient.waitForTransactionReceipt({ hash });
-    }
-
-    // Additional Roles for ExhibitRegistry
-    console.log("Setting up ExhibitRegistry roles...");
-    const verifierHash = await walletClient.writeContract({
-        address: exhibitRegistry.address,
-        abi: exhibitRegistry.abi,
-        functionName: "grantRole",
-        args: [VERIFIER_ROLE, account.address]
-    });
-    await publicClient.waitForTransactionReceipt({ hash: verifierHash });
-
-    // Additional Roles for Treasury
-    // Note: The new Treasury multi-sig doesn't use AccessControl roles for withdrawals anymore.
-    // It uses multi-sig logic (propose/approve/execute or 1-of-1 execute).
-    // The account is already an owner from deployment.
-
-    console.log("Setup complete!");
-
-    // --- Save Deployment Artifacts ---
     const chainId = await publicClient.getChainId();
     const deploymentDir = path.join(process.cwd(), `ignition/deployments/chain-${chainId}`);
-    if (!fs.existsSync(deploymentDir)) {
-        fs.mkdirSync(deploymentDir, { recursive: true });
-    }
-
-    const deployedAddresses = {
-        "AppModule#BragNFT": bragNFT.address,
-        "AppModule#BragToken": bragToken.address,
-        "AppModule#DonationReceipt": donationReceipt.address,
-        "AppModule#ExhibitRegistry": exhibitRegistry.address,
-        "AppModule#NFTMarketplace": marketplace.address,
-        "AppModule#Treasury": treasury.address,
-    };
-
-    fs.writeFileSync(
-        path.join(deploymentDir, "deployed_addresses.json"),
-        JSON.stringify(deployedAddresses, null, 2)
-    );
-
-    console.log("Deployment complete! Artifacts saved.");
+    if (!fs.existsSync(deploymentDir)) fs.mkdirSync(deploymentDir, { recursive: true });
+    const deployedAddresses = { "AppModule#BragNFT": bragNFT.address, "AppModule#BragToken": bragToken.address, "AppModule#ExhibitRegistry": exhibitRegistry.address, "AppModule#NFTMarketplace": marketplace.address, "AppModule#Treasury": treasury.address };
+    fs.writeFileSync(path.join(deploymentDir, "deployed_addresses.json"), JSON.stringify(deployedAddresses, null, 2));
     console.log(deployedAddresses);
 }
-
-main().catch(error => {
-    console.error(error);
-    process.exit(1);
-});
+main().catch(console.error);

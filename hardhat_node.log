@@ -67,8 +67,399 @@ Private Key: 0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e
 
 WARNING: Funds sent on live network to accounts with publicly known private keys WILL BE LOST.
 
+[32meth_chainId[0m
+[32mhardhat_metadata[0m
+[32meth_accounts[0m
+[32meth_chainId[0m
+[32meth_chainId (2)[0m
+[32mhardhat_metadata[0m
+[32meth_accounts[0m
+[32meth_chainId[0m
+[32meth_chainId (2)[0m
+[32mhardhat_metadata[0m
+[32meth_accounts[0m
+[32meth_chainId[0m
+[32mhardhat_metadata[0m
+[32meth_accounts[0m
+[32mhardhat_getAutomine[0m
+[32meth_chainId[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getTransactionCount (2)[0m
+[32meth_getTransactionCount (3)[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: BragToken
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: BragToken
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Transaction:         0x0b3be339a3f95026951fae5609d778846bed9cf2e6eadf162aba443af5dc7bda
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2098397 of 2098397
+  Block #1:            0xf083bf50c1c133ccb2f500f339052634f73c559b0aeff52714df8fb5245fb75b
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: ExhibitRegistry
+  Contract address:    0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: ExhibitRegistry
+  Contract address:    0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Transaction:         0x95039096423968d5452c18cec4cfe0623b0e2d1ef25a89da282ee46045b391ce
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            876749 of 876749
+  Block #2:            0x3488705d71ccb1b5f9f3d9272970be4a4cb3237c4ed4e79939331243e04591a3
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_chainId[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: MockPriceFeed
+  Contract address:    0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: MockPriceFeed
+  Contract address:    0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0
+  Transaction:         0x7db61b22ab1b0bed6c11e8eeca2aa84c60134502cfb057c8b3081d48351ed5b0
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            114259 of 114259
+  Block #3:            0xf8000c2888762afd82e3581ee361f88f519c2465d21840cd0abc76d750cc31e2
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: Treasury
+  Contract address:    0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: Treasury
+  Contract address:    0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  Transaction:         0xdd352c77b3b1585d98997b6e3d5bf94bbe7692ec3312c5e1e7bf4188b7bc2eba
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            1435478 of 1435478
+  Block #4:            0x17b8ef6be53180ac502bd9b7274c96d2121cacfafb4f9d62bcadf80acded4c7c
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: BragNFT
+  Contract address:    0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: BragNFT
+  Contract address:    0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  Transaction:         0xfd39d432f70f7858246113ded3c215e606d865c19e338bb3f9b1d4c126bd1817
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            4291267 of 4291267
+  Block #5:            0x4a576532de0ceecc50852e5cf5894b5704cd273d8beee55dba965448518de67d
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: NFTMarketplace
+  Contract address:    0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: NFTMarketplace
+  Contract address:    0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+  Transaction:         0xc48ab319eb6119b084ae2917202227b8379bfe5b90a7d83b969b1aed3448c78e
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            1663826 of 1663826
+  Block #6:            0x10745b965e1e19a8fe45ca7c6d7a98589b7d820800163d50fd1bd4b0814d92f5
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract call:       BragNFT#setBragToken
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_sendTransaction[0m
+  Contract call:       BragNFT#setBragToken
+  Transaction:         0xcbe926791b8aeab2302df9f85fa10fab720596d6c8603ffb8079eb986aa93801
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  Value:               0 ETH
+  Gas used:            46254 of 46254
+  Block #7:            0x7bdff1c016330ace035ea517f1f72a2ec8069d52d0d25f034cced9b66d7cf879
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract call:       BragToken#grantRole
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+
+[32meth_sendTransaction[0m
+  Contract call:       BragToken#grantRole
+  Transaction:         0x629b015096e534a3a1a64cb9fcc054bf754f7cf7524698ea2ab4c88bc9178a3f
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            51247 of 51247
+  Block #8:            0x507ce2abe5321ed243fdba3f2b192354f0483453a32d8bd2b8bff76e144c02dd
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_chainId[0m
+[31meth_fillTransaction - Method not supported[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       BragNFT#donate
+  Transaction:         0xa7a959345ccee83ff97f67addc9a1bcb03021a3b5a36a7fcf7fcc08bd76fda7e
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  Value:               0.1 ETH
+  Gas used:            385849 of 391124
+  Block #9:            0xcee4583dd98e0601c33f57a3035f56924017889f75cd760bad617782d59d6f7d
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       BragToken#mint
+  Transaction:         0x2c9be03bda929b883a3c851552abf3ef9ace4c08ebf9848f3d53d2217bf1876e
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            88939 of 88939
+  Block #10:           0xd0a4da315226c97ffabe771416163b8335be09039da792765cdf4b11ac67a0de
+
+[32meth_getTransactionReceipt[0m
+[31meth_fillTransaction - Method not supported[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       BragToken#approve
+  Transaction:         0x52ca77f73c49f9cdeb1f4924b69dcce74f236f1e94ac9711e9f7614a5c75cbba
+  From:                0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            46069 of 46069
+  Block #11:           0x4fce47db0e137425eb90e9961d504a5f3cbd4ca9fbe99e3807cf6cd50bbefc32
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       NFTMarketplace#createOffer
+  Transaction:         0x4d395d2fca996995cb469b60f19b6657c4e5a20f38a415e7397e8538ae904971
+  From:                0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+  To:                  0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+  Value:               0 ETH
+  Gas used:            132199 of 142011
+  Block #12:           0xd57a1070c8898290af62c2ffddc8d5498809cb76aa383078807b43552b3eb79d
+
+[32meth_getTransactionReceipt[0m
+[32meth_chainId[0m
+[32meth_chainId (2)[0m
+[32meth_chainId (3)[0m
 [32meth_accounts[0m
 [32meth_call[0m
-  WARNING: Calling an account which is not a contract
-  From: 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:   0x0000000071727de22e5e9d8baf0edac6f37da032
+  Contract call:       BragNFT#tokenURI
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       BragNFT#ownerOf
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       BragNFT#supportsInterface
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_blockNumber[0m
+[32meth_chainId[0m
+[32meth_getLogs[0m
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       NFTMarketplace#offers
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       ExhibitRegistry#isVerified
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+
+[32meth_chainId[0m
+[32meth_chainId (2)[0m
+[32meth_chainId (3)[0m
+[32meth_call[0m
+  Contract call:       BragNFT#tokenURI
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       BragNFT#ownerOf
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       BragNFT#supportsInterface
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_blockNumber[0m
+[32meth_chainId[0m
+[32meth_getLogs[0m
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       NFTMarketplace#offers
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       ExhibitRegistry#isVerified
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+
+[32meth_chainId[0m
+[32meth_chainId (2)[0m
+[32meth_chainId (3)[0m
+[31meth_call[0m
+  Contract call:       BragToken#<unrecognized-selector>
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+
+  Error: Transaction reverted without a reason
+
+[32meth_chainId[0m
+[31meth_call[0m
+  Contract call:       BragToken#<unrecognized-selector>
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+
+  Error: Transaction reverted without a reason
+
+[32meth_chainId[0m
+[32meth_chainId (2)[0m
+[32meth_chainId (3)[0m
+[32meth_call[0m
+  Contract call:       BragNFT#tokenURI
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       BragNFT#ownerOf
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       BragNFT#taxRegistry
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       BragNFT#isGlowing
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       BragNFT#supportsInterface
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_chainId[0m
+[32meth_blockNumber[0m
+[32meth_chainId[0m
+[32meth_getLogs[0m
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       NFTMarketplace#offers
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+
+[32meth_chainId[0m
+[32meth_call[0m
+  Contract call:       ExhibitRegistry#isVerified
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
