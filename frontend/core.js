@@ -129,7 +129,8 @@ async function initSmartAccount() {
             sepolia, localhost,
             createMultiOwnerLightAccount,
             createAlchemySmartAccountClient,
-            WalletClientSigner
+            WalletClientSigner,
+            alchemy
         } = window.AlchemyAA;
 
         // Determine chain object for viem
@@ -161,8 +162,13 @@ async function initSmartAccount() {
             version: "v2.0.0"
         });
 
-        smartAccountClient = await createAlchemySmartAccountClient({
-            transport: http(rpcUrl),
+        // Use alchemy transport for live networks to enable Gas Manager features
+        const transport = (chainId === 31337 || apiKey === "LOCAL")
+            ? http(rpcUrl)
+            : alchemy({ apiKey });
+
+        const clientConfig = {
+            transport,
             chain,
             account,
             ...(policyId ? {
@@ -170,7 +176,16 @@ async function initSmartAccount() {
                     policyId: policyId,
                 }
             } : {})
-        });
+        };
+
+        // Alchemy SDK v3 client requires apiKey or rpcUrl in the main config object
+        if (apiKey && apiKey !== "LOCAL") {
+            clientConfig.apiKey = apiKey;
+        } else {
+            clientConfig.rpcUrl = rpcUrl;
+        }
+
+        smartAccountClient = await createAlchemySmartAccountClient(clientConfig);
 
         scaAddress = smartAccountClient.account.address;
         console.log("Smart Account Initialized:", scaAddress);
