@@ -46,9 +46,10 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
         string message;
     }
 
-    uint256 private _nextTokenId;
+    uint256 public nextTokenId;
     uint256 public maxSupply;
     address public treasury;
+    address public royaltyRecipient;
     uint256 public minimumDonation;
     IBragToken public bragToken;
     AggregatorV3Interface public priceFeed;
@@ -71,13 +72,14 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
     {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
+        royaltyRecipient = _treasury;
         minimumDonation = _minimumDonation;
         priceFeed = AggregatorV3Interface(_priceFeed);
         maxSupply = 100; // Default max supply
     }
 
     function totalSupply() public view returns (uint256) {
-        return _nextTokenId;
+        return nextTokenId;
     }
 
     function setMaxSupply(uint256 _maxSupply) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -103,12 +105,17 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
      */
     function royaltyInfo(uint256, uint256 salePrice) external view override returns (address, uint256) {
         uint256 royaltyAmount = (salePrice * ROYALTY_BPS) / 10000;
-        return (treasury, royaltyAmount);
+        return (royaltyRecipient, royaltyAmount);
     }
 
     function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_treasury != address(0), "Invalid treasury address");
         treasury = _treasury;
+    }
+
+    function setRoyaltyRecipient(address _royaltyRecipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_royaltyRecipient != address(0), "Invalid royalty recipient address");
+        royaltyRecipient = _royaltyRecipient;
     }
 
     function setMinimumDonation(uint256 _minimumDonation) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -168,9 +175,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
      */
     function _donate(address recipient, string memory message, string memory media, bool onChain) internal {
         require(msg.value >= minimumDonation, "Donation below minimum");
-        require(_nextTokenId < maxSupply, "Max supply reached");
+        require(nextTokenId < maxSupply, "Max supply reached");
 
-        uint256 nftTokenId = _nextTokenId++;
+        uint256 nftTokenId = nextTokenId++;
 
         // 1. Get USD Value from Chainlink
         uint256 usdValue = 0;
@@ -248,28 +255,24 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
 
         string memory imageURI;
         string memory animationURL;
+
+        // Priority: 1. onChainMedia, 2. stored tokenURI, 3. SVG Fallback
         string memory media = onChainMedia[tokenId];
+        if (bytes(media).length == 0) {
+            media = super.tokenURI(tokenId);
+        }
 
         if (bytes(media).length > 0) {
             if (_isMultimedia(media)) {
                 animationURL = media;
+                // For multimedia, we use the generated SVG as the thumbnail/image
                 imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, record.message)))));
             } else {
                 imageURI = media;
             }
         } else {
-            string memory offChainURI = super.tokenURI(tokenId);
-            if (bytes(offChainURI).length > 0) {
-                if (_isMultimedia(offChainURI)) {
-                    animationURL = offChainURI;
-                    imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, record.message)))));
-                } else {
-                    imageURI = offChainURI;
-                }
-            } else {
-                // SVG Fallback using the message
-                imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, record.message)))));
-            }
+            // SVG Fallback using the message
+            imageURI = string(abi.encodePacked("data:image/svg+xml;base64,", Base64.encode(bytes(_generateSVG(tokenId, record.message)))));
         }
 
         string memory animationPart = "";

@@ -202,7 +202,7 @@ describe("BragNFT Dual-State Model", async function () {
   });
 
   it("Should track supply correctly", async function () {
-    const { bragNFT, donor, recipient } = await deployContracts();
+    const { bragNFT, donor } = await deployContracts();
 
     assert.equal(await bragNFT.read.maxSupply(), 100n);
     assert.equal(await bragNFT.read.totalSupply(), 0n);
@@ -225,5 +225,62 @@ describe("BragNFT Dual-State Model", async function () {
         }),
         /Max supply reached/
     );
+  });
+
+  it("Should allow multiple donors and multiple NFTs per donor", async function () {
+    const { bragNFT, donor, recipient } = await deployContracts();
+
+    // Donor 1 mints two NFTs
+    await bragNFT.write.donate(["Donor 1 - NFT 1", ""], { account: donor.account, value: parseEther("0.1") });
+    await bragNFT.write.donate(["Donor 1 - NFT 2", ""], { account: donor.account, value: parseEther("0.2") });
+
+    // Donor 2 mints one NFT
+    await bragNFT.write.donate(["Donor 2 - NFT 1", ""], { account: recipient.account, value: parseEther("0.3") });
+
+    assert.equal(await bragNFT.read.totalSupply(), 3n);
+    assert.equal(await bragNFT.read.ownerOf([0n]), getAddress(donor.account.address));
+    assert.equal(await bragNFT.read.ownerOf([1n]), getAddress(donor.account.address));
+    assert.equal(await bragNFT.read.ownerOf([2n]), getAddress(recipient.account.address));
+
+    const [donor1_1] = await bragNFT.read.taxRegistry([0n]);
+    const [donor1_2] = await bragNFT.read.taxRegistry([1n]);
+    const [donor2_1] = await bragNFT.read.taxRegistry([2n]);
+
+    assert.equal(donor1_1, getAddress(donor.account.address));
+    assert.equal(donor1_2, getAddress(donor.account.address));
+    assert.equal(donor2_1, getAddress(recipient.account.address));
+  });
+
+  it("Should expire glowing state after 30 days", async function () {
+      const { bragNFT, donor } = await deployContracts();
+
+      await bragNFT.write.donate(["Aging NFT", ""], { account: donor.account, value: parseEther("0.1") });
+      const tokenId = 0n;
+
+      await bragNFT.write.topUp([tokenId], { account: donor.account, value: parseEther("0.0004") });
+      assert.equal(await bragNFT.read.isGlowing([tokenId]), true);
+
+      // Fast forward 31 days
+      const publicClient = await viem.getPublicClient();
+      await publicClient.request({ method: "evm_increaseTime", params: [31 * 24 * 60 * 60] });
+      await publicClient.request({ method: "evm_mine", params: [] });
+
+      assert.equal(await bragNFT.read.isGlowing([tokenId]), false);
+
+      // Top up again
+      await bragNFT.write.topUp([tokenId], { account: donor.account, value: parseEther("0.0004") });
+      assert.equal(await bragNFT.read.isGlowing([tokenId]), true);
+  });
+
+  it("Should allow changing royalty recipient", async function () {
+      const { bragNFT, treasury, recipient, owner } = await deployContracts();
+
+      const [oldRecipient, amount] = await bragNFT.read.royaltyInfo([0n, parseEther("1")]);
+      assert.equal(oldRecipient, getAddress(treasury.account.address));
+
+      await bragNFT.write.setRoyaltyRecipient([recipient.account.address], { account: owner.account });
+
+      const [newRecipient] = await bragNFT.read.royaltyInfo([0n, parseEther("1")]);
+      assert.equal(newRecipient, getAddress(recipient.account.address));
   });
 });

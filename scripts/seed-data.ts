@@ -25,6 +25,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { localhost, sepolia } from "viem/chains";
+import { stringToHex } from "viem/utils";
 
 const hardhatLocal = defineChain({
     ...localhost,
@@ -80,36 +81,55 @@ async function main() {
     console.log("Seeding data for BragNFT at:", bragNFTAddr);
 
     const donationAmount = parseEther("0.1");
-    const message = "Seeding data for the Dual-State model!";
 
-    // 1. User A: Mint BragNFT
-    const donateHash = await client0.sendTransaction({
+    const donations = [
+        { message: "Art Deco Masterpiece", uri: "https://picsum.photos/id/10/800/800", donor: client0, account: account0 },
+        { message: "On-Chain SVG Native", uri: "", donor: client1, account: account1 },
+        { message: "Multimedia Impact (Video)", uri: "https://www.w3schools.com/html/mov_bbb.mp4", donor: client0, account: account0 }
+    ];
+
+    const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
+    let lastTokenId = 0n;
+
+    for (const d of donations) {
+        console.log(`Donating: ${d.message} from ${d.account.address}...`);
+        const donateHash = await d.donor.sendTransaction({
+            to: bragNFTAddr,
+            data: encodeFunctionData({
+                abi: bragNFTArtifact.abi,
+                functionName: 'donate',
+                args: [d.message, d.uri]
+            }),
+            value: donationAmount
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: donateHash });
+        for (const log of receipt.logs) {
+            try {
+                const decoded = decodeEventLog({ abi: bragNFTArtifact.abi, data: log.data, topics: log.topics });
+                if (decoded.eventName === 'Donated') { lastTokenId = (decoded.args as any).tokenId; break; }
+            } catch (e) {}
+        }
+    }
+
+    // Transfer Token 0 to User B to show soulbound nature
+    console.log("Transferring Token 0 to User B...");
+    const transferHash = await client0.sendTransaction({
         to: bragNFTAddr,
         data: encodeFunctionData({
-            abi: [{ name: 'donate', type: 'function', inputs: [{ name: 'message', type: 'string' }, { name: 'tokenURI_', type: 'string' }], outputs: [], stateMutability: 'payable' }],
-            args: [message, "https://picsum.photos/400"]
-        }),
-        value: donationAmount
+            abi: bragNFTArtifact.abi,
+            functionName: 'transferFrom',
+            args: [account0.address, account1.address, 0n]
+        })
     });
-    const donateReceipt = await publicClient.waitForTransactionReceipt({ hash: donateHash });
+    await publicClient.waitForTransactionReceipt({ hash: transferHash });
 
-    let tokenId = 0n;
-    const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
-    for (const log of donateReceipt.logs) {
-        try {
-            const decoded = decodeEventLog({ abi: bragNFTArtifact.abi, data: log.data, topics: log.topics });
-            if (decoded.eventName === 'Donated') { tokenId = (decoded.args as any).tokenId; break; }
-        } catch (e) {}
-    }
-    console.log(`Minted Token ID: ${tokenId}`);
-
-    // 2. Fund User B with BragToken
-    const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6" as Hex;
+    // 2. Fund User B with BragToken for marketplace
+    const MINTER_ROLE = keccak256(stringToHex("MINTER_ROLE"));
     const mintTokensHash = await client0.sendTransaction({
         to: bragTokenAddr,
         data: encodeFunctionData({
             abi: [{ name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] }],
-            args: [account1.address, parseEther("10")]
+            args: [account1.address, parseEther("100")]
         })
     });
     await publicClient.waitForTransactionReceipt({ hash: mintTokensHash });
@@ -129,7 +149,7 @@ async function main() {
         to: marketplaceAddr,
         data: encodeFunctionData({
             abi: [{ name: 'createOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'amount', type: 'uint256' }, { name: 'price', type: 'uint256' }], outputs: [] }],
-            args: [bragNFTAddr, tokenId, 1n, offerPrice]
+            args: [bragNFTAddr, lastTokenId, 1n, offerPrice]
         })
     });
     await publicClient.waitForTransactionReceipt({ hash: createOfferHash });

@@ -97,6 +97,9 @@ async function main() {
             transport,
             chain,
             signer,
+            entryPointAddress: "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+            factoryAddress: "0x00000055C0b539bb096732644b679ae3218d1217",
+            version: "v2.0.0"
         }),
         rpcUrl: isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}` : rpcUrl,
         ...(isSepolia ? {
@@ -167,8 +170,8 @@ async function main() {
     }
 
     const exhibitRegistry = await deploy("ExhibitRegistry", [scaAddress]);
-    const donationReceipt = await deploy("DonationReceipt", [scaAddress]);
-    const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation]);
+    const mockPriceFeed = await deploy("MockPriceFeed", [250000000000n]); // 2500 USD/ETH
+    const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation, mockPriceFeed.address]);
 
     const initialSupply = 0n;
     const maxSupply = 1000000000000000000000000000n;
@@ -178,22 +181,6 @@ async function main() {
     // --- Batch Setup Transactions ---
     console.log("Batching setup and ownership transfer...");
     const setupTxs: any[] = [
-        {
-            to: donationReceipt.address,
-            data: encodeFunctionData({
-                abi: donationReceipt.abi,
-                functionName: "grantRole",
-                args: [MINTER_ROLE, bragNFT.address]
-            })
-        },
-        {
-            to: bragNFT.address,
-            data: encodeFunctionData({
-                abi: bragNFT.abi,
-                functionName: "setReceiptContract",
-                args: [donationReceipt.address]
-            })
-        },
         {
             to: bragNFT.address,
             data: encodeFunctionData({
@@ -214,7 +201,6 @@ async function main() {
 
     // Grant Admin Roles to EOA
     const contractsToTransfer = [
-        { name: "DonationReceipt", contract: donationReceipt },
         { name: "BragNFT", contract: bragNFT },
         { name: "BragToken", contract: bragToken },
         { name: "NFTMarketplace", contract: marketplace }
@@ -277,7 +263,6 @@ async function main() {
     const deployedAddresses = {
         "AppModule#BragNFT": bragNFT.address,
         "AppModule#BragToken": bragToken.address,
-        "AppModule#DonationReceipt": donationReceipt.address,
         "AppModule#ExhibitRegistry": exhibitRegistry.address,
         "AppModule#NFTMarketplace": marketplace.address,
         "AppModule#Treasury": treasury.address,
