@@ -5,7 +5,7 @@ test.describe('Gasless Configuration', () => {
   const landingUrl = `file://${path.resolve('frontend/index.html')}`;
 
   test.beforeEach(async ({ page }) => {
-    // Mock wallet connection and address
+    // Mock wallet connection and AA SDK
     await page.addInitScript(() => {
         const mockAddress = '0x1234567890123456789012345678901234567890';
         (window as any).ethereum = {
@@ -17,14 +17,35 @@ test.describe('Gasless Configuration', () => {
             on: () => {},
             removeListener: () => {}
         };
+
+        // Mock AlchemyAA to avoid esm.sh loads
+        (window as any).AlchemyAA = {
+            createPublicClient: () => ({}),
+            http: () => ({}),
+            alchemy: () => ({}),
+            custom: () => ({}),
+            createWalletClient: () => ({}),
+            sepolia: {},
+            localhost: {},
+            createMultiOwnerLightAccount: async () => ({}),
+            createAlchemySmartAccountClient: async () => ({
+                account: { address: '0xSCA_ADDRESS' }
+            }),
+            WalletClientSigner: class { constructor() {} }
+        };
+
         // Pre-set wallet connected in localStorage
         localStorage.setItem('wallet_connected', 'true');
         localStorage.setItem('brag_address', mockAddress);
     });
 
+    // Block esm.sh to speed up and use mock
+    await page.route('https://esm.sh/**', route => route.abort());
+
     // We need to fetch the local views and other local assets relative to the landingUrl
     await page.route('**/*', async (route) => {
         const url = route.request().url();
+        console.log('Requesting:', url);
         if (url.startsWith('file://')) {
             if (url.includes('views/')) {
                 const viewName = url.split('/').pop();
@@ -43,14 +64,11 @@ test.describe('Gasless Configuration', () => {
         }
     });
 
-    await page.goto(landingUrl);
-    // Navigate to manager
-    await page.evaluate(() => {
-        window.location.hash = '#/manager';
-    });
+    await page.goto(landingUrl + '#/manager');
 
     // Wait for the manager view to be loaded
-    await page.waitForSelector('#toggleGasless', { timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+    await page.locator('#toggleGasless').waitFor({ state: 'visible', timeout: 30000 });
   });
 
   test('should show gasless config fields when toggled', async ({ page }) => {
@@ -100,7 +118,7 @@ test.describe('Gasless Configuration', () => {
 
     // Toggle should still be on
     await expect(toggleGasless).toBeChecked();
-    await expect(gaslessConfig).toBeVisible();
+    await expect(page.locator('#gaslessConfig')).toBeVisible();
 
     // Values should be loaded
     await expect(apiKeyInput).toHaveValue('test-api-key');
