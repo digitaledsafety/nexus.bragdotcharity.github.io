@@ -11,16 +11,13 @@ describe("Investigation of Bugs (Fixed)", async function () {
 
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("2000000")]);
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
-    const bragNFT = await viem.deployContract("BragNFT", [
-        owner.account.address,
-        treasury.account.address,
-        parseEther("0.1")
-    ]);
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.account.address, parseEther("0.1")
+    , priceFeed.address]);
 
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
+
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+
 
     return { marketplace, bragNFT, bragToken, owner, seller, buyer, treasury };
   }

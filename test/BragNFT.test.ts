@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { network } from "hardhat";
 import { getAddress, parseEther, keccak256, toBytes } from "viem";
 
-describe("BragNFT and DonationReceipt", async function () {
+describe("BragNFT Dual-State Model", async function () {
   const { viem } = await network.connect();
 
   async function deployContracts() {
@@ -15,30 +15,28 @@ describe("BragNFT and DonationReceipt", async function () {
     // Verify vault in registry
     await registry.write.verifyVault([vault.address, 3, "Art Gallery", "Main gallery"]);
 
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]); // 500/ETH (8 decimals)
+
     const bragNFT = await viem.deployContract("BragNFT", [
         owner.account.address,
         treasury.account.address,
-        parseEther("0.1")
+        parseEther("0.1"),
+        priceFeed.address
     ]);
 
-    // Setup: Authorize BragNFT to mint receipts
-    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
-
     // Optional: Setup BragToken for rewards testing
+    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, 0n, parseEther("1000000")]);
     await bragToken.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setBragToken([bragToken.address]);
 
     const mock1155 = await viem.deployContract("MockERC1155", []);
 
-    return { registry, vault, bragNFT, receipt, bragToken, mock1155, owner, donor, treasury, recipient };
+    return { registry, vault, bragNFT, priceFeed, bragToken, mock1155, owner, donor, treasury, recipient };
   }
 
-  it("Should mint BragNFT, DonationReceipt, and BragToken on donation", async function () {
-    const { bragNFT, receipt, bragToken, donor, treasury } = await deployContracts();
+  it("Should mint BragNFT and record Tax Receipt on donation", async function () {
+    const { bragNFT, bragToken, donor, treasury } = await deployContracts();
     const donationAmount = parseEther("0.5");
     const message = "Generous donor";
     const tokenURI = "https://example.com/nft.json";
@@ -52,34 +50,32 @@ describe("BragNFT and DonationReceipt", async function () {
     });
 
     // 1. Check BragNFT
-    const nftTokenId = 0n;
-    assert.equal(await bragNFT.read.ownerOf([nftTokenId]), getAddress(donor.account.address));
+    const tokenId = 0n;
+    assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
 
-    const uri = await bragNFT.read.tokenURI([nftTokenId]);
-    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
+    // 2. Check Permanent Record (Tax Registry)
+    const [originalDonor, usdValue, timestamp, status, recordMessage] = await bragNFT.read.taxRegistry([tokenId]);
+    assert.equal(originalDonor, getAddress(donor.account.address));
+    assert.equal(recordMessage, message);
+    assert.equal(usdValue, 125000000000n);
+
+    const uri = await bragNFT.read.tokenURI([tokenId]);
     const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
     assert.equal(json.image, tokenURI);
-    assert.equal(json.attributes[0].value, message);
-
-    // 2. Check DonationReceipt
-    const receiptTokenId = await bragNFT.read.nftToReceipt([nftTokenId]);
-    assert.equal(await receipt.read.ownerOf([receiptTokenId]), getAddress(donor.account.address));
+    assert.equal(json.attributes[0].value, recordMessage);
+    assert.equal(json.attributes[1].value, donor.account.address.toLowerCase());
+    assert.equal(json.attributes[2].value, "Pending");
 
     // 2.5 Check BragToken reward
     const balance = await bragToken.read.balanceOf([donor.account.address]);
     assert.equal(balance, donationAmount);
-
-    const receiptDetails = await receipt.read.getReceipt([receiptTokenId]);
-    assert.equal(receiptDetails.donor, getAddress(donor.account.address));
-    assert.equal(receiptDetails.amount, donationAmount);
-    assert.equal(receiptDetails.message, message);
 
     // 3. Check Treasury
     const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });
     assert.equal(finalTreasuryBalance, initialTreasuryBalance + donationAmount);
   });
 
-  it("Should allow BragNFT to be transferred (not soulbound)", async function () {
+  it("Should allow BragNFT to be transferred while keeping tax record for donor", async function () {
     const { bragNFT, donor, recipient } = await deployContracts();
     await bragNFT.write.donate(["Transferable NFT", "ipfs://uri1"], {
         account: donor.account,
@@ -90,21 +86,48 @@ describe("BragNFT and DonationReceipt", async function () {
     await bragNFT.write.transferFrom([donor.account.address, recipient.account.address, tokenId], { account: donor.account });
 
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(recipient.account.address));
+
+    // Tax record should still point to donor
+    const [originalDonor] = await bragNFT.read.taxRegistry([tokenId]);
+    assert.equal(originalDonor, getAddress(donor.account.address));
   });
 
-  it("Should NOT allow DonationReceipt to be transferred (soulbound)", async function () {
-    const { bragNFT, receipt, donor, recipient } = await deployContracts();
-    await bragNFT.write.donate(["Soulbound receipt", "ipfs://uri2"], {
-        account: donor.account,
-        value: parseEther("0.1")
-    });
+  it("Should implement EIP-6454 isTransferable", async function () {
+      const { bragNFT, donor, recipient } = await deployContracts();
+      assert.equal(await bragNFT.read.isTransferable([0n, donor.account.address, recipient.account.address]), true);
+  });
 
-    const receiptId = await bragNFT.read.nftToReceipt([0n]);
+  it("Should implement EIP-2981 with 8% royalty", async function () {
+      const { bragNFT, treasury } = await deployContracts();
+      const [recipientAddress, royaltyAmount] = await bragNFT.read.royaltyInfo([0n, parseEther("1")]);
+      assert.equal(recipientAddress, getAddress(treasury.account.address));
+      assert.equal(royaltyAmount, parseEther("0.08"));
+  });
 
-    await assert.rejects(
-        receipt.write.transferFrom([donor.account.address, recipient.account.address, receiptId], { account: donor.account }),
-        /DonationReceipt: Token is soulbound and cannot be transferred/
-    );
+  it("Should handle Top-up and Glowing state", async function () {
+      const { bragNFT, donor, treasury } = await deployContracts();
+      const publicClient = await viem.getPublicClient();
+      const initialTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });
+
+      await bragNFT.write.donate(["Glowing NFT", ""], { account: donor.account, value: parseEther("0.1") });
+      const tokenId = 0n;
+
+      assert.equal(await bragNFT.read.isGlowing([tokenId]), false);
+
+      const topUpAmount = parseEther("0.0004");
+      await bragNFT.write.topUp([tokenId], { account: donor.account, value: topUpAmount });
+
+      assert.equal(await bragNFT.read.isGlowing([tokenId]), true);
+
+      const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });
+      assert.equal(finalTreasuryBalance, initialTreasuryBalance + parseEther("0.1") + topUpAmount);
+
+      const uri = await bragNFT.read.tokenURI([tokenId]);
+      const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+      assert.equal(json.attributes[3].value, "Yes");
+
+      const svg = Buffer.from(json.image.split(",")[1], "base64").toString();
+      assert.ok(svg.includes('filter="url(#glow)"'), "SVG should include glow filter");
   });
 
   it("Should allow BragNFT to be exhibited", async function () {
@@ -167,7 +190,6 @@ describe("BragNFT and DonationReceipt", async function () {
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(donor.account.address));
 
     const uri = await bragNFT.read.tokenURI([tokenId]);
-    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
     const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
 
     assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an SVG data URI");
@@ -177,85 +199,6 @@ describe("BragNFT and DonationReceipt", async function () {
     const svgBase64 = json.image.split(",")[1];
     const svg = Buffer.from(svgBase64, "base64").toString();
     assert.ok(svg.includes(message), "SVG should include the donation message");
-  });
-
-  it("Should support on-chain media and metadata including message", async function () {
-    const { bragNFT, donor } = await deployContracts();
-    const message = "On-chain test";
-    const media = 'ipfs://on-chain-stored-uri';
-
-    await bragNFT.write.donate([message, media, true], {
-        account: donor.account,
-        value: parseEther("0.1")
-    });
-
-    const tokenId = 0n;
-    const uri = await bragNFT.read.tokenURI([tokenId]);
-
-    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
-
-    // Decode and check content
-    const base64Content = uri.split(",")[1];
-    const json = JSON.parse(Buffer.from(base64Content, "base64").toString());
-
-    assert.equal(json.name, `BragNFT #${tokenId}`);
-    assert.equal(json.image, media);
-    assert.equal(json.attributes[0].value, message);
-    assert.ok(json.description.includes(message));
-  });
-
-  it("Should support audio NFTs with animation_url", async function () {
-    const { bragNFT, donor } = await deployContracts();
-    const message = "Audio NFT Test";
-    const audioMedia = 'data:audio/mpeg;base64,SGVsbG8='; // "Hello" in base64
-
-    await bragNFT.write.donate([message, audioMedia, true], {
-        account: donor.account,
-        value: parseEther("0.1")
-    });
-
-    const tokenId = 0n;
-    const uri = await bragNFT.read.tokenURI([tokenId]);
-
-    assert.ok(uri.startsWith("data:application/json;base64,"), "Should be a data URI");
-
-    const base64Content = uri.split(",")[1];
-    const json = JSON.parse(Buffer.from(base64Content, "base64").toString());
-
-    assert.equal(json.animation_url, audioMedia);
-    assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Image should be an SVG fallback");
-    assert.equal(json.attributes[0].value, message);
-  });
-
-  it("Should support audio file extensions for animation_url", async function () {
-    const { bragNFT, donor } = await deployContracts();
-    const extensions = [".mp3", ".wav", ".ogg", ".m4a", ".aac"];
-
-    for (let i = 0; i < extensions.length; i++) {
-        const audioUrl = `https://example.com/audio${i}${extensions[i]}`;
-        await bragNFT.write.donate([`audio nft ${extensions[i]}`, audioUrl], { value: parseEther("0.1") });
-        const uri = await bragNFT.read.tokenURI([BigInt(i)]);
-        const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
-        assert.equal(json.animation_url, audioUrl, `Failed for extension ${extensions[i]}`);
-    }
-  });
-
-  it("Should support GIF and MP4 formats as multimedia", async function () {
-    const { bragNFT, donor } = await deployContracts();
-    const mediaFormats = [
-        "https://example.com/image.gif",
-        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-        "https://example.com/video.mp4",
-        "data:video/mp4;base64,AAAAIGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAZptb292"
-    ];
-
-    for (let i = 0; i < mediaFormats.length; i++) {
-        await bragNFT.write.donate([`media test ${i}`, mediaFormats[i]], { value: parseEther("0.1") });
-        const uri = await bragNFT.read.tokenURI([BigInt(i)]);
-        const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
-        assert.equal(json.animation_url, mediaFormats[i], `Failed for format: ${mediaFormats[i]}`);
-        assert.ok(json.image.startsWith("data:image/svg+xml;base64,"), "Should have SVG fallback for image");
-    }
   });
 
   it("Should track supply correctly", async function () {

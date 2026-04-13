@@ -21,14 +21,11 @@ describe("Contract Hardening Tests", async function () {
     // BragNFT & Dependencies
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
     const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
-    const bragNFT = await viem.deployContract("BragNFT", [
-      owner.account.address,
-      treasury.address,
-      parseEther("0.1")
-    ]);
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.1")
+    , priceFeed.address]);
+
+
 
     // BatchGrant
     const batchGrant = await viem.deployContract("BatchGrant", [owner.account.address]);
@@ -36,7 +33,7 @@ describe("Contract Hardening Tests", async function () {
     // MockERC1155
     const mock1155 = await viem.deployContract("MockERC1155");
 
-    return { marketplace, bragNFT, bragToken, treasury, receipt, batchGrant, mock1155, owner, seller, buyer, other };
+    return { marketplace, bragNFT, bragToken, treasury, batchGrant, mock1155, owner, seller, buyer, other };
   }
 
   describe("Reentrancy Protection", () => {

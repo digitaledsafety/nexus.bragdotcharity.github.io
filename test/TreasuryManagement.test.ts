@@ -15,20 +15,17 @@ describe("Treasury Management", async function () {
 
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
     const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    const bragNFT = await viem.deployContract("BragNFT", [
-        owner.account.address,
-        treasury.address,
-        parseEther("0.1")
-    ]);
+
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.1")
+    , priceFeed.address]);
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
 
     // Setup: Authorize BragNFT to mint receipts
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
 
-    return { treasury, bragNFT, receipt, marketplace, bragToken, owner, donor, buyer };
+
+    return { treasury, bragNFT, marketplace, bragToken, owner, donor, buyer };
   }
 
   it("Should allow donating to treasury and then withdrawing by owner", async function () {

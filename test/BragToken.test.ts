@@ -13,12 +13,10 @@ describe("BragToken Integration", async function () {
     // Deploy contracts manually for the test to ensure clean state
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
     const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    const bragNFT = await viem.deployContract("BragNFT", [
-      owner.account.address,
-      treasury.address,
-      1n // 1 wei minimum
-    ]);
+
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, 1n // 1 wei minimum
+    , priceFeed.address]);
     const bragToken = await viem.deployContract("BragToken", [
       owner.account.address,
       initialSupply,
@@ -26,8 +24,7 @@ describe("BragToken Integration", async function () {
     ]);
 
     // Setup relationships
-    await receipt.write.setMinter([bragNFT.address, true]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+
     await bragNFT.write.setBragToken([bragToken.address]);
 
     // Authorize BragNFT to mint tokens

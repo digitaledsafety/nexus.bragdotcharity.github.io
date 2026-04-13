@@ -42,7 +42,7 @@ async function loadNFTs() {
             if (events.length > 0) {
                 const sortedEvents = events.reverse();
                 for (const event of sortedEvents) {
-                    const tokenId = event.args.nftTokenId.toString();
+                    const tokenId = (event.args.nftTokenId || event.args.tokenId).toString();
                     if (seenTokens.has(tokenId)) continue;
                     seenTokens.add(tokenId);
                     nativeNFTPromises.push(renderNFTCard(bragNFT, tokenId, "Brag.Charity Native"));

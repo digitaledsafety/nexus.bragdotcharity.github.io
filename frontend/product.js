@@ -4,6 +4,10 @@
  */
 
 async function initProduct() {
+    // Force address refresh from storage
+    if (localStorage.getItem('wallet_connected') === 'true') {
+        userAddress = localStorage.getItem('brag_address');
+    }
     await coreReady;
     const hash = window.location.hash;
     const queryString = hash.includes('?') ? hash.split('?')[1] : '';
@@ -24,6 +28,12 @@ async function initProduct() {
  * Fetch and display NFT data
  */
 async function loadProductData(contractAddr, tokenId) {
+    // Reset conditional visibility before loading new data
+    const taxSection = document.getElementById('taxRecordSection');
+    const topUpSection = document.getElementById('topUpSection');
+    if (taxSection) taxSection.classList.add('hidden');
+    if (topUpSection) topUpSection.classList.add('hidden');
+
     try {
         const genericNFT = getContract('IERC721', contractAddr);
         const marketplace = getContract('NFTMarketplace');
@@ -48,20 +58,49 @@ async function loadProductData(contractAddr, tokenId) {
             // Might be ERC1155 or other
         }
 
-        const [receiptId] = await Promise.all([
-            genericNFT.nftToReceipt ? genericNFT.nftToReceipt(tokenId).catch(() => 0) : Promise.resolve(0)
-        ]);
-
         const metadata = await fetchMetadata(tokenURI, tokenId);
         if (!metadata) throw new Error("Metadata parse failed");
 
-        // Receipt Link
-        if (receiptId && receiptId > 0) {
-            const receiptContract = getContract('DonationReceipt');
-            const explorerUrl = network?.chainId === 11155111 ? "https://sepolia.etherscan.io/address/" : "https://etherscan.io/address/";
-            const receiptLink = document.getElementById('dispReceipt');
-            if (receiptLink && receiptContract) {
-                receiptLink.href = `${explorerUrl}${receiptContract.address}?a=${receiptId}`;
+        const isNative = contractAddr.toLowerCase() === getDeploymentAddress('BragNFT')?.toLowerCase();
+
+        // Dual-State Record & Glowing Status
+        let record = null;
+        let isGlowing = false;
+        if (isNative) {
+            try {
+                const bragNFT = getContract('BragNFT');
+                record = await bragNFT.taxRegistry(tokenId);
+                console.log(`Original Donor: ${record.originalDonor}`);
+                isGlowing = await bragNFT.isGlowing(tokenId);
+
+                // Show/Hide sections based on state
+                const taxRecordSection = document.getElementById('taxRecordSection');
+                const topUpSection = document.getElementById('topUpSection');
+
+                const currentAddr = (userAddress || localStorage.getItem('brag_address') || '').toLowerCase();
+                console.log(`Current User: ${currentAddr}`);
+
+                if (record && record.originalDonor.toLowerCase() === currentAddr) {
+                    console.log("Donor match - showing tax section");
+                    taxRecordSection.classList.remove('hidden');
+                    document.getElementById('taxValue').textContent = `$${(parseFloat(ethers.utils.formatUnits(record.usdValue, 8))).toFixed(2)}`;
+                    const statusNames = ['Pending', 'Verified', 'Claimed', 'Flagged'];
+                    document.getElementById('taxStatus').textContent = statusNames[record.status] || 'Unknown';
+                    document.getElementById('taxStatus').className = `badge text-[8px] ${record.status === 1 ? 'badge-verified' : ''}`;
+                } else {
+                    console.log("Not donor - hiding tax section");
+                    taxRecordSection.classList.add('hidden');
+                }
+
+                if (topUpSection) {
+                    topUpSection.classList.remove('hidden');
+                }
+
+                if (isGlowing) {
+                    document.getElementById('nftImage').style.filter = 'drop-shadow(0 0 20px rgba(99, 102, 241, 0.6))';
+                }
+            } catch (e) {
+                console.warn("Failed to fetch dual-state record", e);
             }
         }
 
@@ -91,14 +130,6 @@ async function loadProductData(contractAddr, tokenId) {
             messageDisp.textContent = messageAttr ? `"${messageAttr.value}"` : 'Impact NFT';
         }
 
-        // Hide impact-specific section if no message and no receipt
-        const isNative = contractAddr.toLowerCase() === getDeploymentAddress('BragNFT')?.toLowerCase();
-        const impactSection = document.getElementById('dispReceipt')?.closest('.grid');
-        if (impactSection && !isNative && !messageAttr) {
-            impactSection.classList.add('hidden');
-        } else if (impactSection) {
-            impactSection.classList.remove('hidden');
-        }
 
         // Media
         const animUrl = metadata.animation_url || '';
@@ -192,6 +223,33 @@ async function loadProductData(contractAddr, tokenId) {
 }
 
 function setupProductActions(contractAddr, tokenId, metadata) {
+    const isNative = contractAddr.toLowerCase() === getDeploymentAddress('BragNFT')?.toLowerCase();
+
+    if (isNative) {
+        const btnTopUp = document.getElementById('btnTopUp');
+        if (btnTopUp) {
+            btnTopUp.onclick = async () => {
+                const bragNFT = getContract('BragNFT');
+                try {
+                    // txHandler takes care of SCA vs EOA
+                    const tx = await txHandler(bragNFT, 'topUp', [tokenId], { value: ethers.utils.parseEther("0.0004") });
+                    alert("Recharge successful! Your art is now glowing.");
+                    await tx.wait();
+                    window.location.reload();
+                } catch (e) {
+                    alert("Top-up failed: " + (e.reason || e.message));
+                }
+            };
+        }
+
+        const btnExportTax = document.getElementById('btnExportTax');
+        if (btnExportTax) {
+            btnExportTax.onclick = () => {
+                generateTaxPDF(tokenId, metadata);
+            };
+        }
+    }
+
     document.getElementById('btnMakeOffer').onclick = async () => {
         const priceStr = document.getElementById('offerAmount').value;
         if (!priceStr || parseFloat(priceStr) <= 0) return alert('Enter valid BRAG price');
@@ -211,7 +269,8 @@ function setupProductActions(contractAddr, tokenId, metadata) {
                 await appTx.wait();
             }
 
-            const tx = await marketplace.createOffer(contractAddr, tokenId, amount, price);
+            // Use unified txHandler
+            const tx = await txHandler(marketplace, 'createOffer', [contractAddr, tokenId, amount, price]);
             alert('Offer submitted!');
             await tx.wait();
             window.location.reload();
@@ -230,4 +289,43 @@ function setupProductActions(contractAddr, tokenId, metadata) {
     };
 }
 
+function generateTaxPDF(tokenId, metadata) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(99, 102, 241); // Indigo
+    doc.text("brag.charity Impact Receipt", 20, 30);
+
+    doc.setFontSize(12);
+    doc.setTextColor(100, 116, 139); // Slate-500
+    doc.text("Official 2026 Donation Record - NEXUS Dual-State Collectible", 20, 40);
+
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, 45, 190, 45);
+
+    // Details
+    doc.setFontSize(14);
+    doc.setTextColor(30, 41, 59); // Slate-800
+    doc.text(`Asset: BragNFT #${tokenId}`, 20, 60);
+    doc.text(`Donor Wallet: ${userAddress}`, 20, 70);
+
+    const usdValue = document.getElementById('taxValue').textContent;
+    doc.setFontSize(16);
+    doc.text(`Verified Fair Market Value: ${usdValue} USD`, 20, 85);
+
+    const timestamp = new Date().toLocaleDateString();
+    doc.setFontSize(10);
+    doc.text(`Date of Export: ${timestamp}`, 20, 100);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Nexus Impact Gallery | Digital Education & Safety Foundation (EIN: 00-0000000)", 20, 115);
+    doc.text("The funds collected are used to support STEM education in underserved communities.", 20, 120);
+
+    doc.text("Audit Provenance Link: " + window.location.href, 20, 135);
+
+    doc.save(`brag-receipt-nft-${tokenId}.pdf`);
+}
 

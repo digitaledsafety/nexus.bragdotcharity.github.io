@@ -16,19 +16,17 @@ describe("AccessControl Security Tests", async function () {
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
     const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
     const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    const bragNFT = await viem.deployContract("BragNFT", [
-      owner.account.address,
-      treasury.address,
-      parseEther("0.1")
-    ]);
+
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.1")
+    , priceFeed.address]);
     const bragToken = await viem.deployContract("BragToken", [
       owner.account.address,
       0n,
       parseEther("1000")
     ]);
 
-    return { owner, attacker, other, treasury, registry, receipt, bragNFT, bragToken };
+    return { owner, attacker, other, treasury, registry, bragNFT, bragToken };
   }
 
   describe("BragToken Access", () => {
@@ -41,23 +39,8 @@ describe("AccessControl Security Tests", async function () {
     });
   });
 
-  describe("DonationReceipt Access", () => {
-    it("Should fail to mint without MINTER_ROLE", async function () {
-      const { receipt, attacker } = await setup();
-      await assert.rejects(
-        receipt.write.mint([attacker.account.address, parseEther("1"), "hacker"], { account: attacker.account }),
-        /AccessControlUnauthorizedAccount/
-      );
-    });
 
-    it("Should fail to setMinter without ADMIN_ROLE", async function () {
-      const { receipt, attacker, other } = await setup();
-      await assert.rejects(
-        receipt.write.setMinter([other.account.address, true], { account: attacker.account }),
-        /AccessControlUnauthorizedAccount/
-      );
-    });
-  });
+
 
   describe("BragNFT Access", () => {
     it("Should fail to setTreasury without ADMIN_ROLE", async function () {
