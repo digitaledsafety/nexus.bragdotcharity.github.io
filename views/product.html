@@ -134,11 +134,24 @@
                         <p class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-2">Impact Message</p>
                         <p id="dispMessage" class="text-sm italic text-slate-300 font-medium">"..."</p>
                     </div>
-                    <div class="glass-card rounded-2xl p-5 border-white/5 flex flex-col justify-between">
-                        <p class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-2">Proof of Impact</p>
-                        <a id="dispReceipt" href="#" class="text-xs text-indigo-400 font-bold hover:underline inline-flex items-center">
-                            View Tax Receipt <i class="fas fa-external-link-alt ml-2 text-[10px]"></i>
-                        </a>
+                    <div id="taxRecordSection" class="glass-card rounded-2xl p-5 border-white/5 hidden flex flex-col justify-between">
+                        <div>
+                            <p class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-2">2026 Tax Record</p>
+                            <div class="flex items-center justify-between mb-2">
+                                <span id="taxValue" class="text-lg font-black text-white">$0.00</span>
+                                <span id="taxStatus" class="badge text-[8px]">Pending</span>
+                            </div>
+                        </div>
+                        <button id="btnExportTax" class="text-[10px] text-indigo-400 font-black uppercase hover:underline inline-flex items-center">
+                            Export Tax Bundle (PDF) <i class="fas fa-file-pdf ml-2"></i>
+                        </button>
+                    </div>
+                    <div id="topUpSection" class="glass-card rounded-2xl p-5 border-indigo-500/10 bg-indigo-500/5 hidden flex flex-col justify-between">
+                        <p class="text-[8px] text-indigo-400 uppercase font-black tracking-widest mb-2">Collectible Vitality</p>
+                        <p class="text-[10px] text-slate-400 mb-3">Top-up with 0.0004 ETH to keep the art glowing.</p>
+                        <button id="btnTopUp" class="btn-primary py-2 rounded-xl font-black uppercase tracking-widest text-[8px]">
+                            Recharge Glow
+                        </button>
                     </div>
                 </div>
             </div>
