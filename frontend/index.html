@@ -115,10 +115,16 @@
     <script src="config.js"></script>
     <script type="module">
         console.log("Loading Account Abstraction libraries...");
-        // Use a bundled import from esm.sh for better reliability in browser
-        import('https://esm.sh/@alchemy/aa-sdk@3.20.0').then(AA => {
-            window.AlchemyAA = AA;
-            console.log("Alchemy AA SDK Loaded Successfully:", Object.keys(AA).length, "exports found.");
+        // We load individual packages and merge them into a single namespace for compatibility
+        Promise.all([
+            import('https://esm.sh/@alchemy/aa-core@3.19.0'),
+            import('https://esm.sh/@alchemy/aa-alchemy@3.19.0'),
+            import('https://esm.sh/@alchemy/aa-accounts@3.19.0'),
+            import('https://esm.sh/viem@2.34.0'),
+            import('https://esm.sh/viem@2.34.0/chains')
+        ]).then(([core, alchemy, accounts, viem, chains]) => {
+            window.AlchemyAA = { ...core, ...alchemy, ...accounts, ...viem, ...chains };
+            console.log("Alchemy AA SDK Loaded Successfully:", Object.keys(window.AlchemyAA).length, "exports found.");
         }).catch(err => {
             console.error("Failed to load Alchemy AA SDK:", err);
             window.AlchemyAA_Error = err.message;
