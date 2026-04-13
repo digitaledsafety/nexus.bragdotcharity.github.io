@@ -4,6 +4,10 @@
  */
 
 async function initProduct() {
+    // Force address refresh from storage
+    if (localStorage.getItem('wallet_connected') === 'true') {
+        userAddress = localStorage.getItem('brag_address');
+    }
     await coreReady;
     const hash = window.location.hash;
     const queryString = hash.includes('?') ? hash.split('?')[1] : '';
@@ -24,6 +28,12 @@ async function initProduct() {
  * Fetch and display NFT data
  */
 async function loadProductData(contractAddr, tokenId) {
+    // Reset conditional visibility before loading new data
+    const taxSection = document.getElementById('taxRecordSection');
+    const topUpSection = document.getElementById('topUpSection');
+    if (taxSection) taxSection.classList.add('hidden');
+    if (topUpSection) topUpSection.classList.add('hidden');
+
     try {
         const genericNFT = getContract('IERC721', contractAddr);
         const marketplace = getContract('NFTMarketplace');
@@ -60,18 +70,26 @@ async function loadProductData(contractAddr, tokenId) {
             try {
                 const bragNFT = getContract('BragNFT');
                 record = await bragNFT.taxRegistry(tokenId);
+                console.log(`Original Donor: ${record.originalDonor}`);
                 isGlowing = await bragNFT.isGlowing(tokenId);
 
                 // Show/Hide sections based on state
                 const taxRecordSection = document.getElementById('taxRecordSection');
                 const topUpSection = document.getElementById('topUpSection');
 
-                if (record && record.originalDonor.toLowerCase() === (userAddress || '').toLowerCase()) {
+                const currentAddr = (userAddress || localStorage.getItem('brag_address') || '').toLowerCase();
+                console.log(`Current User: ${currentAddr}`);
+
+                if (record && record.originalDonor.toLowerCase() === currentAddr) {
+                    console.log("Donor match - showing tax section");
                     taxRecordSection.classList.remove('hidden');
                     document.getElementById('taxValue').textContent = `$${(parseFloat(ethers.utils.formatUnits(record.usdValue, 8))).toFixed(2)}`;
                     const statusNames = ['Pending', 'Verified', 'Claimed', 'Flagged'];
                     document.getElementById('taxStatus').textContent = statusNames[record.status] || 'Unknown';
                     document.getElementById('taxStatus').className = `badge text-[8px] ${record.status === 1 ? 'badge-verified' : ''}`;
+                } else {
+                    console.log("Not donor - hiding tax section");
+                    taxRecordSection.classList.add('hidden');
                 }
 
                 if (topUpSection) {
