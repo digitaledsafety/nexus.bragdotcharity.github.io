@@ -12,36 +12,38 @@ This project is configured with a GitHub Action (`.github/workflows/deploy-pages
 
 ## Local Development
 
-Simply open `index.html` (Home) or `marketplace.html` (Marketplace) in your browser. You will need MetaMask installed and connected to a network (Localhost, Sepolia, or Mainnet) where the contracts are deployed.
-
-## Contract Addresses
-
-You can find the deployed contract addresses in your Hardhat ignition deployment logs or by running:
+The frontend is a **Single Page Application (SPA)**. To run it locally, use a local server to avoid CORS issues with template fetching:
 ```bash
-npx hardhat ignition deploy ./ignition/modules/App.ts --network <network>
+npm run serve
 ```
-Once you have the addresses, paste them into the **Contract Settings** section in the web interface. They will be saved to your browser's local storage for future use.
+Then navigate to `http://localhost:3000`.
+
+## Dual-State Architecture (Nexus)
+
+The frontend implements conditional rendering for the **Nexus Dual-State** model:
+*   **Discovery:** Shows all minted NFTs in the gallery.
+*   **Product View:** Automatically detects if the connected wallet is the `originalDonor`. If so, it reveals the **Tax Record** section and enables the **Export Tax Bundle (PDF)** feature.
+*   **Vitality Glow:** Displays a visual neon-glow effect on the NFT if it has been "topped up" within the last 30 days.
 
 ## Viewing NFTs
 
-The product page identifies NFTs using URL parameters.
+The SPA uses hash-based routing with query parameters for deep linking.
 
 **URL Template:**
-`product.html?id=<TOKEN_ID>&addr=<CONTRACT_ADDRESS>`
+`#/product?id=<TOKEN_ID>&addr=<CONTRACT_ADDRESS>`
 
 **Example:**
-`product.html?id=0&addr=0x5FC8d32690cc91D4c39d9d3abcBD16989F875707`
-
-The **Marketplace** (`marketplace.html`) automatically switches from demo data to real blockchain data once it detects `Donated` events from the BragNFT contract.
+`#/product?id=0&addr=0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9`
 
 ### Triggering Live Data
-To see real data in the gallery and product page, you must fire a `Donated` event:
-1.  Open **`manager.html`** (Admin) and connect your wallet.
-2.  Use the **Mint BragNFT** section.
-3.  Fill in the donation amount, a message, and upload an image (this generates a Data URI).
-4.  Check **"Store Media On-chain"** (ensures immediate compatibility with the current frontend).
-5.  Click **"Donate & Mint"**.
-Once the transaction confirms, refresh the Discovery page to see your live NFT.
+To see real data in the gallery and product page:
+1.  Open the **Manager** view and connect your wallet.
+2.  In the **Donate & Mint** section, enter a donation amount and impact message.
+3.  Once the transaction confirms, the NFT will appear in the **Marketplace** discovery gallery.
 
-### Compatibility Note
-Currently, the frontend only parses `tokenURI` data that is provided as a **Base64 Data URI** (on-chain metadata). Standard NFTs using external IPFS or HTTP links will require a frontend update to fetch external content.
+### Media Support
+The frontend supports a wide range of media types:
+*   **On-Chain SVG:** Generated dynamically for message-based donations.
+*   **Images:** JPG, PNG, WEBP, and animated GIFs.
+*   **Multimedia:** MP3/WAV/OGG audio and MP4/WebM video support.
+*   **Gateways:** Automatic resolution for `ipfs://` and `ar://` (Arweave) URIs via public gateways.

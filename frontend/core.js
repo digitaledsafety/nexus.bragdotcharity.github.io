@@ -30,12 +30,17 @@ const NETWORK_NAMES = {
  * Initialize core wallet logic
  */
 async function initCore() {
-    // 1. Try to connect wallet (silent)
+    // 1. Pre-populate user address from storage for UI consistency
+    if (localStorage.getItem('wallet_connected') === 'true') {
+        userAddress = localStorage.getItem('brag_address');
+    }
+
+    // 2. Try to connect wallet (silent)
     if (localStorage.getItem('wallet_connected') === 'true') {
         await connectWallet(true);
     }
 
-    // 2. Fallback to read-only provider if still not connected
+    // 3. Fallback to read-only provider if still not connected
     if (!provider) {
         try {
             // Default to local hardhat if no wallet

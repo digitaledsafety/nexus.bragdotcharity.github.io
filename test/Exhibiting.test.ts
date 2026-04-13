@@ -20,15 +20,12 @@ describe("Exhibiting System", async function () {
     await registry.write.verifyVault([vault2.address, 0, "Roblox Vault", "Vault for Roblox"]);
 
     // Deploy mock NFTs
-    const bragNFT = await viem.deployContract("BragNFT", [
-        owner.account.address,
-        owner.account.address,
-        parseEther("0.1")
-    ]);
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1")
+    , priceFeed.address]);
+
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+
 
     const mock1155 = await viem.deployContract("MockERC1155", []);
 

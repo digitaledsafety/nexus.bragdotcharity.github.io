@@ -13,7 +13,7 @@ Whether you're building a decentralized gallery, a cross-platform gaming reward 
 ## What's Inside?
 
 1.  **Gasless Experience:** Built-in support for Alchemy Smart Accounts and Paymasters, allowing users to interact with your ecosystem without needing to hold native gas tokens.
-2.  **On-Chain Art & Receipts:** `DonationReceipt.sol` generates beautiful, dynamic SVG artwork directly on the blockchain, providing a visual and immutable record of every contribution.
+2.  **Dual-State Collectibles:** `BragNFT.sol` implements a "Nexus" architecture that combines tradable art with a soulbound tax receipt. The receipt layer is anchored to the original donor, while the art remains transferable.
 3.  **The "Verification Handshake":** A secure, off-chain identity mapping system (SIWE) that connects Minecraft XUIDs to Ethereum wallets without ever exposing private keys.
 4.  **Exhibit Vaults:** Purpose-built smart contracts for escrowing NFTs. Use them to "display" items in virtual galleries, lock them for in-game perks, or manage them across different web platforms.
 5.  **Multi-Offer Marketplace:** A flexible NFT marketplace that supports multiple simultaneous offers on a single item, including built-in refund protections and token-based trading (`BragToken`).
@@ -139,8 +139,13 @@ brag.charity demonstrates how to verify wallet ownership across platforms where 
 ### Exhibit Vaults
 Vaults aren't just for storage—they are the key to utility. By moving an NFT into an `ExhibitVault`, a user can "check-in" to a specific server or gallery. This proves intent and allows platform owners to grant specific permissions or display the item safely.
 
-### On-Chain SVG Receipts
-Every donation triggers the creation of a `DonationReceipt`. Because the SVG is generated on-chain, the receipt's appearance (donor name, amount, timestamp) is guaranteed by the blockchain itself, ensuring it will always be viewable as long as the network exists.
+### Nexus "All-in-One" Collectibles
+brag.charity utilizes a Dual-State NFT model (Nexus Architecture) that satisfies both the donor's desire for a tradable asset and regulatory requirements for permanent financial records.
+
+1.  **The Art Layer (Tradable):** The visual asset can be traded or sold on secondary markets like OpenSea. It implements EIP-2981 for an 8% perpetual royalty to the mission.
+2.  **The Receipt Layer (Soulbound):** A cryptographically signed `PermanentRecord` is hard-coded to the **Original Donor’s Wallet Address**. Even if the NFT is traded, only the original donor can access and export the tax metadata.
+3.  **Impact Vitality (Glowing State):** Owners can "top-up" their collectible (0.0004 ETH) to keep the artwork's visual state "glowing," providing a continuous funding stream for the STEM mission.
+4.  **Audit Defense:** The system generates verified PDFs for tax compliance, linking on-chain provenance directly to the donor's $1,000 above-the-line deduction (starting in 2026).
 
 ---
 

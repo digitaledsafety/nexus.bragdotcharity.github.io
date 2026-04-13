@@ -26,11 +26,11 @@ describe("New Features", async function () {
     const mock1155 = await viem.deployContract("MockERC1155", []);
 
     // Deploy BragNFT
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1")]);
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1"), priceFeed.address]);
+
     const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+
 
     return { owner, user1, user2, vault, registry, bragToken, marketplace, mock721, mock1155, bragNFT };
   }

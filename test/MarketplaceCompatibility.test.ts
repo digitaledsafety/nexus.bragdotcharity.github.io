@@ -16,15 +16,12 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
 
     // ERC721
-    const bragNFT = await viem.deployContract("BragNFT", [
-      owner.account.address,
-      owner.account.address,
-      parseEther("0.1")
-    ]);
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1")
+    , priceFeed.address]);
+
     const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+
 
     // ERC1155
     const mock1155 = await viem.deployContract("MockERC1155");
@@ -53,8 +50,8 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
 
     // Verify results
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
-    // Default royalty is 5%
-    const expectedSellerProceeds = offerPrice - (offerPrice * 500n / 10000n);
+    // Default royalty is 8% in the new model
+    const expectedSellerProceeds = offerPrice - (offerPrice * 800n / 10000n);
     assert.equal(await bragToken.read.balanceOf([seller.account.address]), expectedSellerProceeds);
   });
 
@@ -182,8 +179,8 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
 
     const fee = (offerPrice * 500n) / 10000n;
-    // Default royalty is 5% plus 5% protocol fee
-    const royaltyFee = (offerPrice * 500n) / 10000n;
+    // Default royalty is 8% plus 5% protocol fee
+    const royaltyFee = (offerPrice * 800n) / 10000n;
     const expectedSellerProceeds = offerPrice - fee - royaltyFee;
 
     assert.equal(await bragToken.read.balanceOf([seller.account.address]), expectedSellerProceeds);

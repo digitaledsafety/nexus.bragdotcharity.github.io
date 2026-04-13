@@ -16,16 +16,13 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
 
     // BragNFT
-    const bragNFT = await viem.deployContract("BragNFT", [
-        owner.account.address,
-        treasury.account.address,
-        parseEther("0.1")
-    ]);
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.account.address, parseEther("0.1")
+    , priceFeed.address]);
 
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
+
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+
 
     return { marketplace, bragNFT, bragToken, owner, seller, buyer, treasury };
   }
@@ -40,8 +37,7 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     await bragNFT.write.donate(["Royalty NFT", ""], { account: seller.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
-    // Set royalty to 10% for testing
-    await bragNFT.write.setRoyaltyFeeNumerator([1000], { account: owner.account });
+    // Royalty is fixed at 8% (800 bps)
 
     // Buyer makes an offer
     const offerPrice = parseEther("10");
@@ -51,7 +47,7 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     // Verify royalty info
     const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
     assert.equal(royaltyRecipient, getAddress(treasury.account.address));
-    assert.equal(royaltyAmount, parseEther("1")); // 10% of 10
+    assert.equal(royaltyAmount, parseEther("0.8")); // 8% of 10
 
     // Seller accepts
     const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.account.address]);
@@ -64,8 +60,8 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.account.address]);
     const sellerBalanceAfter = await bragToken.read.balanceOf([seller.account.address]);
 
-    assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("1"));
-    assert.equal(sellerBalanceAfter - sellerBalanceBefore, parseEther("9"));
+    assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("0.8"));
+    assert.equal(sellerBalanceAfter - sellerBalanceBefore, parseEther("9.2"));
     assert.equal(await bragNFT.read.ownerOf([tokenId]), getAddress(buyer.account.address));
   });
 
@@ -100,25 +96,25 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     await bragNFT.write.donate(["Capped Royalty NFT", ""], { account: seller.account, value: parseEther("0.1") });
     const tokenId = 0n;
 
-    // Set protocol fee to 5% (500 bps)
-    await marketplace.write.setProtocolFee([500], { account: owner.account });
+    // Set protocol fee to 10% (1000 bps) - maximum allowed
+    await marketplace.write.setProtocolFee([1000], { account: owner.account });
 
-    // Set royalty to 96% for testing (total 101%)
-    await bragNFT.write.setRoyaltyFeeNumerator([9600], { account: owner.account });
+    // Royalty is fixed at 8% (total 18%)
 
     // Buyer makes an offer
     const offerPrice = parseEther("100");
     await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
     await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
 
-    // Verify royalty info (96 ETH)
+    // Verify royalty info (8 ETH)
     const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
-    assert.equal(royaltyAmount, parseEther("96"));
+    assert.equal(royaltyAmount, parseEther("8"));
 
     // Seller accepts
     await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
 
     const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.account.address]);
+    const sellerBalanceBefore = await bragToken.read.balanceOf([seller.account.address]);
     const feeRecipientBalanceBefore = await bragToken.read.balanceOf([owner.account.address]); // feeRecipient is owner by default
 
     await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
@@ -127,11 +123,11 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     const feeRecipientBalanceAfter = await bragToken.read.balanceOf([owner.account.address]);
     const sellerBalanceAfter = await bragToken.read.balanceOf([seller.account.address]);
 
-    // Protocol fee: 5% of 100 = 5 ETH
-    assert.equal(feeRecipientBalanceAfter - feeRecipientBalanceBefore, parseEther("5"));
-    // Royalty fee should be capped at: 100 - 5 = 95 ETH (instead of 96 ETH)
-    assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("95"));
-    // Seller proceeds should be 0
-    assert.equal(sellerBalanceAfter, 0n);
+    // Protocol fee: 10% of 100 = 10 ETH
+    assert.equal(feeRecipientBalanceAfter - feeRecipientBalanceBefore, parseEther("10"));
+    // Royalty fee: 8% of 100 = 8 ETH
+    assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("8"));
+    // Seller proceeds: 100 - 10 - 8 = 82 ETH
+    assert.equal(sellerBalanceAfter - sellerBalanceBefore, parseEther("82"));
   });
 });

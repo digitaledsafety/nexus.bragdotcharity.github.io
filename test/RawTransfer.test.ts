@@ -9,24 +9,21 @@ describe("BragNFT Raw Transfer", async function () {
   async function deployContracts() {
     const [owner, donor, treasury] = await viem.getWalletClients();
 
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
-    const bragNFT = await viem.deployContract("BragNFT", [
-        owner.account.address,
-        treasury.account.address,
-        parseEther("0.1")
-    ]);
+
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.account.address, parseEther("0.1")
+    , priceFeed.address]);
 
     // Setup: Authorize BragNFT to mint receipts
     const { keccak256, toBytes } = await import("viem");
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
 
-    return { bragNFT, receipt, donor, treasury };
+
+    return { bragNFT, donor, treasury };
   }
 
   it("Should succeed when sending raw ETH to the contract", async function () {
-    const { bragNFT, receipt, donor, treasury } = await deployContracts();
+    const { bragNFT, donor, treasury } = await deployContracts();
     const donationAmount = parseEther("0.5");
 
     const publicClient = await viem.getPublicClient();
@@ -47,14 +44,11 @@ describe("BragNFT Raw Transfer", async function () {
     const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
     assert.equal(json.attributes[0].value, "Direct donation");
 
-    // 2. Check DonationReceipt
-    const receiptTokenId = await bragNFT.read.nftToReceipt([nftTokenId]);
-    assert.equal(await receipt.read.ownerOf([receiptTokenId]), getAddress(donor.account.address));
-
-    const receiptDetails = await receipt.read.getReceipt([receiptTokenId]);
-    assert.equal(receiptDetails.donor, getAddress(donor.account.address));
-    assert.equal(receiptDetails.amount, donationAmount);
-    assert.equal(receiptDetails.message, "Direct donation");
+    // 2. Check Permanent Record (Tax Registry)
+    const [originalDonor, usdValue, timestamp, status, recordMessage] = await bragNFT.read.taxRegistry([nftTokenId]);
+    assert.equal(originalDonor, getAddress(donor.account.address));
+    assert.equal(recordMessage, "Direct donation");
+    assert.equal(usdValue, 125000000000n); // 0.5 ETH * 250 USD/ETH
 
     // 3. Check Treasury
     const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });

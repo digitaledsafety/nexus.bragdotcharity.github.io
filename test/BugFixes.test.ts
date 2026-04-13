@@ -81,11 +81,9 @@ describe("Bug Fixes", async function () {
 
   async function deployBragNFT() {
     const [owner] = await viem.getWalletClients();
-    const bragNFT = await viem.deployContract("BragNFT", [
-      owner.account.address,
-      owner.account.address,
-      parseEther("0.1")
-    ]);
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1")
+    , priceFeed.address]);
     return { bragNFT };
   }
 
@@ -93,10 +91,9 @@ describe("Bug Fixes", async function () {
     const { bragNFT } = await deployBragNFT();
 
     const [owner] = await viem.getWalletClients();
-    const receipt = await viem.deployContract("DonationReceipt", [owner.account.address]);
+
     const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
-    await receipt.write.grantRole([MINTER_ROLE, bragNFT.address]);
-    await bragNFT.write.setReceiptContract([receipt.address]);
+
 
     const testURIs = [
       "a.mp3",       // Length 5
