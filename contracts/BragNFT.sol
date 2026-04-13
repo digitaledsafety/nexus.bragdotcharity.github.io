@@ -24,6 +24,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     uint256 private _nextTokenId;
     uint256 public maxSupply;
     address public treasury;
+    address public royaltyRecipient;
     uint256 public minimumDonation;
     IDonationReceipt public receiptContract;
     IBragToken public bragToken;
@@ -44,6 +45,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
     {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
+        royaltyRecipient = _treasury;
         minimumDonation = _minimumDonation;
         maxSupply = 100; // Default max supply
     }
@@ -70,7 +72,12 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981 {
      */
     function royaltyInfo(uint256, uint256 salePrice) external view override returns (address, uint256) {
         uint256 royaltyAmount = (salePrice * royaltyFeeNumerator) / 10000;
-        return (treasury, royaltyAmount);
+        return (royaltyRecipient, royaltyAmount);
+    }
+
+    function setRoyaltyRecipient(address _royaltyRecipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_royaltyRecipient != address(0), "Invalid royalty recipient address");
+        royaltyRecipient = _royaltyRecipient;
     }
 
     function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {

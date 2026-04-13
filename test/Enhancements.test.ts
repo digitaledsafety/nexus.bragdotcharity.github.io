@@ -90,6 +90,110 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     assert.ok(json.description.includes(maliciousMessage), "JSON description should contain original message (escaped in JSON string)");
   });
 
+  it("Should allow changing royalty recipient and verify it works in marketplace", async function () {
+    const { marketplace, bragNFT, bragToken, seller, buyer, owner } = await deployAll();
+    const [newRoyaltyRecipient] = await viem.getWalletClients(); // Using the first wallet client for simplicity
+
+    // Fund buyer
+    await bragToken.write.transfer([buyer.account.address, parseEther("100")], { account: owner.account });
+
+    // Seller mints an NFT
+    await bragNFT.write.donate(["New Recipient NFT", ""], { account: seller.account, value: parseEther("0.1") });
+    const tokenId = 0n;
+
+    // Set royalty to 10%
+    await bragNFT.write.setRoyaltyFeeNumerator([1000], { account: owner.account });
+    // Change royalty recipient
+    await bragNFT.write.setRoyaltyRecipient([newRoyaltyRecipient.account.address], { account: owner.account });
+
+    const offerPrice = parseEther("10");
+    await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
+
+    // Verify royalty info returns new recipient
+    const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
+    assert.equal(royaltyRecipient, getAddress(newRoyaltyRecipient.account.address));
+
+    // Seller accepts
+    const balanceBefore = await bragToken.read.balanceOf([newRoyaltyRecipient.account.address]);
+    await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
+    await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
+
+    const balanceAfter = await bragToken.read.balanceOf([newRoyaltyRecipient.account.address]);
+    assert.equal(balanceAfter - balanceBefore, parseEther("1"));
+  });
+
+  it("Should enforce minOfferPrice in NFTMarketplace", async function () {
+    const { marketplace, bragNFT, bragToken, buyer, owner } = await deployAll();
+
+    const minPrice = parseEther("5");
+    await marketplace.write.setMinOfferPrice([minPrice], { account: owner.account });
+    assert.equal(await marketplace.read.minOfferPrice(), minPrice);
+
+    const tokenId = 0n;
+    const lowPrice = parseEther("4");
+    await bragToken.write.approve([marketplace.address, lowPrice], { account: buyer.account });
+
+    await assert.rejects(
+      marketplace.write.createOffer([bragNFT.address, tokenId, 1n, lowPrice], { account: buyer.account }),
+      /Offer price below minimum/
+    );
+
+    // Should also work for updateOffer
+    const validPrice = parseEther("6");
+    await bragToken.write.transfer([buyer.account.address, validPrice], { account: owner.account });
+    await bragToken.write.approve([marketplace.address, validPrice], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, validPrice], { account: buyer.account });
+
+    const lowUpdatePrice = parseEther("3");
+    await assert.rejects(
+      marketplace.write.updateOffer([bragNFT.address, tokenId, 1n, lowUpdatePrice], { account: buyer.account }),
+      /New price below minimum/
+    );
+  });
+
+  it("Should allow Treasury to update its own owners via multi-sig proposal", async function () {
+    const [owner1, owner2, owner3, newOwner] = await viem.getWalletClients();
+    const entryPoint = await viem.deployContract("MockEntryPoint");
+
+    // Deploy Treasury with 2 owners and threshold 2
+    const treasury = await viem.deployContract("Treasury", [
+      [owner1.account.address, owner2.account.address],
+      2n,
+      entryPoint.address
+    ]);
+
+    // Propose adding a new owner
+    // addOwner(address) signature: 0x7065cb48
+    const addOwnerData = `0x7065cb48${newOwner.account.address.slice(2).padStart(64, '0')}`;
+
+    await treasury.write.propose([treasury.address, 0n, addOwnerData, 0n], { account: owner1.account });
+    const proposalId = 0n;
+
+    // Approve by second owner
+    await treasury.write.approve([proposalId, 0n], { account: owner2.account });
+
+    // Execute
+    await treasury.write.executeProposal([proposalId], { account: owner1.account });
+
+    // Verify new owner added
+    assert.ok(await treasury.read.isOwner([newOwner.account.address]));
+    const owners = await treasury.read.getOwners();
+    assert.equal(owners.length, 3);
+
+    // Propose changing threshold to 3
+    // changeThreshold(uint256) signature: 0x694e80c3
+    const changeThresholdData = `0x694e80c3${(3n).toString(16).padStart(64, '0')}`;
+
+    await treasury.write.propose([treasury.address, 0n, changeThresholdData, 0n], { account: owner1.account });
+    const proposalId2 = 1n;
+
+    await treasury.write.approve([proposalId2, 0n], { account: owner2.account });
+    await treasury.write.executeProposal([proposalId2], { account: owner1.account });
+
+    assert.equal(await treasury.read.threshold(), 3n);
+  });
+
   it("Should cap royalties if they exceed the price", async function () {
     const { marketplace, bragNFT, bragToken, seller, buyer, treasury, owner } = await deployAll();
 
