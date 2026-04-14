@@ -27,17 +27,17 @@ import { privateKeyToAccount } from "viem/accounts";
 import { localhost, sepolia } from "viem/chains";
 import { stringToHex } from "viem/utils";
 
-const hardhatLocal = defineChain({
-    ...localhost,
-    id: 31337,
-});
-
 // @ts-ignore
 import { createLightAccountClient, createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
 import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
 // @ts-ignore
 import { LocalAccountSigner } from "@alchemy/aa-core";
+
+const hardhatLocal = defineChain({
+    ...localhost,
+    id: 31337,
+});
 
 function getConfig(key: string, defaultValue?: string): string {
     if (process.env[key]) return process.env[key] as string;
@@ -52,6 +52,7 @@ async function main() {
     const isSepolia = networkName === "sepolia";
     const chain = isSepolia ? sepolia : hardhatLocal;
     const alchemyApiKey = getConfig("ALCHEMY_API_KEY", "");
+    const gasPolicyId = getConfig("ALCHEMY_GAS_POLICY_ID", "");
     const rpcUrl = process.env.RPC_URL ||
                    (isSepolia ?
                     (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`) :
@@ -60,14 +61,57 @@ async function main() {
     let privateKey0 = process.env.LOCAL_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     let privateKey1 = process.env.LOCAL_BUYER_PRIVATE_KEY || "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 
+    if (isSepolia) {
+        privateKey0 = getConfig("SEPOLIA_PRIVATE_KEY");
+        privateKey1 = getConfig("SEPOLIA_BUYER_PRIVATE_KEY");
+    }
+
     const account0 = privateKeyToAccount(privateKey0 as Hex);
     const account1 = privateKeyToAccount(privateKey1 as Hex);
 
     const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
-    const client0 = createWalletClient({ account: account0, chain, transport: http(rpcUrl) });
-    const client1 = createWalletClient({ account: account1, chain, transport: http(rpcUrl) });
-
     const chainId = await publicClient.getChainId();
+
+    // 1. Setup Clients (Gasless for Sepolia)
+    let client0: any = createWalletClient({ account: account0, chain, transport: http(rpcUrl) }).extend(walletActions);
+    let client1: any = createWalletClient({ account: account1, chain, transport: http(rpcUrl) }).extend(walletActions);
+
+    if (isSepolia) {
+        console.log("Initializing Smart Account Clients for Sepolia...");
+        const signer0 = LocalAccountSigner.privateKeyToAccountSigner(privateKey0 as Hex);
+        const signer1 = LocalAccountSigner.privateKeyToAccountSigner(privateKey1 as Hex);
+
+        client0 = await createAlchemySmartAccountClient({
+            transport: http(rpcUrl),
+            chain,
+            account: await createMultiOwnerLightAccount({
+                transport: http(rpcUrl),
+                chain,
+                signer: signer0,
+                owners: [account0.address],
+                version: "v2.0.0"
+            }),
+            rpcUrl,
+            gasManagerConfig: { policyId: gasPolicyId },
+        });
+
+        client1 = await createAlchemySmartAccountClient({
+            transport: http(rpcUrl),
+            chain,
+            account: await createMultiOwnerLightAccount({
+                transport: http(rpcUrl),
+                chain,
+                signer: signer1,
+                owners: [account1.address],
+                version: "v2.0.0"
+            }),
+            rpcUrl,
+            gasManagerConfig: { policyId: gasPolicyId },
+        });
+        console.log(`SCA 0: ${client0.account.address}`);
+        console.log(`SCA 1: ${client1.account.address}`);
+    }
+
     const deploymentPath = path.join(process.cwd(), `ignition/deployments/chain-${chainId}/deployed_addresses.json`);
     if (!fs.existsSync(deploymentPath)) {
         throw new Error(`Deployment not found at ${deploymentPath}. Please deploy first.`);
@@ -77,23 +121,46 @@ async function main() {
     const bragNFTAddr = deployment["AppModule#BragNFT"];
     const bragTokenAddr = deployment["AppModule#BragToken"];
     const marketplaceAddr = deployment["AppModule#NFTMarketplace"];
-
-    console.log("Seeding data for BragNFT at:", bragNFTAddr);
-
-    const donationAmount = parseEther("0.1");
-
-    const donations = [
-        { message: "Art Deco Masterpiece", uri: "https://picsum.photos/id/10/800/800", donor: client0, account: account0 },
-        { message: "On-Chain SVG Native", uri: "", donor: client1, account: account1 },
-        { message: "Multimedia Impact (Video)", uri: "https://www.w3schools.com/html/mov_bbb.mp4", donor: client0, account: account0 }
-    ];
+    const registryAddr = deployment["AppModule#ExhibitRegistry"];
 
     const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
-    let lastTokenId = 0n;
 
+    const donationAmount = isSepolia ? parseEther("0.0001") : parseEther("0.1");
+
+    // Helper for sending transactions (UserOp or Standard)
+    async function sendTx(client: any, txs: { to: `0x${string}`, data: `0x${string}`, value?: bigint }[]) {
+        if (isSepolia) {
+            const uoResponse = await client.sendUserOperation({
+                uo: txs.map(tx => ({ target: tx.to, data: tx.data, value: tx.value }))
+            });
+            const hash = await client.waitForUserOperationTransaction(uoResponse);
+            return await publicClient.waitForTransactionReceipt({ hash });
+        } else {
+            let lastReceipt;
+            for (const tx of txs) {
+                const hash = await client.sendTransaction({
+                    to: tx.to,
+                    data: tx.data,
+                    value: tx.value
+                });
+                lastReceipt = await publicClient.waitForTransactionReceipt({ hash });
+            }
+            return lastReceipt;
+        }
+    }
+
+    // 1. Initial Donations
+    console.log("Seeding donations...");
+    const donations = [
+        { message: "Art Deco Masterpiece", uri: "https://picsum.photos/id/10/800/800" },
+        { message: "On-Chain SVG Native", uri: "" },
+        { message: "Multimedia Impact (Video)", uri: "https://www.w3schools.com/html/mov_bbb.mp4" }
+    ];
+
+    let lastTokenId = 0n;
     for (const d of donations) {
-        console.log(`Donating: ${d.message} from ${d.account.address}...`);
-        const donateHash = await d.donor.sendTransaction({
+        console.log(`Donating: ${d.message}...`);
+        const receipt = await sendTx(client0, [{
             to: bragNFTAddr,
             data: encodeFunctionData({
                 abi: bragNFTArtifact.abi,
@@ -101,60 +168,123 @@ async function main() {
                 args: [d.message, d.uri]
             }),
             value: donationAmount
-        });
-        const receipt = await publicClient.waitForTransactionReceipt({ hash: donateHash });
+        }]);
+
         for (const log of receipt.logs) {
             try {
                 const decoded = decodeEventLog({ abi: bragNFTArtifact.abi, data: log.data, topics: log.topics });
-                if (decoded.eventName === 'Donated') { lastTokenId = (decoded.args as any).tokenId; break; }
+                if (decoded.eventName === 'Donated') {
+                    lastTokenId = (decoded.args as any).tokenId;
+                    console.log(`Minted Token ID: ${lastTokenId}`);
+                    break;
+                }
             } catch (e) {}
         }
     }
 
-    // Transfer Token 0 to User B to show soulbound nature
-    console.log("Transferring Token 0 to User B...");
-    const transferHash = await client0.sendTransaction({
-        to: bragNFTAddr,
-        data: encodeFunctionData({
-            abi: bragNFTArtifact.abi,
-            functionName: 'transferFrom',
-            args: [account0.address, account1.address, 0n]
-        })
-    });
-    await publicClient.waitForTransactionReceipt({ hash: transferHash });
+    // 2. Deploy and Register ExhibitVaults
+    const vaultNames = ["minecraft-server-1", "minecraft-server-2", "gallery-1", "roblox-1", "custom-1"];
+    const vaultAddresses: `0x${string}`[] = [];
+    const vaultArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/ExhibitVault.sol/ExhibitVault.json"), "utf8"));
 
-    // 2. Fund User B with BragToken for marketplace
-    const MINTER_ROLE = keccak256(stringToHex("MINTER_ROLE"));
-    const mintTokensHash = await client0.sendTransaction({
+    console.log("Deploying 5 ExhibitVaults...");
+    const timestamp = Date.now();
+
+    for (const name of vaultNames) {
+        const salt = keccak256(toHex(`${name}-${timestamp}`));
+        const deployData = encodeDeployData({ abi: vaultArtifact.abi, args: [registryAddr], bytecode: vaultArtifact.bytecode });
+
+        let vaultAddr: `0x${string}`;
+        if (isSepolia) {
+            const factoryAddress = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
+            const data = concat([salt, deployData]);
+
+            const uoResponse = await client0.sendUserOperation({
+                uo: { target: factoryAddress, data }
+            });
+            const hash = await client0.waitForUserOperationTransaction(uoResponse);
+            await publicClient.waitForTransactionReceipt({ hash });
+
+            vaultAddr = getContractAddress({
+                bytecode: deployData,
+                from: factoryAddress,
+                opcode: "CREATE2",
+                salt
+            });
+        } else {
+            const hash = await client0.deployContract({
+                abi: vaultArtifact.abi,
+                bytecode: vaultArtifact.bytecode,
+                args: [registryAddr]
+            });
+            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            vaultAddr = receipt.contractAddress!;
+        }
+
+        console.log(`Vault ${name} deployed at ${vaultAddr}`);
+        vaultAddresses.push(vaultAddr);
+
+        // Register vault
+        await sendTx(client0, [{
+            to: registryAddr,
+            data: encodeFunctionData({
+                abi: [{ name: 'verifyVault', type: 'function', inputs: [{ name: 'vault', type: 'address' }, { name: 'locationType', type: 'uint8' }, { name: 'name', type: 'string' }, { name: 'description', type: 'string' }], outputs: [] }],
+                args: [vaultAddr, 0, name, `Seeded vault for ${name}`]
+            })
+        }]);
+    }
+
+    // 3. User B: Marketplace Setup
+    console.log("Setting up marketplace for User B...");
+    const offerPrice = parseEther("1");
+
+    // Mint tokens to User B
+    await sendTx(client0, [{
         to: bragTokenAddr,
         data: encodeFunctionData({
             abi: [{ name: 'mint', type: 'function', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] }],
-            args: [account1.address, parseEther("100")]
+            args: [client1.account.address, parseEther("100")]
         })
-    });
-    await publicClient.waitForTransactionReceipt({ hash: mintTokensHash });
+    }]);
 
-    // 3. User B: Create offer
-    const offerPrice = parseEther("1");
-    const approveTokensHash = await client1.sendTransaction({
-        to: bragTokenAddr,
-        data: encodeFunctionData({
-            abi: [{ name: 'approve', type: 'function', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }],
-            args: [marketplaceAddr, offerPrice]
-        })
-    });
-    await publicClient.waitForTransactionReceipt({ hash: approveTokensHash });
+    // User B: Create Offer
+    console.log("User B: Creating offer...");
+    await sendTx(client1, [
+        {
+            to: bragTokenAddr,
+            data: encodeFunctionData({
+                abi: [{ name: 'approve', type: 'function', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }],
+                args: [marketplaceAddr, offerPrice]
+            })
+        },
+        {
+            to: marketplaceAddr,
+            data: encodeFunctionData({
+                abi: [{ name: 'createOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'amount', type: 'uint256' }, { name: 'price', type: 'uint256' }], outputs: [] }],
+                args: [bragNFTAddr, lastTokenId, 1n, offerPrice]
+            })
+        }
+    ]);
 
-    const createOfferHash = await client1.sendTransaction({
-        to: marketplaceAddr,
-        data: encodeFunctionData({
-            abi: [{ name: 'createOffer', type: 'function', inputs: [{ name: 'nftContract', type: 'address' }, { name: 'tokenId', type: 'uint256' }, { name: 'amount', type: 'uint256' }, { name: 'price', type: 'uint256' }], outputs: [] }],
-            args: [bragNFTAddr, lastTokenId, 1n, offerPrice]
-        })
-    });
-    await publicClient.waitForTransactionReceipt({ hash: createOfferHash });
+    // 4. Save Artifacts
+    const artifacts = {
+        network: networkName,
+        chainId,
+        vaults: vaultNames.reduce((acc, name, i) => ({ ...acc, [name]: vaultAddresses[i] }), {}),
+        userA: client0.account.address,
+        userB: client1.account.address,
+    };
+
+    const deploymentDir = path.join(process.cwd(), `ignition/deployments/chain-${chainId}`);
+    if (!fs.existsSync(deploymentDir)) {
+        fs.mkdirSync(deploymentDir, { recursive: true });
+    }
+    const artifactFile = path.join(deploymentDir, `seed_artifacts.json`);
+    fs.writeFileSync(artifactFile, JSON.stringify(artifacts, null, 2));
 
     console.log("Seeding complete!");
+    console.log(`Artifacts saved to ${artifactFile}`);
+    console.log(JSON.stringify(artifacts, null, 2));
 }
 
 main().catch(console.error);
