@@ -12,7 +12,7 @@ window.APP_CONFIG = {
             gasPolicyId: "", // Provide in Manager UI
             rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/",
             entryPointAddress: "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
-            factoryAddress: "0x00000055C0b539bb096732644b679ae3218d1217"
+            factoryAddress: "0x000000000019d2Ee9F2729A65AfE20bb0020AefC"
         },
         // Local Hardhat (Chain ID: 31337)
         31337: {
@@ -20,7 +20,7 @@ window.APP_CONFIG = {
             gasPolicyId: "",
             rpcUrl: "http://127.0.0.1:8545",
             entryPointAddress: "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
-            factoryAddress: "0x00000055C0b539bb096732644b679ae3218d1217"
+            factoryAddress: "0x000000000019d2Ee9F2729A65AfE20bb0020AefC"
         }
     },
 
