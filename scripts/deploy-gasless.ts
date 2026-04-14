@@ -22,7 +22,7 @@ import { stringToHex } from "viem/utils";
 // @ts-ignore
 import { createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
-import { createAlchemySmartAccountClient, alchemy } from "@alchemy/aa-alchemy";
+import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
 // @ts-ignore
 import { LocalAccountSigner } from "@alchemy/aa-core";
 
@@ -88,10 +88,7 @@ async function main() {
     console.log(`Deploying contracts to ${networkName} gaslessly...`);
     console.log(`EOA Address (to become owner): ${eoaAddress}`);
 
-    const transport = isSepolia ? alchemy({ apiKey: alchemyApiKey }) : http(rpcUrl);
-
     const smartAccountClient = await createAlchemySmartAccountClient({
-        transport,
         chain,
         account: await createMultiOwnerLightAccount({
             transport: http(rpcUrl),

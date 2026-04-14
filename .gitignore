@@ -26,3 +26,6 @@ mappings.json
 # Local development artifacts
 serve.log
 test-results/
+hardhat_node.log
+server.log
+seed_artifacts.json

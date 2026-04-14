@@ -30,7 +30,7 @@ import { stringToHex } from "viem/utils";
 // @ts-ignore
 import { createLightAccountClient, createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
-import { createAlchemySmartAccountClient, alchemy } from "@alchemy/aa-alchemy";
+import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
 // @ts-ignore
 import { LocalAccountSigner } from "@alchemy/aa-core";
 
@@ -81,10 +81,7 @@ async function main() {
         const signer0 = LocalAccountSigner.privateKeyToAccountSigner(privateKey0 as Hex);
         const signer1 = LocalAccountSigner.privateKeyToAccountSigner(privateKey1 as Hex);
 
-        const transport = alchemy({ apiKey: alchemyApiKey });
-
         client0 = await createAlchemySmartAccountClient({
-            transport,
             chain,
             account: await createMultiOwnerLightAccount({
                 transport: http(rpcUrl),
@@ -98,7 +95,6 @@ async function main() {
         });
 
         client1 = await createAlchemySmartAccountClient({
-            transport,
             chain,
             account: await createMultiOwnerLightAccount({
                 transport: http(rpcUrl),
@@ -112,6 +108,22 @@ async function main() {
         });
         console.log(`SCA 0: ${client0.account.address}`);
         console.log(`SCA 1: ${client1.account.address}`);
+    } else {
+        // Local SCA for testing if needed, but usually we just use EOA for local seeding
+        // If we want to test SCA locally:
+        /*
+        client0 = await createAlchemySmartAccountClient({
+            chain,
+            account: await createMultiOwnerLightAccount({
+                transport: http(rpcUrl),
+                chain,
+                signer: LocalAccountSigner.privateKeyToAccountSigner(privateKey0 as Hex),
+                owners: [account0.address],
+                version: "v2.0.0"
+            }),
+            rpcUrl
+        });
+        */
     }
 
     const deploymentPath = path.join(process.cwd(), `ignition/deployments/chain-${chainId}/deployed_addresses.json`);
