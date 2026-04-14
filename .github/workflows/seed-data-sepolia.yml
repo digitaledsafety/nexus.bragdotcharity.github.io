@@ -1,4 +1,4 @@
-name: Seed Data
+name: Seed Data to Sepolia
 
 on:
   workflow_dispatch:
