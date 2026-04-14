@@ -155,7 +155,7 @@ async function initSmartAccount() {
 
         // Ensure we are using the correct EntryPoint and Factory for Alchemy Light Account v2 (v0.7)
         const entryPointAddress = baseConfig?.entryPointAddress || "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
-        const factoryAddress = baseConfig?.factoryAddress || "0x00000055C0b539bb096732644b679ae3218d1217";
+        const factoryAddress = baseConfig?.factoryAddress || "0x000000000019d2Ee9F2729A65AfE20bb0020AefC";
 
         const account = await createMultiOwnerLightAccount({
             transport: http(rpcUrl), // Use Alchemy RPC for counterfactual calculation
