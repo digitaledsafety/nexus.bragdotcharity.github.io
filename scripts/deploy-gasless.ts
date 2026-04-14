@@ -88,24 +88,23 @@ async function main() {
     console.log(`Deploying contracts to ${networkName} gaslessly...`);
     console.log(`EOA Address (to become owner): ${eoaAddress}`);
 
-    const transport = http(isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}` : rpcUrl);
-
     const smartAccountClient = await createAlchemySmartAccountClient({
-        transport,
         chain,
         account: await createMultiOwnerLightAccount({
-            transport,
+            transport: http(rpcUrl),
             chain,
             signer,
             owners: [eoaAddress],
             version: "v2.0.0"
         }),
-        rpcUrl: isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}` : rpcUrl,
         ...(isSepolia ? {
+            apiKey: alchemyApiKey,
             gasManagerConfig: {
                 policyId: gasPolicyId,
             }
-        } : {}),
+        } : {
+            rpcUrl
+        }),
     });
 
     const scaAddress = smartAccountClient.account.address;

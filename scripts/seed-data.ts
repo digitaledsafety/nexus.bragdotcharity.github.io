@@ -82,7 +82,6 @@ async function main() {
         const signer1 = LocalAccountSigner.privateKeyToAccountSigner(privateKey1 as Hex);
 
         client0 = await createAlchemySmartAccountClient({
-            transport: http(rpcUrl),
             chain,
             account: await createMultiOwnerLightAccount({
                 transport: http(rpcUrl),
@@ -91,12 +90,11 @@ async function main() {
                 owners: [account0.address],
                 version: "v2.0.0"
             }),
-            rpcUrl,
+            apiKey: alchemyApiKey,
             gasManagerConfig: { policyId: gasPolicyId },
         });
 
         client1 = await createAlchemySmartAccountClient({
-            transport: http(rpcUrl),
             chain,
             account: await createMultiOwnerLightAccount({
                 transport: http(rpcUrl),
@@ -105,11 +103,27 @@ async function main() {
                 owners: [account1.address],
                 version: "v2.0.0"
             }),
-            rpcUrl,
+            apiKey: alchemyApiKey,
             gasManagerConfig: { policyId: gasPolicyId },
         });
         console.log(`SCA 0: ${client0.account.address}`);
         console.log(`SCA 1: ${client1.account.address}`);
+    } else {
+        // Local SCA for testing if needed, but usually we just use EOA for local seeding
+        // If we want to test SCA locally:
+        /*
+        client0 = await createAlchemySmartAccountClient({
+            chain,
+            account: await createMultiOwnerLightAccount({
+                transport: http(rpcUrl),
+                chain,
+                signer: LocalAccountSigner.privateKeyToAccountSigner(privateKey0 as Hex),
+                owners: [account0.address],
+                version: "v2.0.0"
+            }),
+            rpcUrl
+        });
+        */
     }
 
     const deploymentPath = path.join(process.cwd(), `ignition/deployments/chain-${chainId}/deployed_addresses.json`);
@@ -282,8 +296,16 @@ async function main() {
     const artifactFile = path.join(deploymentDir, `seed_artifacts.json`);
     fs.writeFileSync(artifactFile, JSON.stringify(artifacts, null, 2));
 
+    // Also save to root of deployments for easier artifact upload in workflow
+    const rootArtifactDir = path.join(process.cwd(), "ignition/deployments");
+    if (!fs.existsSync(rootArtifactDir)) {
+        fs.mkdirSync(rootArtifactDir, { recursive: true });
+    }
+    const rootArtifactFile = path.join(rootArtifactDir, "seed_artifacts.json");
+    fs.writeFileSync(rootArtifactFile, JSON.stringify(artifacts, null, 2));
+
     console.log("Seeding complete!");
-    console.log(`Artifacts saved to ${artifactFile}`);
+    console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
     console.log(JSON.stringify(artifacts, null, 2));
 }
 
