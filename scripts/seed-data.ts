@@ -51,11 +51,16 @@ async function main() {
     const networkName = process.env.HARDHAT_NETWORK || "localhost";
     const isSepolia = networkName === "sepolia";
     const alchemyApiKey = getConfig("ALCHEMY_API_KEY", "");
+    const gasPolicyId = getConfig("ALCHEMY_GAS_POLICY_ID", "");
     const chain = isSepolia ? defineAlchemyChain({
         chain: sepolia,
         rpcBaseUrl: "https://eth-sepolia.g.alchemy.com/v2"
     }) : hardhatLocal;
-    const gasPolicyId = getConfig("ALCHEMY_GAS_POLICY_ID", "");
+
+    if (isSepolia && (!alchemyApiKey || !gasPolicyId)) {
+        throw new Error("Missing ALCHEMY_API_KEY or ALCHEMY_GAS_POLICY_ID for gasless Sepolia seeding.");
+    }
+
     const rpcUrl = process.env.RPC_URL ||
                    (isSepolia ?
                     (process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`) :
@@ -68,6 +73,9 @@ async function main() {
         privateKey0 = getConfig("SEPOLIA_PRIVATE_KEY");
         privateKey1 = getConfig("SEPOLIA_BUYER_PRIVATE_KEY");
     }
+
+    if (privateKey0 && !privateKey0.startsWith("0x")) privateKey0 = `0x${privateKey0}`;
+    if (privateKey1 && !privateKey1.startsWith("0x")) privateKey1 = `0x${privateKey1}`;
 
     const account0 = privateKeyToAccount(privateKey0 as Hex);
     const account1 = privateKeyToAccount(privateKey1 as Hex);
