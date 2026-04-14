@@ -1,0 +1,94 @@
+
+> serve
+> npx serve frontend -p 3000
+
+npm warn exec The following package was not found and will be installed: serve@14.2.6
+ INFO  Accepting connections at http://localhost:3000
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 20 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /style.css
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /config.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 10 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 4 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /contracts.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 6 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /core.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 3 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /router.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 2 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /home.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 3 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /marketplace.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 3 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /app.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 3 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /env-control.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 2 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /product.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 2 ms
+ HTTP  4/14/2026 4:40:06 PM ::1 GET /login.js
+ HTTP  4/14/2026 4:40:06 PM ::1 Returned 200 in 2 ms
+ HTTP  4/14/2026 4:40:07 PM ::1 GET /views/login.html
+ HTTP  4/14/2026 4:40:07 PM ::1 Returned 301 in 2 ms
+ HTTP  4/14/2026 4:40:07 PM ::1 GET /views/login
+ HTTP  4/14/2026 4:40:07 PM ::1 Returned 200 in 3 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /style.css
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /config.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 3 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /contracts.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 0 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /core.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /router.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /home.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /marketplace.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /app.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /env-control.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 0 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /product.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:42 PM ::1 GET /login.js
+ HTTP  4/14/2026 4:40:42 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:40:45 PM ::1 GET /views/login.html
+ HTTP  4/14/2026 4:40:45 PM ::1 Returned 301 in 9 ms
+ HTTP  4/14/2026 4:40:45 PM ::1 GET /views/login
+ HTTP  4/14/2026 4:40:45 PM ::1 Returned 200 in 3 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /style.css
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /config.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 2 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /contracts.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /core.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 0 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /router.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 2 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /home.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /marketplace.js
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /app.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /env-control.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /product.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:15 PM ::1 GET /login.js
+ HTTP  4/14/2026 4:41:15 PM ::1 Returned 200 in 1 ms
+ HTTP  4/14/2026 4:41:16 PM ::1 GET /views/home.html
+ HTTP  4/14/2026 4:41:16 PM ::1 Returned 301 in 1 ms
+ HTTP  4/14/2026 4:41:16 PM ::1 GET /views/home
+ HTTP  4/14/2026 4:41:16 PM ::1 Returned 200 in 4 ms
+ HTTP  4/14/2026 4:41:17 PM ::1 GET /views/manager.html
+ HTTP  4/14/2026 4:41:17 PM ::1 Returned 301 in 0 ms
+ HTTP  4/14/2026 4:41:17 PM ::1 GET /views/manager
+ HTTP  4/14/2026 4:41:17 PM ::1 Returned 200 in 2 ms
