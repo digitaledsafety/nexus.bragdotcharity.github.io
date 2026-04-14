@@ -67,8 +67,418 @@ Private Key: 0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e
 
 WARNING: Funds sent on live network to accounts with publicly known private keys WILL BE LOST.
 
+[32meth_chainId[0m
+[32mhardhat_metadata[0m
 [32meth_accounts[0m
+[32mhardhat_getAutomine[0m
+[32meth_chainId[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getTransactionCount (2)[0m
+[32meth_getTransactionCount (3)[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
 [32meth_call[0m
-  WARNING: Calling an account which is not a contract
-  From: 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:   0x0000000071727de22e5e9d8baf0edac6f37da032
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Transaction:         0x0b3be339a3f95026951fae5609d778846bed9cf2e6eadf162aba443af5dc7bda
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2098397 of 2098397
+  Block #1:            0x5799ca9d24ce0b6c7c4baaa09696619b9678d07078f88d960fed004483e72284
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: ExhibitRegistry
+  Contract address:    0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: ExhibitRegistry
+  Contract address:    0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Transaction:         0x95039096423968d5452c18cec4cfe0623b0e2d1ef25a89da282ee46045b391ce
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            876749 of 876749
+  Block #2:            0xb388c01e81482ee9d3932842196916389fcb245d65a1999f7dd341e999170119
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: MockPriceFeed
+  Contract address:    0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: MockPriceFeed
+  Contract address:    0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0
+  Transaction:         0x7db61b22ab1b0bed6c11e8eeca2aa84c60134502cfb057c8b3081d48351ed5b0
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            114259 of 114259
+  Block #3:            0x984032e9cff3d18ecea5241f182c2f185db8bb833a591da52e62428825b2e812
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: Treasury
+  Contract address:    0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: Treasury
+  Contract address:    0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  Transaction:         0xdd352c77b3b1585d98997b6e3d5bf94bbe7692ec3312c5e1e7bf4188b7bc2eba
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            1435478 of 1435478
+  Block #4:            0x0944de79f180bb272c556b1fd52f68a1568a9ba258056aa87fa169873f017e86
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: BragNFT
+  Contract address:    0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: BragNFT
+  Contract address:    0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  Transaction:         0xb5edc619c58799fa58bcda5c56931659008476f9ccbf1c50b9e4cb049a61f7cb
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            4645349 of 4645349
+  Block #5:            0xf346da2c1979a6a951b617d81e6ba5450615c9b1b16ea7b841ff43b9695d3c25
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract deployment: NFTMarketplace
+  Contract address:    0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+
+[32meth_sendTransaction[0m
+  Contract deployment: NFTMarketplace
+  Contract address:    0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+  Transaction:         0xc48ab319eb6119b084ae2917202227b8379bfe5b90a7d83b969b1aed3448c78e
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            1663826 of 1663826
+  Block #6:            0xa9c6afd4780f73b5f4400ce1f285e14114902db00f31ef2c81860c9870781b90
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract call:       BragNFT#setBragToken
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+
+[32meth_sendTransaction[0m
+  Contract call:       BragNFT#setBragToken
+  Transaction:         0x058e9c339ece590a6c2eaf7d150aed9cec4dc5c01d0bd396253ce83733919247
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  Value:               0 ETH
+  Gas used:            46254 of 46254
+  Block #7:            0xf46e49ebd84d5bad59b09ff92b9748f9112316901bbb585188009016fd78ab3e
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_chainId[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_call[0m
+  Contract call:       BragToken#grantRole
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+
+[32meth_sendTransaction[0m
+  Contract call:       BragToken#grantRole
+  Transaction:         0x771d6be79238268b152b7681c00a2f040734da54efdbb802d9e233ea887b8c12
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            51247 of 51247
+  Block #8:            0xb4c4dfebc53ace4b076d748904a33f829525ce00f7400ee9831a365845bac558
+
+[32meth_getTransactionByHash[0m
+[32meth_getBlockByNumber[0m
+[32meth_getTransactionReceipt[0m
+[32meth_chainId[0m
+[31meth_fillTransaction - Method not supported[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       BragNFT#donate
+  Transaction:         0x4e7f6c8336fffdb0293e613a3f5af20170b7f020fc1c4c13c6878beef2aa8a74
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  Value:               0.1 ETH
+  Gas used:            385445 of 390715
+  Block #9:            0xc54bbf642f03e9dbaa5a241d81a93ec571fa20362490ff0af5110f4d8f2de8e6
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       BragNFT#donate
+  Transaction:         0x0ec33b2910216b51d779dab2e34352820866073c028b3a635d8436e732fc2ca2
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  Value:               0.1 ETH
+  Gas used:            233770 of 239249
+  Block #10:           0x0386a0e67bfbed975a521bb7b2ca311f21bcf4c4cb0b89881c7dd92b116d2e55
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       BragNFT#donate
+  Transaction:         0xec389007e5d0d7744bd0625cb392a2bb611df66e36bc7d6c53c6cf0c0d85dd22
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xdc64a140aa3e981100a9beca4e685f962f0cf6c9
+  Value:               0.1 ETH
+  Gas used:            302596 of 307915
+  Block #11:           0xdad98b897c8de391f1241b93366b6923b003f6e88c1b9d73d519026a5eb101bf
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract deployment: ExhibitVault
+  Contract address:    0xb7f8bc63bbcad18155201308c8f3540b07f84f5e
+  Transaction:         0xf1ae3032bb6ae2cbafb2d0170bec7ea9572dd0df9adf3c9a53b02eba9d528021
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2018378 of 2018378
+  Block #12:           0xdb27be13b09b71c026eb655f5cdda80f54e45d9edbbbb5f72d1064225dce3f9c
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       ExhibitRegistry#verifyVault
+  Transaction:         0x8693b3dcdf2e466ea71fb1ae71b3879c343a286879964607ba79022c9848c6b4
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Value:               0 ETH
+  Gas used:            185796 of 185796
+  Block #13:           0x5f6694ddb4a10ab958e615c1c95c3d383279179929df77e2999f36d8291bdd34
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract deployment: ExhibitVault
+  Contract address:    0x0dcd1bf9a1b36ce34237eeafef220932846bcd82
+  Transaction:         0xb03a0244ea61e91a7558040526cc0fb9f4d7c84243d33e45e75f39717591c74b
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2018378 of 2018378
+  Block #14:           0xc10c736e6e92280ce36954c5eb57b201447e4b18e3adad1f99dc79f09e3e8fd4
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       ExhibitRegistry#verifyVault
+  Transaction:         0x7d871829657494c59a5dabcf06da1cd1e7ee07c6d042998fcb482ea9ecadd072
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Value:               0 ETH
+  Gas used:            168696 of 168696
+  Block #15:           0xa9c9c8d381decafb03b6367dfa7ce9e61c2f1020ff406bf129466209689ddac7
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract deployment: ExhibitVault
+  Contract address:    0x0b306bf915c4d645ff596e518faf3f9669b97016
+  Transaction:         0x8dce63b4064941a9f140737a49da3013f576f166077ab383bc1a4b636fca4f56
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2018378 of 2018378
+  Block #16:           0x303a2caed0fe3413e67b3d627f2dc93365a582c110e7c67ea1118f6bb8cec0b5
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       ExhibitRegistry#verifyVault
+  Transaction:         0x1470d7367d4c3a4bc50d25f85b07c030fcc8691777923c80d0480fbe46a68883
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Value:               0 ETH
+  Gas used:            123947 of 123947
+  Block #17:           0xbfca5bc450f8c683b005329437b0b8381857cc7fb48db8210d0f8524af5e1044
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract deployment: ExhibitVault
+  Contract address:    0x9a9f2ccfde556a7e9ff0848998aa4a0cfd8863ae
+  Transaction:         0x2eb18bf7f04b60794fe341321e6c79324024433d4661a1cf56fe38aae0019db8
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2018378 of 2018378
+  Block #18:           0xecdd13118dc87ac4959a99d6b70ef5fdbf779bad792e2d48bc714f3091e727aa
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       ExhibitRegistry#verifyVault
+  Transaction:         0x46cbaa900c0d95988c7c9f9a46182ce27ce7627ad6ae2dd26ffbe6d4f49df125
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Value:               0 ETH
+  Gas used:            123923 of 123923
+  Block #19:           0x6065fa60d6a37927dc86796a7fcb11f008a92964f2d79adc10f16cafe95c4a9b
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract deployment: ExhibitVault
+  Contract address:    0x3aa5ebb10dc797cac828524e59a333d0a371443c
+  Transaction:         0x442fe602dcc7abd047b686c2afd06df9c282ef2855d35143968e2a34683550a4
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2018378 of 2018378
+  Block #20:           0xe3618f3eb23f90bc4b79c85e8aa99872c5e70ddbc0739632169705a6b4b5a244
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       ExhibitRegistry#verifyVault
+  Transaction:         0x862fb655bf641c2212b4ab73d2309e8bbf6470d918110d1964411c178f1aa55f
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Value:               0 ETH
+  Gas used:            123923 of 123923
+  Block #21:           0x6c1e5324169dc732f37ef7bb9f0c91b03db2ce5bec5951b7f59daced7acace38
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       BragToken#mint
+  Transaction:         0x985d53f366c987331ff9921393682ddf73c7e39beaea155907f0621f22eab94c
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            88951 of 88951
+  Block #22:           0x535a14b23a91474450073172b2a801c81f830b2c3dc4e2bc2f5fd6f6ef49f153
+
+[32meth_getTransactionReceipt[0m
+[31meth_fillTransaction - Method not supported[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       BragToken#approve
+  Transaction:         0xd537c29edeedf0951625f2ecfa93c580f07a753078af4ae3cce3a1ae0899675e
+  From:                0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            46069 of 46069
+  Block #23:           0x431c8740599b469fb1a8827a559434362b6b975b3785ac70983a18f82220fb15
+
+[32meth_getTransactionReceipt[0m
+[32meth_getTransactionCount[0m
+[32meth_getBlockByNumber[0m
+[32meth_maxPriorityFeePerGas[0m
+[32meth_estimateGas[0m
+[32meth_sendRawTransaction[0m
+  Contract call:       NFTMarketplace#createOffer
+  Transaction:         0x5765cf4332e40649c39e35e7aa3de6451a66fa7f6b8735a2486ef198ee45ad34
+  From:                0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+  To:                  0x5fc8d32690cc91d4c39d9d3abcbd16989f875707
+  Value:               0 ETH
+  Gas used:            132211 of 142024
+  Block #24:           0xaef3dbf1dc61cd348676d1b1f71dd97c88605ddba839661ff3c5fabf8122a403
+
+[32meth_getTransactionReceipt[0m
