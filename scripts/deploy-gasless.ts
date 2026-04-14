@@ -22,7 +22,7 @@ import { stringToHex } from "viem/utils";
 // @ts-ignore
 import { createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
-import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
+import { createAlchemySmartAccountClient, defineAlchemyChain } from "@alchemy/aa-alchemy";
 // @ts-ignore
 import { LocalAccountSigner } from "@alchemy/aa-core";
 
@@ -55,8 +55,11 @@ function getConfig(key: string, defaultValue?: string): string {
 async function main() {
     const networkName = process.env.HARDHAT_NETWORK || "localhost";
     const isSepolia = networkName === "sepolia";
-    const chain = isSepolia ? sepolia : hardhatLocal;
     const alchemyApiKey = getConfig("ALCHEMY_API_KEY", "");
+    const chain = isSepolia ? defineAlchemyChain({
+        chain: sepolia,
+        rpcBaseUrl: "https://eth-sepolia.g.alchemy.com/v2"
+    }) : hardhatLocal;
     const gasPolicyId = getConfig("ALCHEMY_GAS_POLICY_ID", "");
     const rpcUrl = process.env.RPC_URL ||
                    (isSepolia ?

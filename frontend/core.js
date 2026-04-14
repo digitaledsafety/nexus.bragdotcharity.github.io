@@ -134,12 +134,21 @@ async function initSmartAccount() {
             sepolia, localhost,
             createMultiOwnerLightAccount,
             createAlchemySmartAccountClient,
+            defineAlchemyChain,
             WalletClientSigner,
             alchemy
         } = window.AlchemyAA;
 
         // Determine chain object for viem
-        const chain = chainId === 11155111 ? sepolia : (chainId === 31337 ? { ...localhost, id: 31337 } : sepolia);
+        let chain = chainId === 11155111 ? sepolia : (chainId === 31337 ? { ...localhost, id: 31337 } : sepolia);
+
+        // Augment chain for Alchemy if on Sepolia
+        if (chainId === 11155111) {
+            chain = defineAlchemyChain({
+                chain,
+                rpcBaseUrl: "https://eth-sepolia.g.alchemy.com/v2"
+            });
+        }
 
         // Create a viem wallet client from the EOA provider (MetaMask)
         const walletClient = createWalletClient({
