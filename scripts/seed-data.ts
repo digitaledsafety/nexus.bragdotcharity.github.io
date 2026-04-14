@@ -30,7 +30,7 @@ import { stringToHex } from "viem/utils";
 // @ts-ignore
 import { createLightAccountClient, createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
-import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
+import { createAlchemySmartAccountClient, alchemy } from "@alchemy/aa-alchemy";
 // @ts-ignore
 import { LocalAccountSigner } from "@alchemy/aa-core";
 
@@ -81,8 +81,10 @@ async function main() {
         const signer0 = LocalAccountSigner.privateKeyToAccountSigner(privateKey0 as Hex);
         const signer1 = LocalAccountSigner.privateKeyToAccountSigner(privateKey1 as Hex);
 
+        const transport = alchemy({ apiKey: alchemyApiKey });
+
         client0 = await createAlchemySmartAccountClient({
-            transport: http(rpcUrl),
+            transport,
             chain,
             account: await createMultiOwnerLightAccount({
                 transport: http(rpcUrl),
@@ -91,12 +93,12 @@ async function main() {
                 owners: [account0.address],
                 version: "v2.0.0"
             }),
-            rpcUrl,
+            apiKey: alchemyApiKey,
             gasManagerConfig: { policyId: gasPolicyId },
         });
 
         client1 = await createAlchemySmartAccountClient({
-            transport: http(rpcUrl),
+            transport,
             chain,
             account: await createMultiOwnerLightAccount({
                 transport: http(rpcUrl),
@@ -105,7 +107,7 @@ async function main() {
                 owners: [account1.address],
                 version: "v2.0.0"
             }),
-            rpcUrl,
+            apiKey: alchemyApiKey,
             gasManagerConfig: { policyId: gasPolicyId },
         });
         console.log(`SCA 0: ${client0.account.address}`);
@@ -282,8 +284,16 @@ async function main() {
     const artifactFile = path.join(deploymentDir, `seed_artifacts.json`);
     fs.writeFileSync(artifactFile, JSON.stringify(artifacts, null, 2));
 
+    // Also save to root of deployments for easier artifact upload in workflow
+    const rootArtifactDir = path.join(process.cwd(), "ignition/deployments");
+    if (!fs.existsSync(rootArtifactDir)) {
+        fs.mkdirSync(rootArtifactDir, { recursive: true });
+    }
+    const rootArtifactFile = path.join(rootArtifactDir, "seed_artifacts.json");
+    fs.writeFileSync(rootArtifactFile, JSON.stringify(artifacts, null, 2));
+
     console.log("Seeding complete!");
-    console.log(`Artifacts saved to ${artifactFile}`);
+    console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
     console.log(JSON.stringify(artifacts, null, 2));
 }
 

@@ -22,7 +22,7 @@ import { stringToHex } from "viem/utils";
 // @ts-ignore
 import { createMultiOwnerLightAccount } from "@alchemy/aa-accounts";
 // @ts-ignore
-import { createAlchemySmartAccountClient } from "@alchemy/aa-alchemy";
+import { createAlchemySmartAccountClient, alchemy } from "@alchemy/aa-alchemy";
 // @ts-ignore
 import { LocalAccountSigner } from "@alchemy/aa-core";
 
@@ -88,24 +88,26 @@ async function main() {
     console.log(`Deploying contracts to ${networkName} gaslessly...`);
     console.log(`EOA Address (to become owner): ${eoaAddress}`);
 
-    const transport = http(isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}` : rpcUrl);
+    const transport = isSepolia ? alchemy({ apiKey: alchemyApiKey }) : http(rpcUrl);
 
     const smartAccountClient = await createAlchemySmartAccountClient({
         transport,
         chain,
         account: await createMultiOwnerLightAccount({
-            transport,
+            transport: http(rpcUrl),
             chain,
             signer,
             owners: [eoaAddress],
             version: "v2.0.0"
         }),
-        rpcUrl: isSepolia ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}` : rpcUrl,
         ...(isSepolia ? {
+            apiKey: alchemyApiKey,
             gasManagerConfig: {
                 policyId: gasPolicyId,
             }
-        } : {}),
+        } : {
+            rpcUrl
+        }),
     });
 
     const scaAddress = smartAccountClient.account.address;
