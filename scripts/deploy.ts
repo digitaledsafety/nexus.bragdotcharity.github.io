@@ -28,7 +28,7 @@ async function main() {
     const exhibitRegistry = await deploy("ExhibitRegistry", [account.address]);
     const mockPriceFeed = await deploy("MockPriceFeed", [250000000000n]);
     const bragNFT = await deploy("BragNFT", [account.address, treasury.address, 1n, mockPriceFeed.address]);
-    const bragToken = await deploy("BragToken", [account.address, 0n, 1000000000n * 10n**18n]);
+    const bragToken = await deploy("BragToken", [account.address, 0n, 1000000000000n * 10n**18n]); // 1 Trillion BRAG
     const marketplace = await deploy("NFTMarketplace", [account.address, bragToken.address]);
 
     await walletClient.writeContract({ address: bragNFT.address, abi: bragNFT.abi, functionName: "setBragToken", args: [bragToken.address] });
