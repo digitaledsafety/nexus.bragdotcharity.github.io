@@ -347,7 +347,15 @@ async function txHandler(contractOrTarget, functionNameOrData, argsOrValue = [],
                         finalArgs.push({ gasLimit: ethers.BigNumber.from(gasOverride.toString()) });
                     }
                 }
-                tx = await contractOrTarget[functionNameOrData](...finalArgs);
+
+                // If functionNameOrData is a full signature, we need to use it correctly
+                if (functionNameOrData.includes('(')) {
+                    const fragment = ethers.utils.FunctionFragment.from(functionNameOrData);
+                    const funcName = fragment.name;
+                    tx = await contractOrTarget[funcName](...finalArgs);
+                } else {
+                    tx = await contractOrTarget[functionNameOrData](...finalArgs);
+                }
             }
 
             log(`Tx Hash: ${tx.hash}`);

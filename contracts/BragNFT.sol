@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface IBragToken {
     function mint(address to, uint256 amount) external;
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
 // EIP-6454: Minimal Non-Transferable Tokens
@@ -234,6 +235,21 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
         require(success, "Transfer to treasury failed");
 
         emit TopUp(tokenId, msg.sender, msg.value);
+    }
+
+    /**
+     * @dev Recharge the "glow" of an NFT using BRAG tokens.
+     * Requires 10 BRAG tokens (fixed rate for 2026).
+     */
+    function topUpWithBrag(uint256 tokenId) external nonReentrant {
+        _requireOwned(tokenId);
+        uint256 bragAmount = 10 * 10**18; // 10 BRAG tokens
+
+        require(address(bragToken) != address(0), "BRAG token not set");
+        require(bragToken.transferFrom(msg.sender, treasury, bragAmount), "BRAG transfer failed");
+
+        lastTopUpTimestamp[tokenId] = block.timestamp;
+        emit TopUp(tokenId, msg.sender, bragAmount);
     }
 
     /**

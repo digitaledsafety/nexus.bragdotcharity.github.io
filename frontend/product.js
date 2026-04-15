@@ -233,8 +233,38 @@ function setupProductActions(contractAddr, tokenId, metadata) {
                 try {
                     // txHandler takes care of SCA vs EOA
                     const tx = await txHandler(bragNFT, 'topUp', [tokenId], { value: ethers.utils.parseEther("0.0004") });
+                    if (!tx) return;
                     alert("Recharge successful! Your art is now glowing.");
-                    await tx.wait();
+                    if (tx.wait) await tx.wait();
+                    window.location.reload();
+                } catch (e) {
+                    alert("Top-up failed: " + (e.reason || e.message));
+                }
+            };
+        }
+
+        const btnTopUpBrag = document.getElementById('btnTopUpBrag');
+        if (btnTopUpBrag) {
+            btnTopUpBrag.onclick = async () => {
+                const bragNFT = getContract('BragNFT');
+                const bragToken = getContract('BragToken');
+                const bragAmount = ethers.utils.parseEther("10");
+
+                try {
+                    const owner = isGaslessMode ? scaAddress : userAddress;
+                    const allowance = await bragToken.allowance(owner, bragNFT.address);
+
+                    if (allowance.lt(bragAmount)) {
+                        alert('Approval required for BRAG tokens.');
+                        const appTx = await txHandler(bragToken, 'approve', [bragNFT.address, bragAmount], 'Approval successful');
+                        if (!appTx) return;
+                        if (appTx.wait) await appTx.wait();
+                    }
+
+                    const tx = await txHandler(bragNFT, 'topUpWithBrag', [tokenId], 'Recharge successful!');
+                    if (!tx) return;
+                    alert("Recharge successful! Your art is now glowing.");
+                    if (tx.wait) await tx.wait();
                     window.location.reload();
                 } catch (e) {
                     alert("Top-up failed: " + (e.reason || e.message));
@@ -261,12 +291,16 @@ function setupProductActions(contractAddr, tokenId, metadata) {
         try {
             const price = ethers.utils.parseEther(priceStr);
             const amount = 1; // Default to 1 for now
-            const allowance = await bragToken.allowance(userAddress, marketplace.address);
+
+            // In gasless mode, the SCA is the one making the offer, so it needs the allowance.
+            const owner = isGaslessMode ? scaAddress : userAddress;
+            const allowance = await bragToken.allowance(owner, marketplace.address);
 
             if (allowance.lt(price)) {
                 alert('Approval required for BRAG tokens.');
-                const appTx = await bragToken.approve(marketplace.address, price);
-                await appTx.wait();
+                const appTx = await txHandler(bragToken, 'approve', [marketplace.address, price], 'Approval successful');
+                if (!appTx) return; // Error handled in txHandler
+                if (appTx.wait) await appTx.wait();
             }
 
             // Use unified txHandler
