@@ -68,7 +68,7 @@ describe("BragNFT Dual-State Model", async function () {
 
     // 2.5 Check BragToken reward
     const balance = await bragToken.read.balanceOf([donor.account.address]);
-    assert.equal(balance, donationAmount);
+    assert.equal(balance, donationAmount * 1_000_000n);
 
     // 3. Check Treasury
     const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });

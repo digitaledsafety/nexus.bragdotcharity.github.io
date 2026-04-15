@@ -209,9 +209,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
         // 4. Mint the transferable BragNFT
         _safeMint(recipient, nftTokenId);
 
-        // 5. Mint Brag Tokens (1:1 with ETH)
+        // 5. Mint Brag Tokens (1:1,000,000 with ETH)
         if (address(bragToken) != address(0)) {
-            bragToken.mint(msg.sender, msg.value);
+            bragToken.mint(msg.sender, msg.value * 1_000_000);
         }
 
         // 6. Transfer to treasury

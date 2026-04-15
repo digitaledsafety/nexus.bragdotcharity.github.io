@@ -7,7 +7,7 @@ describe("BragToken Integration", async function () {
   const { viem } = await network.connect();
   const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
 
-  async function deploySystem(initialSupply = 0n, maxSupply = parseEther("1000000")) {
+  async function deploySystem(initialSupply = 0n, maxSupply = parseEther("1000000000000")) {
     const [owner, donor] = await viem.getWalletClients();
 
     // Deploy contracts manually for the test to ensure clean state
@@ -51,15 +51,15 @@ describe("BragToken Integration", async function () {
     });
 
     const balance = await bragToken.read.balanceOf([donor.account.address]);
-    // 1:1 reward ratio (in base units/wei)
-    assert.equal(balance, donationAmount);
+    // 1:1,000,000 reward ratio (in base units/wei)
+    assert.equal(balance, donationAmount * 1_000_000n);
   });
 
   it("Should fail to mint beyond maxSupply", async function () {
-    const maxSupply = parseEther("10");
+    const maxSupply = parseEther("10000000"); // 10M BRAG
     const { donor, bragNFT } = await deploySystem(0n, maxSupply);
 
-    // This should fail because it exceeds maxSupply
+    // This should fail because it exceeds maxSupply (11 ETH * 1M = 11M BRAG > 10M BRAG)
     await assert.rejects(
       bragNFT.write.donate(["too much", ""], {
         account: donor.account,
@@ -87,7 +87,7 @@ describe("BragToken Integration", async function () {
 
     // Check voting power now
     votes = await bragToken.read.getVotes([donor.account.address]);
-    assert.equal(votes, donationAmount);
+    assert.equal(votes, donationAmount * 1_000_000n);
   });
 
   it("Should fail if someone else tries to mint tokens directly", async function () {
