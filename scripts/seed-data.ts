@@ -200,30 +200,22 @@ async function main() {
         { message: "Multimedia Impact (Video)", uri: "https://www.w3schools.com/html/mov_bbb.mp4" }
     ];
 
-    let lastTokenId = 0n;
-    for (const d of donations) {
-        console.log(`Donating: ${d.message}...`);
-        const receipt = await sendTx(client0, [{
-            to: bragNFTAddr,
-            data: encodeFunctionData({
-                abi: bragNFTArtifact.abi,
-                functionName: 'donate',
-                args: [d.message, d.uri]
-            }),
-            value: donationAmount
-        }]);
+    // Instead of a loop calling sendTx individually:
+    const donationUOs = donations.map(data => ({
+        target: bragNFTAddr,
+        data: encodeFunctionData({
+            abi: bragNFTArtifact.abi,
+            functionName: "donate", // or your mint function
+            args: [data.message, data.uri]
+        })
+    }));
+    
+    const uoResponse = await client0.sendUserOperation({
+        uo: donationUOs // Send ALL at once
+    });
+    await client0.waitForUserOperationTransaction(uoResponse);
 
-        for (const log of receipt.logs) {
-            try {
-                const decoded = decodeEventLog({ abi: bragNFTArtifact.abi, data: log.data, topics: log.topics });
-                if (decoded.eventName === 'Donated') {
-                    lastTokenId = (decoded.args as any).tokenId;
-                    console.log(`Minted Token ID: ${lastTokenId}`);
-                    break;
-                }
-            } catch (e) {}
-        }
-    }
+    console.log("Seeding donations completed...");
 
     // 2. Deploy and Register ExhibitVaults
     const vaultNames = ["minecraft-server-1", "gallery-1", "roblox-1", "custom-1"];
@@ -326,16 +318,16 @@ async function main() {
     fs.writeFileSync(artifactFile, JSON.stringify(artifacts, null, 2));
 
     // Also save to root of deployments for easier artifact upload in workflow
-    //const rootArtifactDir = path.join(process.cwd(), "ignition/deployments");
-    //if (!fs.existsSync(rootArtifactDir)) {
-    //    fs.mkdirSync(rootArtifactDir, { recursive: true });
-    //}
-    //const rootArtifactFile = path.join(rootArtifactDir, "seed_artifacts.json");
-    //fs.writeFileSync(rootArtifactFile, JSON.stringify(artifacts, null, 2));
+    const rootArtifactDir = path.join(process.cwd(), "ignition/deployments");
+    if (!fs.existsSync(rootArtifactDir)) {
+        fs.mkdirSync(rootArtifactDir, { recursive: true });
+    }
+    const rootArtifactFile = path.join(rootArtifactDir, "seed_artifacts.json");
+    fs.writeFileSync(rootArtifactFile, JSON.stringify(artifacts, null, 2));
 
     console.log("Seeding complete!");
-    //console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
-    console.log(`Artifacts saved to ${artifactFile}`);
+    console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
+    //console.log(`Artifacts saved to ${artifactFile}`);
     console.log(JSON.stringify(artifacts, null, 2));
 }
 
