@@ -1,0 +1,26 @@
+<main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full space-y-12">
+    <header class="space-y-2">
+        <h1 class="text-4xl font-black tracking-tight uppercase">Batch Offers</h1>
+        <p class="text-slate-500 text-sm font-medium">Review your selection and set your offer prices in BRAG.</p>
+    </header>
+
+    <div id="offersContainer" class="space-y-6">
+        <!-- Cart items for offers will be injected here -->
+    </div>
+
+    <div id="offersEmpty" class="hidden text-center py-20 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10">
+        <p class="text-slate-500 italic mb-6 text-sm">Your selection is empty. Browse the marketplace to add items.</p>
+        <button onclick="router.navigateTo('marketplace')" class="btn-secondary px-8 py-3 rounded-2xl font-black uppercase text-xs">Browse Marketplace</button>
+    </div>
+
+    <div id="offersFooter" class="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div class="text-center sm:text-left">
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Offer Value</p>
+            <div id="totalOfferValue" class="text-2xl font-black text-indigo-400">0 BRAG</div>
+        </div>
+        <div class="flex gap-4 w-full sm:w-auto">
+            <button id="btnClearOffers" class="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 font-black uppercase text-xs transition-colors">Clear All</button>
+            <button id="btnSubmitAllOffers" class="flex-[2] sm:flex-none btn-primary px-12 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-500/20">Submit All Offers</button>
+        </div>
+    </div>
+</main>

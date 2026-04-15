@@ -80,18 +80,48 @@ function setupManagerListeners() {
         const el = document.getElementById(id);
         if (!el) return;
 
-        // Load saved value
+        const contractName = id.replace('addr', '');
+        const badge = document.getElementById(`badge${contractName}`);
+
+        // Load saved value or default
         let saved = localStorage.getItem(id);
         if (!saved && id === 'addrNFTMarketplace') saved = localStorage.getItem('addrMarketplace');
-        if (saved) el.value = saved;
+
+        if (saved) {
+            el.value = saved;
+            if (badge) {
+                badge.innerText = "Override";
+                badge.classList.remove('bg-slate-800', 'text-slate-500');
+                badge.classList.add('bg-indigo-500/20', 'text-indigo-400');
+            }
+        } else {
+            const defAddr = getDeploymentAddress(contractName);
+            if (defAddr) el.value = defAddr;
+        }
 
         // Save on any change (input or change event)
         const saver = (e) => {
-            localStorage.setItem(id, e.target.value);
-            if (id === 'addrNFTMarketplace') localStorage.setItem('addrMarketplace', e.target.value);
+            if (e.target.value && e.target.value !== "") {
+                localStorage.setItem(id, e.target.value);
+                if (id === 'addrNFTMarketplace') localStorage.setItem('addrMarketplace', e.target.value);
+                if (badge) {
+                    badge.innerText = "Override";
+                    badge.classList.remove('bg-slate-800', 'text-slate-500');
+                    badge.classList.add('bg-indigo-500/20', 'text-indigo-400');
+                }
+            } else {
+                localStorage.removeItem(id);
+                if (id === 'addrNFTMarketplace') localStorage.removeItem('addrMarketplace');
+                const defAddr = getDeploymentAddress(contractName);
+                el.value = defAddr || "";
+                if (badge) {
+                    badge.innerText = "Default";
+                    badge.classList.add('bg-slate-800', 'text-slate-500');
+                    badge.classList.remove('bg-indigo-500/20', 'text-indigo-400');
+                }
+            }
 
             // Sync with any hidden explorer fields if they exist
-            const contractName = id.replace('addr', '');
             const explorerInput = document.getElementById(`explorerAddr_${contractName}`);
             if (explorerInput) explorerInput.value = e.target.value;
 

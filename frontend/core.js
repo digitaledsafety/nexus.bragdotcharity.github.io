@@ -389,6 +389,18 @@ function getContract(name, addressOverride = null) {
         console.warn(`No ABI found for contract ${name} in CONTRACT_DATA`);
         return null;
     }
+
+    // Verify contract exists (async check performed by calling logic if needed,
+    // or we can do a quick check here if provider is available)
+    if (provider) {
+        provider.getCode(address).then(code => {
+            if (code === '0x' || code === '0x0') {
+                console.error(`CRITICAL: No contract code found at address ${address} for ${name}. Check your configuration.`);
+                // We don't throw to avoid breaking the whole page, but log it clearly
+            }
+        }).catch(e => console.warn(`Could not verify contract existence at ${address}`, e));
+    }
+
     const abi = contractData.abi;
     // Use signer if available (for writes), otherwise fallback to provider (read-only)
     return new ethers.Contract(address, abi, signer || provider);
@@ -414,11 +426,24 @@ function getDeploymentAddress(name) {
     // Priority 2: CONTRACT_DATA
     if (!network) return null;
     const chainId = network.chainId.toString();
-    const deps = CONTRACT_DATA.deployments[chainId] || CONTRACT_DATA.deployments[`chain-${chainId}`];
 
-    if (deps) {
-        return deps[name] || (alias ? deps[alias] : null) || null;
+    // Check various key formats in CONTRACT_DATA
+    const possibleChainKeys = [
+        chainId,
+        `chain-${chainId}`,
+        network.name === 'unknown' ? null : network.name,
+        chainId === '31337' ? 'localhost' : null,
+        chainId === '11155111' ? 'sepolia' : null
+    ].filter(Boolean);
+
+    for (const key of possibleChainKeys) {
+        const deps = CONTRACT_DATA.deployments[key];
+        if (deps) {
+            const addr = deps[name] || (alias ? deps[alias] : null);
+            if (addr) return addr;
+        }
     }
+
     return null;
 }
 
