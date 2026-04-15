@@ -177,7 +177,8 @@ async function initSmartAccount() {
         });
 
         // Use alchemy transport for live networks to enable Gas Manager features
-        const transport = (chainId === 31337 || apiKey === "LOCAL")
+        // Fallback to http if alchemy transport is not available in the current SDK version
+        const transport = (chainId === 31337 || apiKey === "LOCAL" || typeof alchemy !== 'function')
             ? http(rpcUrl)
             : alchemy({ apiKey });
 
