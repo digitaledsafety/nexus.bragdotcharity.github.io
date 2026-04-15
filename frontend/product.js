@@ -231,8 +231,19 @@ function setupProductActions(contractAddr, tokenId, metadata) {
             btnTopUp.onclick = async () => {
                 const bragNFT = getContract('BragNFT');
                 try {
+                    // Fetch ETH price from CoinGecko or fallback
+                    let price = 2500;
+                    try {
+                        const resp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+                        const data = await resp.json();
+                        price = data.ethereum.usd;
+                    } catch (e) {}
+
+                    const ethNeeded = (1.05 / price).toFixed(6); // $1 + 5% buffer for slippage
+                    const val = ethers.utils.parseEther(ethNeeded);
+
                     // txHandler takes care of SCA vs EOA
-                    const tx = await txHandler(bragNFT, 'topUp', [tokenId, { value: ethers.utils.parseEther("0.0004") }], "Recharge successful!");
+                    const tx = await txHandler(bragNFT, 'topUp', [tokenId, { value: val }], "Recharge successful!");
                     if (!tx) return;
                     alert("Recharge successful! Your art is now glowing.");
                     if (tx.wait) await tx.wait();
@@ -248,7 +259,7 @@ function setupProductActions(contractAddr, tokenId, metadata) {
             btnTopUpBrag.onclick = async () => {
                 const bragNFT = getContract('BragNFT');
                 const bragToken = getContract('BragToken');
-                const bragAmount = ethers.utils.parseEther("10");
+                const bragAmount = ethers.utils.parseEther("100000");
 
                 try {
                     const owner = isGaslessMode ? scaAddress : userAddress;

@@ -11,7 +11,7 @@ describe("Issue Fixes", async function () {
 
         const entryPoint = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
         const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPoint]);
-        const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000"), parseEther("1000000")]);
+        const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("1000000000")]);
         const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
         const mockPriceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]); // 2500 USD/ETH
         const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.01"), mockPriceFeed.address]);
@@ -125,18 +125,18 @@ describe("Issue Fixes", async function () {
             const tokenId = 0n;
 
             // Give BRAG to otherAccount
-            await bragToken.write.transfer([otherAccount.account.address, parseEther("20")]);
+            await bragToken.write.transfer([otherAccount.account.address, parseEther("200000")]);
 
             // Approve BragNFT contract to spend BRAG
-            await bragToken.write.approve([bragNFT.address, parseEther("10")], { account: otherAccount.account });
+            await bragToken.write.approve([bragNFT.address, parseEther("100000")], { account: otherAccount.account });
 
             const initialTreasuryBrag = await bragToken.read.balanceOf([treasury.address]);
 
-            // Top up with BRAG
+            // Top up with BRAG (Requires 100,000 BRAG)
             await bragNFT.write.topUpWithBrag([tokenId], { account: otherAccount.account });
 
             const finalTreasuryBrag = await bragToken.read.balanceOf([treasury.address]);
-            assert.equal(finalTreasuryBrag - initialTreasuryBrag, parseEther("10"));
+            assert.equal(finalTreasuryBrag - initialTreasuryBrag, parseEther("100000"));
 
             const isGlowing = await bragNFT.read.isGlowing([tokenId]);
             assert.equal(isGlowing, true);

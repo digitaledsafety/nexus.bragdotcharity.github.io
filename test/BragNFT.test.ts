@@ -26,7 +26,7 @@ describe("BragNFT Dual-State Model", async function () {
 
     // Optional: Setup BragToken for rewards testing
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-    const bragToken = await viem.deployContract("BragToken", [owner.account.address, 0n, parseEther("1000000")]);
+    const bragToken = await viem.deployContract("BragToken", [owner.account.address, 0n, parseEther("1000000000000")]);
     await bragToken.write.grantRole([MINTER_ROLE, bragNFT.address]);
     await bragNFT.write.setBragToken([bragToken.address]);
 
@@ -68,7 +68,8 @@ describe("BragNFT Dual-State Model", async function () {
 
     // 2.5 Check BragToken reward
     const balance = await bragToken.read.balanceOf([donor.account.address]);
-    assert.equal(balance, donationAmount * 1_000_000n);
+    // 100,000 BRAG per $1. $1250 * 100,000 = 125,000,000 BRAG
+    assert.equal(balance, parseEther("125000000"));
 
     // 3. Check Treasury
     const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });
@@ -114,6 +115,7 @@ describe("BragNFT Dual-State Model", async function () {
 
       assert.equal(await bragNFT.read.isGlowing([tokenId]), false);
 
+      // Top up with $1.00 USD worth of ETH. At $2500/ETH, $1.00 is 0.0004 ETH
       const topUpAmount = parseEther("0.0004");
       await bragNFT.write.topUp([tokenId], { account: donor.account, value: topUpAmount });
 

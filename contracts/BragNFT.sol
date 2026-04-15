@@ -209,9 +209,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
         // 4. Mint the transferable BragNFT
         _safeMint(recipient, nftTokenId);
 
-        // 5. Mint Brag Tokens (1:1,000,000 with ETH)
-        if (address(bragToken) != address(0)) {
-            bragToken.mint(msg.sender, msg.value * 1_000_000);
+        // 5. Mint Brag Tokens (100,000 per USD)
+        if (address(bragToken) != address(0) && usdValue > 0) {
+            bragToken.mint(msg.sender, usdValue * 10**15);
         }
 
         // 6. Transfer to treasury
@@ -223,11 +223,21 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
 
     /**
      * @dev Top up the impact to keep the collectible glowing.
-     * Fixed amount of 0.0004 ETH (~$1 in early 2026).
+     * Required amount is $1.00 USD worth of ETH.
      */
     function topUp(uint256 tokenId) external payable nonReentrant {
         _requireOwned(tokenId);
-        require(msg.value >= 0.0004 ether, "Top-up requires 0.0004 ETH");
+
+        uint256 usdValue = 0;
+        if (address(priceFeed) != address(0)) {
+            try priceFeed.latestRoundData() returns (uint80, int256 answer, uint256, uint256, uint80) {
+                if (answer > 0) {
+                    usdValue = (uint256(answer) * msg.value) / 1e18;
+                }
+            } catch {}
+        }
+
+        require(usdValue >= 1e8, "Top-up requires $1.00 USD");
 
         lastTopUpTimestamp[tokenId] = block.timestamp;
 
@@ -239,11 +249,11 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
 
     /**
      * @dev Recharge the "glow" of an NFT using BRAG tokens.
-     * Requires 10 BRAG tokens (fixed rate for 2026).
+     * Requires 100,000 BRAG tokens (fixed at $1 value).
      */
     function topUpWithBrag(uint256 tokenId) external nonReentrant {
         _requireOwned(tokenId);
-        uint256 bragAmount = 10 * 10**18; // 10 BRAG tokens
+        uint256 bragAmount = 100_000 * 10**18; // 100,000 BRAG tokens
 
         require(address(bragToken) != address(0), "BRAG token not set");
         require(bragToken.transferFrom(msg.sender, treasury, bragAmount), "BRAG transfer failed");
