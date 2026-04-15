@@ -150,7 +150,7 @@ async function main() {
 
     const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
 
-    const donationAmount = isSepolia ? parseEther("0.0000001") : parseEther("0.1");
+    const donationAmount = isSepolia ? parseEther("0.0001") : parseEther("0.1");
 
     // Helper for sending transactions (UserOp or Standard)
     async function sendTx(client: any, txs: { to: `0x${string}`, data: `0x${string}`, value?: bigint }[]) {
@@ -177,25 +177,7 @@ async function main() {
     // 1. Initial Donations
     console.log("Seeding donations...");
     const donations = [
-        { message: "Test Mint 1", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 2", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 3", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 4", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 5", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 6", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 7", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 8", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 9", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 10", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 11", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 12", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 13", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 14", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 15", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 16", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 17", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 18", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 19", uri: "https://picsum.photos/id/10/800/800" },
+        { message: "Art Deco Masterpiece", uri: "https://picsum.photos/id/10/800/800" },
         { message: "On-Chain SVG Native", uri: "" },
         { message: "Multimedia Impact (Video)", uri: "https://www.w3schools.com/html/mov_bbb.mp4" }
     ];
@@ -226,7 +208,7 @@ async function main() {
     }
 
     // 2. Deploy and Register ExhibitVaults
-    const vaultNames = ["minecraft-server-1", "gallery-1", "roblox-1", "custom-1"];
+    const vaultNames = ["minecraft-server-1", "minecraft-server-2", "gallery-1", "roblox-1", "custom-1"];
     const vaultAddresses: `0x${string}`[] = [];
     const vaultArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/ExhibitVault.sol/ExhibitVault.json"), "utf8"));
 
@@ -326,16 +308,15 @@ async function main() {
     fs.writeFileSync(artifactFile, JSON.stringify(artifacts, null, 2));
 
     // Also save to root of deployments for easier artifact upload in workflow
-    //const rootArtifactDir = path.join(process.cwd(), "ignition/deployments");
-    //if (!fs.existsSync(rootArtifactDir)) {
-    //    fs.mkdirSync(rootArtifactDir, { recursive: true });
-    //}
-    //const rootArtifactFile = path.join(rootArtifactDir, "seed_artifacts.json");
-    //fs.writeFileSync(rootArtifactFile, JSON.stringify(artifacts, null, 2));
+    const rootArtifactDir = path.join(process.cwd(), "ignition/deployments");
+    if (!fs.existsSync(rootArtifactDir)) {
+        fs.mkdirSync(rootArtifactDir, { recursive: true });
+    }
+    const rootArtifactFile = path.join(rootArtifactDir, "seed_artifacts.json");
+    fs.writeFileSync(rootArtifactFile, JSON.stringify(artifacts, null, 2));
 
     console.log("Seeding complete!");
-    //console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
-    console.log(`Artifacts saved to ${artifactFile}`);
+    console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
     console.log(JSON.stringify(artifacts, null, 2));
 }
 

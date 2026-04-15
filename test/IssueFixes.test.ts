@@ -96,7 +96,27 @@ describe("Issue Fixes", async function () {
         });
     });
 
-    describe("NFT Top-up with BRAG", async function () {
+    describe("NFT Top-up", async function () {
+        it("should allow topping up with ETH", async function () {
+            const { otherAccount, bragNFT, treasury } = await deployFixture();
+            const publicClient = await viem.getPublicClient();
+
+            // Mint NFT
+            await bragNFT.write.donate(["Impact", "uri"], { value: parseEther("0.01"), account: otherAccount.account });
+            const tokenId = 0n;
+
+            const initialTreasuryBalance = await publicClient.getBalance({ address: treasury.address });
+
+            // Top up with ETH (0.0004 ETH)
+            await bragNFT.write.topUp([tokenId], { value: parseEther("0.0004"), account: otherAccount.account });
+
+            const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.address });
+            assert.equal(finalTreasuryBalance - initialTreasuryBalance, parseEther("0.0004"));
+
+            const isGlowing = await bragNFT.read.isGlowing([tokenId]);
+            assert.equal(isGlowing, true);
+        });
+
         it("should allow topping up with BRAG tokens", async function () {
             const { otherAccount, bragNFT, bragToken, treasury } = await deployFixture();
 

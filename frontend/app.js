@@ -334,28 +334,30 @@ async function txHandler(contractOrTarget, functionNameOrData, argsOrValue = [],
                      to: contractOrTarget,
                      data: functionNameOrData,
                      value: argsOrValue.value || 0,
-                     gasLimit: gasOverride ? ethers.BigNumber.from(gasOverride.toString()) : undefined
+                     gasLimit: (gasOverride && !isNaN(gasOverride)) ? ethers.BigNumber.from(gasOverride.toString()) : undefined
                  });
             } else {
                 // Standard ethers contract call
                 let finalArgs = [...argsOrValue];
-                if (gasOverride) {
-                    const lastArg = finalArgs[finalArgs.length - 1];
-                    if (lastArg && typeof lastArg === 'object') {
-                        lastArg.gasLimit = ethers.BigNumber.from(gasOverride.toString());
-                    } else {
-                        finalArgs.push({ gasLimit: ethers.BigNumber.from(gasOverride.toString()) });
+
+                // Safely apply gasOverride if provided
+                if (gasOverride && !isNaN(gasOverride)) {
+                    try {
+                        const limit = ethers.BigNumber.from(gasOverride.toString());
+                        const lastArg = finalArgs[finalArgs.length - 1];
+                        // If the last arg is an override object, merge it
+                        if (lastArg && typeof lastArg === 'object' && !ethers.BigNumber.isBigNumber(lastArg)) {
+                            lastArg.gasLimit = limit;
+                        } else {
+                            finalArgs.push({ gasLimit: limit });
+                        }
+                    } catch (e) {
+                        console.warn("Invalid gasOverride ignored:", gasOverride);
                     }
                 }
 
-                // If functionNameOrData is a full signature, we need to use it correctly
-                if (functionNameOrData.includes('(')) {
-                    const fragment = ethers.utils.FunctionFragment.from(functionNameOrData);
-                    const funcName = fragment.name;
-                    tx = await contractOrTarget[funcName](...finalArgs);
-                } else {
-                    tx = await contractOrTarget[functionNameOrData](...finalArgs);
-                }
+                // ethers supports calling by name or full signature directly
+                tx = await contractOrTarget[functionNameOrData](...finalArgs);
             }
 
             log(`Tx Hash: ${tx.hash}`);
