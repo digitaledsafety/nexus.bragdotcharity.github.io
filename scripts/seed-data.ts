@@ -150,7 +150,7 @@ async function main() {
 
     const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
 
-    const donationAmount = isSepolia ? parseEther("0.00001") : parseEther("0.1");
+    const donationAmount = isSepolia ? parseEther("0.0001") : parseEther("0.1");
 
     // Helper for sending transactions (UserOp or Standard)
     async function sendTx(client: any, txs: { to: `0x${string}`, data: `0x${string}`, value?: bigint }[]) {
@@ -177,48 +177,38 @@ async function main() {
     // 1. Initial Donations
     console.log("Seeding donations...");
     const donations = [
-        { message: "Test Mint 1", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 2", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 3", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 4", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 5", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 6", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 7", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 8", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 9", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 10", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 11", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 12", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 13", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 14", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 15", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 16", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 17", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 18", uri: "https://picsum.photos/id/10/800/800" },
-        { message: "Test Mint 19", uri: "https://picsum.photos/id/10/800/800" },
+        { message: "Art Deco Masterpiece", uri: "https://picsum.photos/id/10/800/800" },
         { message: "On-Chain SVG Native", uri: "" },
         { message: "Multimedia Impact (Video)", uri: "https://www.w3schools.com/html/mov_bbb.mp4" }
     ];
 
-    // Instead of a loop calling sendTx individually:
-    const donationUOs = donations.map(data => ({
-        target: bragNFTAddr,
-        data: encodeFunctionData({
-            abi: bragNFTArtifact.abi,
-            functionName: "donate", // or your mint function
-            args: [data.message, data.uri]
-        })
-    }));
-    
-    const uoResponse = await client0.sendUserOperation({
-        uo: donationUOs // Send ALL at once
-    });
-    await client0.waitForUserOperationTransaction(uoResponse);
+    let lastTokenId = 0n;
+    for (const d of donations) {
+        console.log(`Donating: ${d.message}...`);
+        const receipt = await sendTx(client0, [{
+            to: bragNFTAddr,
+            data: encodeFunctionData({
+                abi: bragNFTArtifact.abi,
+                functionName: 'donate',
+                args: [d.message, d.uri]
+            }),
+            value: donationAmount
+        }]);
 
-    console.log("Seeding donations completed...");
+        for (const log of receipt.logs) {
+            try {
+                const decoded = decodeEventLog({ abi: bragNFTArtifact.abi, data: log.data, topics: log.topics });
+                if (decoded.eventName === 'Donated') {
+                    lastTokenId = (decoded.args as any).tokenId;
+                    console.log(`Minted Token ID: ${lastTokenId}`);
+                    break;
+                }
+            } catch (e) {}
+        }
+    }
 
     // 2. Deploy and Register ExhibitVaults
-    const vaultNames = ["minecraft-server-1", "gallery-1", "roblox-1", "custom-1"];
+    const vaultNames = ["minecraft-server-1", "minecraft-server-2", "gallery-1", "roblox-1", "custom-1"];
     const vaultAddresses: `0x${string}`[] = [];
     const vaultArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/ExhibitVault.sol/ExhibitVault.json"), "utf8"));
 
@@ -327,7 +317,6 @@ async function main() {
 
     console.log("Seeding complete!");
     console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
-    //console.log(`Artifacts saved to ${artifactFile}`);
     console.log(JSON.stringify(artifacts, null, 2));
 }
 
