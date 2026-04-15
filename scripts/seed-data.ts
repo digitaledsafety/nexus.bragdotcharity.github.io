@@ -334,7 +334,8 @@ async function main() {
     //fs.writeFileSync(rootArtifactFile, JSON.stringify(artifacts, null, 2));
 
     console.log("Seeding complete!");
-    console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
+    //console.log(`Artifacts saved to ${artifactFile} and ${rootArtifactFile}`);
+    console.log(`Artifacts saved to ${artifactFile}`);
     console.log(JSON.stringify(artifacts, null, 2));
 }
 
