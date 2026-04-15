@@ -150,7 +150,7 @@ async function main() {
 
     const bragNFTArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/BragNFT.sol/BragNFT.json"), "utf8"));
 
-    const donationAmount = isSepolia ? parseEther("0.0000001") : parseEther("0.1");
+    const donationAmount = isSepolia ? parseEther("0.00001") : parseEther("0.1");
 
     // Helper for sending transactions (UserOp or Standard)
     async function sendTx(client: any, txs: { to: `0x${string}`, data: `0x${string}`, value?: bigint }[]) {
