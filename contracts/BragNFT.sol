@@ -175,7 +175,14 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
      * @dev Internal donation logic. Records a permanent tax record and mints the NFT.
      */
     function _donate(address recipient, string memory message, string memory media, bool onChain) internal {
-        require(msg.value >= minimumDonation, "Donation below minimum");
+        _donateWithValue(recipient, message, media, onChain, msg.value);
+    }
+
+    /**
+     * @dev Internal donation logic with explicit value.
+     */
+    function _donateWithValue(address recipient, string memory message, string memory media, bool onChain, uint256 value) internal {
+        require(value >= minimumDonation, "Donation below minimum");
         require(nextTokenId < maxSupply, "Max supply reached");
 
         uint256 nftTokenId = nextTokenId++;
@@ -185,7 +192,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
         if (address(priceFeed) != address(0)) {
             try priceFeed.latestRoundData() returns (uint80, int256 answer, uint256, uint256, uint80) {
                 if (answer > 0) {
-                    usdValue = (uint256(answer) * msg.value) / 1e18;
+                    usdValue = (uint256(answer) * value) / 1e18;
                 }
             } catch {}
         }
@@ -211,14 +218,37 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
 
         // 5. Mint Brag Tokens (1:1 with ETH)
         if (address(bragToken) != address(0)) {
-            bragToken.mint(msg.sender, msg.value);
+            bragToken.mint(msg.sender, value);
         }
 
         // 6. Transfer to treasury
-        (bool success, ) = treasury.call{value: msg.value}("");
+        (bool success, ) = treasury.call{value: value}("");
         require(success, "Transfer to treasury failed");
 
-        emit Donated(msg.sender, msg.value, usdValue, nftTokenId, message);
+        emit Donated(msg.sender, value, usdValue, nftTokenId, message);
+    }
+
+    /**
+     * @dev Batch donate to mint multiple NFTs in one transaction.
+     * Total msg.value is split equally among all NFTs.
+     */
+    function batchDonate(string[] calldata messages, string[] calldata mediaURIs, bool onChain) external payable nonReentrant {
+        uint256 count = messages.length;
+        require(count > 0, "Empty batch");
+        require(count == mediaURIs.length, "Mismatched arrays");
+
+        uint256 valuePerNFT = msg.value / count;
+        require(valuePerNFT >= minimumDonation, "Value per NFT below minimum");
+
+        for (uint256 i = 0; i < count; i++) {
+            _donateWithValue(msg.sender, messages[i], mediaURIs[i], onChain, valuePerNFT);
+        }
+
+        // Refund any dust
+        uint256 totalUsed = valuePerNFT * count;
+        if (msg.value > totalUsed) {
+            payable(msg.sender).transfer(msg.value - totalUsed);
+        }
     }
 
     /**
@@ -386,12 +416,26 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
         return b;
     }
 
+    function _truncate(string memory str, uint256 maxLen) internal pure returns (string memory) {
+        bytes memory b = bytes(str);
+        if (b.length <= maxLen) return str;
+
+        bytes memory res = new bytes(maxLen + 3);
+        for (uint256 i = 0; i < maxLen; i++) {
+            res[i] = b[i];
+        }
+        res[maxLen] = ".";
+        res[maxLen + 1] = ".";
+        res[maxLen + 2] = ".";
+        return string(res);
+    }
+
     /**
      * @dev Generates a simple SVG image with the donation message and optional glow.
      */
     function _generateSVG(uint256 tokenId, string memory message) internal view returns (string memory) {
         bool glowing = isGlowing(tokenId);
-        string memory displayText = bytes(message).length > 0 ? _escapeSVG(message) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
+        string memory displayText = bytes(message).length > 0 ? _escapeSVG(_truncate(message, 32)) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
 
         string memory filterDef = "";
         string memory textStyle = "fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold;";

@@ -19,8 +19,18 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         uint256 timestamp; // When the offer was created
     }
 
+    struct Listing {
+        address seller;
+        uint256 price;
+        uint256 amount;
+        uint256 timestamp;
+    }
+
     // Mapping from NFT contract -> Token ID -> Buyer -> Offer
     mapping(address => mapping(uint256 => mapping(address => Offer))) public offers;
+
+    // Mapping from NFT contract -> Token ID -> Listing
+    mapping(address => mapping(uint256 => Listing)) public listings;
 
     IERC20 public immutable paymentToken;
 
@@ -32,6 +42,9 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     event OfferCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed buyer);
     event OfferUpdated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 newPrice, uint256 newAmount);
     event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller);
+    event ListingCreated(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
+    event ListingCanceled(address indexed nftContract, uint256 indexed tokenId, address indexed seller);
+    event ListingSold(address indexed nftContract, uint256 indexed tokenId, address indexed seller, address buyer, uint256 price, uint256 amount);
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
 
@@ -79,6 +92,11 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         // CEI: Clear the offer first
         delete offers[nftContract][tokenId][buyer];
 
+        // If a listing exists for this token by this seller, clear it
+        if (listings[nftContract][tokenId].seller == msg.sender) {
+            delete listings[nftContract][tokenId];
+        }
+
         if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
             require(offer.amount == 1, "ERC721 offer must have amount 1");
             IERC721 nft = IERC721(nftContract);
@@ -99,24 +117,31 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
             revert("Unsupported NFT type");
         }
 
-        // Pay the seller and handle fees/royalties
-        uint256 protocolFee = (offer.price * protocolFeeBps) / 10000;
+        _distributePayment(nftContract, tokenId, msg.sender, offer.price);
+
+        emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
+    }
+
+    /**
+     * @dev Internal helper to handle payment distribution (fees, royalties, seller proceeds)
+     */
+    function _distributePayment(address nftContract, uint256 tokenId, address seller, uint256 price) internal {
+        uint256 protocolFee = (price * protocolFeeBps) / 10000;
         uint256 royaltyFee = 0;
         address royaltyRecipient;
 
-        try IERC2981(nftContract).royaltyInfo(tokenId, offer.price) returns (address receiver, uint256 amount) {
+        try IERC2981(nftContract).royaltyInfo(tokenId, price) returns (address receiver, uint256 amount) {
             if (receiver != address(0)) {
                 royaltyFee = amount;
                 royaltyRecipient = receiver;
             }
         } catch {}
 
-        // Cap royalty fee to prevent underflow if (protocolFee + royaltyFee) > offer.price
-        if (protocolFee + royaltyFee > offer.price) {
-            royaltyFee = offer.price - protocolFee;
+        if (protocolFee + royaltyFee > price) {
+            royaltyFee = price - protocolFee;
         }
 
-        uint256 sellerProceeds = offer.price - protocolFee - royaltyFee;
+        uint256 sellerProceeds = price - protocolFee - royaltyFee;
 
         if (protocolFee > 0 && feeRecipient != address(0)) {
             paymentToken.safeTransfer(feeRecipient, protocolFee);
@@ -124,9 +149,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         if (royaltyFee > 0) {
             paymentToken.safeTransfer(royaltyRecipient, royaltyFee);
         }
-        paymentToken.safeTransfer(msg.sender, sellerProceeds);
-
-        emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
+        paymentToken.safeTransfer(seller, sellerProceeds);
     }
 
     /**
@@ -222,6 +245,67 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         paymentToken.safeTransfer(buyer, offer.price);
 
         emit OfferRejected(nftContract, tokenId, buyer, msg.sender);
+    }
+
+    /**
+     * @notice List an NFT for a fixed price
+     */
+    function listNFT(address nftContract, uint256 tokenId, uint256 amount, uint256 price) external nonReentrant {
+        require(price > 0, "Price must be > 0");
+        require(amount > 0, "Amount must be > 0");
+
+        if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
+            require(amount == 1, "ERC721 amount must be 1");
+            require(IERC721(nftContract).ownerOf(tokenId) == msg.sender, "Not the owner");
+            require(IERC721(nftContract).isApprovedForAll(msg.sender, address(this)) || IERC721(nftContract).getApproved(tokenId) == address(this), "Not approved");
+        } else if (IERC165(nftContract).supportsInterface(0xd9b67a26)) { // IERC1155
+            require(IERC1155(nftContract).balanceOf(msg.sender, tokenId) >= amount, "Insufficient balance");
+            require(IERC1155(nftContract).isApprovedForAll(msg.sender, address(this)), "Not approved");
+        } else {
+            revert("Unsupported NFT type");
+        }
+
+        listings[nftContract][tokenId] = Listing({
+            seller: msg.sender,
+            price: price,
+            amount: amount,
+            timestamp: block.timestamp
+        });
+
+        emit ListingCreated(nftContract, tokenId, msg.sender, price, amount);
+    }
+
+    /**
+     * @notice Cancel a listing
+     */
+    function cancelListing(address nftContract, uint256 tokenId) external nonReentrant {
+        require(listings[nftContract][tokenId].seller == msg.sender, "Not the seller");
+        delete listings[nftContract][tokenId];
+        emit ListingCanceled(nftContract, tokenId, msg.sender);
+    }
+
+    /**
+     * @notice Buy an NFT at the listed fixed price
+     */
+    function buyNow(address nftContract, uint256 tokenId) external nonReentrant {
+        Listing memory listing = listings[nftContract][tokenId];
+        require(listing.price > 0, "Not listed");
+
+        // CEI
+        delete listings[nftContract][tokenId];
+
+        // Transfer payment from buyer to this contract
+        paymentToken.safeTransferFrom(msg.sender, address(this), listing.price);
+
+        if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
+            IERC721(nftContract).safeTransferFrom(listing.seller, msg.sender, tokenId);
+        } else if (IERC165(nftContract).supportsInterface(0xd9b67a26)) { // IERC1155
+            IERC1155(nftContract).safeTransferFrom(listing.seller, msg.sender, tokenId, listing.amount, "");
+        }
+
+        _distributePayment(nftContract, tokenId, listing.seller, listing.price);
+
+        emit ListingSold(nftContract, tokenId, listing.seller, msg.sender, listing.price, listing.amount);
     }
 
     function setProtocolFee(uint256 _feeBps) external onlyRole(DEFAULT_ADMIN_ROLE) {
