@@ -200,31 +200,85 @@ async function main() {
         }
     ];
 
-    // Grant Admin Roles to EOA
-    const contractsToTransfer = [
-        { name: "BragNFT", contract: bragNFT },
-        { name: "BragToken", contract: bragToken },
-        { name: "NFTMarketplace", contract: marketplace }
-    ];
+    // --- BragNFT Roles ---
+    setupTxs.push({
+        to: bragNFT.address,
+        data: encodeFunctionData({
+            abi: bragNFT.abi,
+            functionName: "grantRole",
+            args: [DEFAULT_ADMIN_ROLE, eoaAddress]
+        })
+    });
+    setupTxs.push({
+        to: bragNFT.address,
+        data: encodeFunctionData({
+            abi: bragNFT.abi,
+            functionName: "revokeRole",
+            args: [DEFAULT_ADMIN_ROLE, scaAddress]
+        })
+    });
 
-    for (const item of contractsToTransfer) {
-        setupTxs.push({
-            to: item.contract.address,
-            data: encodeFunctionData({
-                abi: item.contract.abi,
-                functionName: "grantRole",
-                args: [DEFAULT_ADMIN_ROLE, eoaAddress]
-            })
-        });
-    }
+    // --- BragToken Roles ---
+    setupTxs.push({
+        to: bragToken.address,
+        data: encodeFunctionData({
+            abi: bragToken.abi,
+            functionName: "grantRole",
+            args: [DEFAULT_ADMIN_ROLE, eoaAddress]
+        })
+    });
+    setupTxs.push({
+        to: bragToken.address,
+        data: encodeFunctionData({
+            abi: bragToken.abi,
+            functionName: "grantRole",
+            args: [MINTER_ROLE, eoaAddress]
+        })
+    });
+    setupTxs.push({
+        to: bragToken.address,
+        data: encodeFunctionData({
+            abi: bragToken.abi,
+            functionName: "revokeRole",
+            args: [MINTER_ROLE, scaAddress]
+        })
+    });
+    setupTxs.push({
+        to: bragToken.address,
+        data: encodeFunctionData({
+            abi: bragToken.abi,
+            functionName: "revokeRole",
+            args: [DEFAULT_ADMIN_ROLE, scaAddress]
+        })
+    });
 
-    // Treasury Roles
-    // Note: The new Treasury multi-sig doesn't use AccessControl roles for withdrawals anymore.
-    // It uses multi-sig logic (propose/approve/execute or 1-of-1 execute).
-    // The smart account (scaAddress) is already an owner from deployment.
-    // To add the EOA as an owner, a proposal must be made from the smart account.
+    // --- NFTMarketplace Roles & Fee Recipient ---
+    setupTxs.push({
+        to: marketplace.address,
+        data: encodeFunctionData({
+            abi: marketplace.abi,
+            functionName: "grantRole",
+            args: [DEFAULT_ADMIN_ROLE, eoaAddress]
+        })
+    });
+    setupTxs.push({
+        to: marketplace.address,
+        data: encodeFunctionData({
+            abi: marketplace.abi,
+            functionName: "setFeeRecipient",
+            args: [eoaAddress]
+        })
+    });
+    setupTxs.push({
+        to: marketplace.address,
+        data: encodeFunctionData({
+            abi: marketplace.abi,
+            functionName: "revokeRole",
+            args: [DEFAULT_ADMIN_ROLE, scaAddress]
+        })
+    });
 
-    // Exhibit Registry Roles
+    // --- ExhibitRegistry Roles ---
     setupTxs.push({
         to: exhibitRegistry.address,
         data: encodeFunctionData({
@@ -239,6 +293,60 @@ async function main() {
             abi: exhibitRegistry.abi,
             functionName: "grantRole",
             args: [VERIFIER_ROLE, eoaAddress]
+        })
+    });
+    setupTxs.push({
+        to: exhibitRegistry.address,
+        data: encodeFunctionData({
+            abi: exhibitRegistry.abi,
+            functionName: "revokeRole",
+            args: [VERIFIER_ROLE, scaAddress]
+        })
+    });
+    setupTxs.push({
+        to: exhibitRegistry.address,
+        data: encodeFunctionData({
+            abi: exhibitRegistry.abi,
+            functionName: "revokeRole",
+            args: [DEFAULT_ADMIN_ROLE, scaAddress]
+        })
+    });
+
+    // --- Treasury Ownership Transfer ---
+    // The smart account (scaAddress) is currently the only owner of the Treasury.
+    // We add the EOA as an owner and then remove the SCA.
+    setupTxs.push({
+        to: treasury.address,
+        data: encodeFunctionData({
+            abi: treasury.abi,
+            functionName: "execute",
+            args: [
+                treasury.address,
+                0n,
+                encodeFunctionData({
+                    abi: treasury.abi,
+                    functionName: "addOwner",
+                    args: [eoaAddress]
+                }),
+                0n
+            ]
+        })
+    });
+    setupTxs.push({
+        to: treasury.address,
+        data: encodeFunctionData({
+            abi: treasury.abi,
+            functionName: "execute",
+            args: [
+                treasury.address,
+                0n,
+                encodeFunctionData({
+                    abi: treasury.abi,
+                    functionName: "removeOwner",
+                    args: [scaAddress]
+                }),
+                0n
+            ]
         })
     });
 
