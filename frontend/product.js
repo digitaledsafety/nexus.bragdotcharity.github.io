@@ -232,7 +232,7 @@ function setupProductActions(contractAddr, tokenId, metadata) {
                 const bragNFT = getContract('BragNFT');
                 try {
                     // txHandler takes care of SCA vs EOA
-                    const tx = await txHandler(bragNFT, 'topUp', [tokenId], { value: ethers.utils.parseEther("0.0004") });
+                    const tx = await txHandler(bragNFT, 'topUp', [tokenId, { value: ethers.utils.parseEther("0.0004") }], "Recharge successful!");
                     if (!tx) return;
                     alert("Recharge successful! Your art is now glowing.");
                     if (tx.wait) await tx.wait();
