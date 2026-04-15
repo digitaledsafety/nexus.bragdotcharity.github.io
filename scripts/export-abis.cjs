@@ -107,8 +107,11 @@ if (fs.existsSync(deploymentsDir)) {
       }
 
       for (const [key, addr] of Object.entries(deployed)) {
-        const nameMatch = key.split("#")[1];
+        let nameMatch = key.split("#")[1];
         if (nameMatch) {
+          // Normalize names (e.g. Marketplace -> NFTMarketplace)
+          if (nameMatch === "Marketplace") nameMatch = "NFTMarketplace";
+
           // Store under both original name/folder and resolved ID
           if (!addresses[chain]) addresses[chain] = {};
           addresses[chain][nameMatch] = addr;

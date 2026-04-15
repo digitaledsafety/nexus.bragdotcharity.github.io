@@ -7,6 +7,7 @@ const router = {
         'home': { view: 'views/home.html', title: 'Home | brag.charity', init: typeof initHome !== 'undefined' ? initHome : null },
         'marketplace': { view: 'views/marketplace.html', title: 'Marketplace | brag.charity', init: typeof initMarketplace !== 'undefined' ? initMarketplace : null },
         'manager': { view: 'views/manager.html', title: 'Manager | brag.charity', init: typeof initManager !== 'undefined' ? initManager : null, protected: true },
+        'offers': { view: 'views/offers.html', title: 'Batch Offers | brag.charity', init: typeof initOffers !== 'undefined' ? initOffers : null, protected: true },
         'product': { view: 'views/product.html', title: 'Product Detail | brag.charity', init: typeof initProduct !== 'undefined' ? initProduct : null },
         'login': { view: 'views/login.html', title: 'Login | brag.charity', init: typeof initLogin !== 'undefined' ? initLogin : null },
         'privacy': { view: 'views/privacy.html', title: 'Privacy Policy | brag.charity' },
@@ -66,6 +67,8 @@ const router = {
             initManager();
         } else if (path === 'product' && typeof initProduct === 'function') {
             initProduct();
+        } else if (path === 'offers' && typeof initOffers === 'function') {
+            initOffers();
         } else if (path === 'login' && typeof initLogin === 'function') {
             initLogin();
         }

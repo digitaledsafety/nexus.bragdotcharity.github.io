@@ -29,20 +29,33 @@
         <section class="glass-card rounded-3xl p-8 admin-card">
             <div class="section-header"><i class="fas fa-cog"></i> Setup</div>
             <div class="space-y-6">
+                <p class="text-[10px] text-slate-500 italic leading-tight">Addresses are automatically derived from deployment artifacts. Use the fields below to manually <span class="text-indigo-400 font-bold underline">OVERRIDE</span> them for the current browser session.</p>
                 <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-2">BragNFT</label>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-[10px] font-black text-slate-500 uppercase">BragNFT</label>
+                        <span id="badgeBragNFT" class="addr-badge text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">Default</span>
+                    </div>
                     <input type="text" id="addrBragNFT" class="input-field w-full px-4 py-3 rounded-xl text-xs font-mono" placeholder="0x...">
                 </div>
                 <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-2">Marketplace</label>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-[10px] font-black text-slate-500 uppercase">Marketplace</label>
+                        <span id="badgeNFTMarketplace" class="addr-badge text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">Default</span>
+                    </div>
                     <input type="text" id="addrNFTMarketplace" class="input-field w-full px-4 py-3 rounded-xl text-xs font-mono" placeholder="0x...">
                 </div>
                 <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-2">ExhibitRegistry</label>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-[10px] font-black text-slate-500 uppercase">ExhibitRegistry</label>
+                        <span id="badgeExhibitRegistry" class="addr-badge text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">Default</span>
+                    </div>
                     <input type="text" id="addrExhibitRegistry" class="input-field w-full px-4 py-3 rounded-xl text-xs font-mono" placeholder="0x...">
                 </div>
                 <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase mb-2">Treasury</label>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-[10px] font-black text-slate-500 uppercase">Treasury</label>
+                        <span id="badgeTreasury" class="addr-badge text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">Default</span>
+                    </div>
                     <input type="text" id="addrTreasury" class="input-field w-full px-4 py-3 rounded-xl text-xs font-mono" placeholder="0x...">
                 </div>
 
