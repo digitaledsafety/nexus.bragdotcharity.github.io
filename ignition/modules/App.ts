@@ -15,7 +15,8 @@ export default buildModule("AppModule", (m) => {
   const initialSupply = m.getParameter("initialSupply", 0n);
   const maxSupply = m.getParameter("maxSupply", 1000000000000000000000000000n);
   const bragToken = m.contract("BragToken", [initialOwner, initialSupply, maxSupply]);
-  const marketplace = m.contract("NFTMarketplace", [initialOwner, bragToken]);
+  const refundPeriod = m.getParameter("refundPeriod", 604800n); // Default: 7 days
+  const marketplace = m.contract("NFTMarketplace", [initialOwner, refundPeriod, bragToken]);
 
   const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
 

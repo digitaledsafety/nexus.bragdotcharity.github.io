@@ -19,7 +19,7 @@ describe("Treasury Management", async function () {
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
     const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.1")
     , priceFeed.address]);
-    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, 0n, bragToken.address]);
 
     // Setup: Authorize BragNFT to mint receipts
     const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
