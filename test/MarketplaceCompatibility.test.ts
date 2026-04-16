@@ -13,7 +13,7 @@ describe("Marketplace Compatibility (ERC721 & ERC1155)", async function () {
     const initialSupply = parseEther("1000000");
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
 
-    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, 0n, bragToken.address]);
 
     // ERC721
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);

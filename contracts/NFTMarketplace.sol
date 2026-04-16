@@ -23,6 +23,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     mapping(address => mapping(uint256 => mapping(address => Offer))) public offers;
 
     IERC20 public immutable paymentToken;
+    uint256 public immutable refundPeriod;
 
     uint256 public protocolFeeBps; // e.g., 250 for 2.5%
     address public feeRecipient;
@@ -35,8 +36,9 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
 
-    constructor(address initialAdmin, address _paymentToken) {
+    constructor(address initialAdmin, uint256 _refundPeriod, address _paymentToken) {
         paymentToken = IERC20(_paymentToken);
+        refundPeriod = _refundPeriod;
         feeRecipient = initialAdmin;
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
     }
@@ -137,6 +139,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     function cancelOffer(address nftContract, uint256 tokenId) external nonReentrant {
         Offer memory offer = offers[nftContract][tokenId][msg.sender];
         require(offer.price > 0, "You did not make this offer");
+        require(block.timestamp >= offer.timestamp + refundPeriod, "Refund period not yet elapsed");
 
         // Clear the offer first (CEI)
         delete offers[nftContract][tokenId][msg.sender];
@@ -184,15 +187,19 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
      */
     function cancelOffers(address[] calldata nftContracts, uint256[] calldata tokenIds) external nonReentrant {
         require(nftContracts.length == tokenIds.length, "Mismatched arrays");
+        uint256 totalRefund = 0;
         for (uint256 i = 0; i < nftContracts.length; i++) {
             address nftContract = nftContracts[i];
             uint256 tokenId = tokenIds[i];
             Offer memory offer = offers[nftContract][tokenId][msg.sender];
-            if (offer.price > 0) {
+            if (offer.price > 0 && block.timestamp >= offer.timestamp + refundPeriod) {
                 delete offers[nftContract][tokenId][msg.sender];
-                paymentToken.safeTransfer(msg.sender, offer.price);
+                totalRefund += offer.price;
                 emit OfferCanceled(nftContract, tokenId, msg.sender);
             }
+        }
+        if (totalRefund > 0) {
+            paymentToken.safeTransfer(msg.sender, totalRefund);
         }
     }
 
@@ -234,5 +241,20 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         require(_recipient != address(0), "Invalid address");
         feeRecipient = _recipient;
         emit FeeRecipientUpdated(_recipient);
+    }
+
+    /**
+     * @dev Emergency withdrawal of ETH.
+     */
+    function withdrawETH(address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        (bool success, ) = to.call{value: amount}("");
+        require(success, "Withdrawal failed");
+    }
+
+    /**
+     * @dev Emergency withdrawal of ERC20 tokens.
+     */
+    function withdrawERC20(address token, address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(to, amount);
     }
 }

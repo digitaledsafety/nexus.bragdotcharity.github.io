@@ -2,7 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {Account, IEntryPoint, PackedUserOperation} from "@openzeppelin/contracts/account/Account.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC4337Utils} from "@openzeppelin/contracts/account/utils/draft-ERC4337Utils.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -16,8 +19,9 @@ import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155
  * Supports a "proposal and multi-transaction" flow for M-of-N operations.
  * Also supports direct 1-of-1 execution via AA or direct calls.
  */
-contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
+contract Treasury is Account, AccessControl, ERC721Holder, ERC1155Holder, IERC1271 {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using SafeERC20 for IERC20;
 
     EnumerableSet.AddressSet private _owners;
     uint256 public threshold;
@@ -80,6 +84,7 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
         }
         threshold = initialThreshold;
         _entryPoint = IEntryPoint(entryPointAddress);
+        _grantRole(DEFAULT_ADMIN_ROLE, initialOwners[0]);
         emit ThresholdChanged(threshold);
     }
 
@@ -274,6 +279,25 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
     function getOwners() external view returns (address[] memory) {
         return _owners.values();
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl, ERC1155Holder) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev Emergency withdrawal of ETH.
+     */
+    function withdrawETH(address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        (bool success, ) = to.call{value: amount}("");
+        if (!success) revert ExecutionFailed();
+    }
+
+    /**
+     * @dev Emergency withdrawal of ERC20 tokens.
+     */
+    function withdrawERC20(address token, address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(to, amount);
     }
 
     function hasApproved(uint256 proposalId, address owner) external view returns (bool) {

@@ -13,7 +13,7 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("2000000")]);
 
     // Marketplace (now with 1 arg)
-    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, 0n, bragToken.address]);
 
     // BragNFT
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
@@ -68,7 +68,7 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
   it("Should correctly escape special characters in SVG", async function () {
     const { bragNFT, seller } = await deployAll();
 
-    const maliciousMessage = '<script>alert("XSS")</script> & "quotes"';
+    const maliciousMessage = '<script>alert("XSS")</script>&"';
     await bragNFT.write.donate([maliciousMessage, ""], { account: seller.account, value: parseEther("0.1") });
     const tokenId = 0n;
 

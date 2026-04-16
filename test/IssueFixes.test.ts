@@ -12,7 +12,7 @@ describe("Issue Fixes", async function () {
         const entryPoint = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
         const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPoint]);
         const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("1000000000")]);
-        const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
+        const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, 0n, bragToken.address]);
         const mockPriceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]); // 2500 USD/ETH
         const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.01"), mockPriceFeed.address]);
 

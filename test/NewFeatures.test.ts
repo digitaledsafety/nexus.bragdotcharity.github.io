@@ -19,7 +19,7 @@ describe("New Features", async function () {
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
 
     // Deploy Marketplace
-    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
+    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, 0n, bragToken.address]);
 
     // Deploy Mock NFTs
     const mock721 = await viem.deployContract("MockRoyaltyNFT", ["Mock721", "M721"]);
