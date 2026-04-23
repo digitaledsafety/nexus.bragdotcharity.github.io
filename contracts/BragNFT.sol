@@ -137,6 +137,72 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
     }
 
     /**
+     * @dev Mint multiple BragNFTs in a single transaction.
+     */
+    function batchDonate(string[] calldata messages, string[] calldata mediaURIs, bool[] calldata onChainFlags) external payable nonReentrant {
+        require(messages.length == mediaURIs.length && mediaURIs.length == onChainFlags.length, "Mismatched arrays");
+        uint256 count = messages.length;
+        require(count > 0, "Empty arrays");
+        uint256 amountPerNFT = msg.value / count;
+
+        for (uint256 i = 0; i < count; i++) {
+            // Last one gets any dust
+            uint256 value = (i == count - 1) ? (msg.value - (amountPerNFT * (count - 1))) : amountPerNFT;
+            _donateWithValue(msg.sender, messages[i], mediaURIs[i], onChainFlags[i], value);
+        }
+    }
+
+    /**
+     * @dev Internal helper for batch donations to pass custom value.
+     */
+    function _donateWithValue(address recipient, string memory message, string memory media, bool onChain, uint256 value) internal {
+        require(value >= minimumDonation, "Donation below minimum");
+        require(nextTokenId < maxSupply, "Max supply reached");
+
+        uint256 nftTokenId = nextTokenId++;
+
+        // 1. Get USD Value from Chainlink
+        uint256 usdValue = 0;
+        if (address(priceFeed) != address(0)) {
+            try priceFeed.latestRoundData() returns (uint80, int256 answer, uint256, uint256, uint80) {
+                if (answer > 0) {
+                    usdValue = (uint256(answer) * value) / 1e18;
+                }
+            } catch {}
+        }
+
+        // 2. Create Permanent Record (Effect)
+        taxRegistry[nftTokenId] = PermanentRecord({
+            originalDonor: msg.sender,
+            usdValue: usdValue,
+            timestamp: block.timestamp,
+            status: TaxStatus.Pending,
+            message: message
+        });
+
+        // 3. Set metadata
+        if (onChain) {
+            onChainMedia[nftTokenId] = media;
+        } else if (bytes(media).length > 0) {
+            _setTokenURI(nftTokenId, media);
+        }
+
+        // 4. Mint the transferable BragNFT
+        _safeMint(recipient, nftTokenId);
+
+        // 5. Mint Brag Tokens (100,000 per USD)
+        if (address(bragToken) != address(0) && usdValue > 0) {
+            bragToken.mint(msg.sender, usdValue * 10**15);
+        }
+
+        // 6. Transfer to treasury
+        (bool success, ) = treasury.call{value: value}("");
+        require(success, "Transfer to treasury failed");
+
+        emit Donated(msg.sender, value, usdValue, nftTokenId, message);
+    }
+
+    /**
      * @dev Mint a new BragNFT by donating ETH.
      */
     function donate(string calldata message, string calldata tokenURI_) external payable nonReentrant {
@@ -175,50 +241,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
      * @dev Internal donation logic. Records a permanent tax record and mints the NFT.
      */
     function _donate(address recipient, string memory message, string memory media, bool onChain) internal {
-        require(msg.value >= minimumDonation, "Donation below minimum");
-        require(nextTokenId < maxSupply, "Max supply reached");
-
-        uint256 nftTokenId = nextTokenId++;
-
-        // 1. Get USD Value from Chainlink
-        uint256 usdValue = 0;
-        if (address(priceFeed) != address(0)) {
-            try priceFeed.latestRoundData() returns (uint80, int256 answer, uint256, uint256, uint80) {
-                if (answer > 0) {
-                    usdValue = (uint256(answer) * msg.value) / 1e18;
-                }
-            } catch {}
-        }
-
-        // 2. Create Permanent Record (Effect)
-        taxRegistry[nftTokenId] = PermanentRecord({
-            originalDonor: msg.sender,
-            usdValue: usdValue,
-            timestamp: block.timestamp,
-            status: TaxStatus.Pending,
-            message: message
-        });
-
-        // 3. Set metadata
-        if (onChain) {
-            onChainMedia[nftTokenId] = media;
-        } else if (bytes(media).length > 0) {
-            _setTokenURI(nftTokenId, media);
-        }
-
-        // 4. Mint the transferable BragNFT
-        _safeMint(recipient, nftTokenId);
-
-        // 5. Mint Brag Tokens (100,000 per USD)
-        if (address(bragToken) != address(0) && usdValue > 0) {
-            bragToken.mint(msg.sender, usdValue * 10**15);
-        }
-
-        // 6. Transfer to treasury
-        (bool success, ) = treasury.call{value: msg.value}("");
-        require(success, "Transfer to treasury failed");
-
-        emit Donated(msg.sender, msg.value, usdValue, nftTokenId, message);
+        _donateWithValue(recipient, message, media, onChain, msg.value);
     }
 
     /**
@@ -401,7 +424,8 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
      */
     function _generateSVG(uint256 tokenId, string memory message) internal view returns (string memory) {
         bool glowing = isGlowing(tokenId);
-        string memory displayText = bytes(message).length > 0 ? _escapeSVG(message) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
+        string memory truncatedMessage = _truncate(message, 32);
+        string memory displayText = bytes(truncatedMessage).length > 0 ? _escapeSVG(truncatedMessage) : string(abi.encodePacked("BragNFT #", tokenId.toString()));
 
         string memory filterDef = "";
         string memory textStyle = "fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold;";
@@ -461,6 +485,25 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
             }
         }
         return string(outputBytes);
+    }
+
+    /**
+     * @dev Truncate a string to a maximum length, ensuring it's UTF-8 safe.
+     */
+    function _truncate(string memory str, uint256 maxLen) internal pure returns (string memory) {
+        bytes memory b = bytes(str);
+        if (b.length <= maxLen) return str;
+
+        uint256 actualLen = maxLen;
+        while (actualLen > 0 && (uint8(b[actualLen]) & 0xC0) == 0x80) {
+            actualLen--;
+        }
+
+        bytes memory res = new bytes(actualLen);
+        for (uint256 i = 0; i < actualLen; i++) {
+            res[i] = b[i];
+        }
+        return string(abi.encodePacked(res, "..."));
     }
 
     /**
