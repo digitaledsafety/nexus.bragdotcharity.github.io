@@ -10,7 +10,7 @@ describe("BragNFT Upgradeable & Rewards", async function () {
     const [owner, donor] = await viem.getWalletClients();
 
     // Deploy Treasury (re-using implementation for simplicity or deploy new)
-    const treasuryImpl = await viem.deployContract("Treasury", []);
+    const treasuryImpl = await viem.deployContract("Treasury"); // []);
     const factory = await viem.deployContract("TreasuryFactory", [treasuryImpl.address]);
     const salt = keccak256(toBytes("salt-nft"));
     const entryPoint = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
@@ -22,7 +22,7 @@ describe("BragNFT Upgradeable & Rewards", async function () {
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, 0n, 1000000000000000n * 10n**18n]); // 1 Quadrillion
 
     // Deploy BragNFT Implementation
-    const nftImpl = await viem.deployContract("BragNFT", []);
+    const nftImpl = await viem.deployContract("BragNFT"); // []); await (await viem.getContractAt("BragNFT", (await viem.deployContract("BragNFT"); // [])).address)).write.initialize([]);
 
     // Deploy Proxy for BragNFT (manually for test)
     const initData = encodeFunctionData({

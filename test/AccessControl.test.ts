@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, keccak256, toBytes, zeroAddress } from "viem";
+import { getAddress, parseEther, keccak256, toBytes, zeroAddress, encodeFunctionData } from "viem";
 
 describe("AccessControl Security Tests", async function () {
   const { viem } = await network.connect();
@@ -14,12 +14,31 @@ describe("AccessControl Security Tests", async function () {
     const [owner, attacker, other] = await viem.getWalletClients();
 
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
-    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
+
+    // Deploy Treasury as Proxy
+    const treasuryImpl = await viem.deployContract("Treasury");
+    const treasuryInitData = encodeFunctionData({
+        abi: treasuryImpl.abi,
+        functionName: "initialize",
+        args: [[owner.account.address], 1n, entryPointAddress]
+    });
+    const treasuryProxy = await viem.deployContract("BragProxy", [treasuryImpl.address, treasuryInitData]);
+    const treasury = await viem.getContractAt("Treasury", treasuryProxy.address);
+
     const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
 
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.1")
-    , priceFeed.address]);
+
+    // Deploy BragNFT as Proxy
+    const nftImpl = await viem.deployContract("BragNFT");
+    const nftInitData = encodeFunctionData({
+        abi: nftImpl.abi,
+        functionName: "initialize",
+        args: [owner.account.address, treasury.address, parseEther("0.1"), priceFeed.address]
+    });
+    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
+
     const bragToken = await viem.deployContract("BragToken", [
       owner.account.address,
       0n,
@@ -38,9 +57,6 @@ describe("AccessControl Security Tests", async function () {
       );
     });
   });
-
-
-
 
   describe("BragNFT Access", () => {
     it("Should fail to setTreasury without ADMIN_ROLE", async function () {

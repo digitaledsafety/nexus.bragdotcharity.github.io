@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, Hex } from "viem";
+import { getAddress, parseEther, Hex, encodeFunctionData } from "viem";
 
 describe("Issue Fixes", async function () {
     const { viem } = await network.connect();
@@ -10,11 +10,30 @@ describe("Issue Fixes", async function () {
         const [owner, otherAccount] = await viem.getWalletClients();
 
         const entryPoint = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
-        const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPoint]);
-        const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("1000000000")]);
+
+        // Deploy Treasury as Proxy
+        const treasuryImpl = await viem.deployContract("Treasury");
+        const treasuryInitData = encodeFunctionData({
+            abi: treasuryImpl.abi,
+            functionName: "initialize",
+            args: [[owner.account.address], 1n, entryPoint]
+        });
+        const treasuryProxy = await viem.deployContract("BragProxy", [treasuryImpl.address, treasuryInitData]);
+        const treasury = await viem.getContractAt("Treasury", treasuryProxy.address);
+
+        const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("10000000"), parseEther("1000000000000")]);
         const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
         const mockPriceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]); // 2500 USD/ETH
-        const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.01"), mockPriceFeed.address]);
+
+        // Deploy BragNFT as Proxy
+        const nftImpl = await viem.deployContract("BragNFT");
+        const nftInitData = encodeFunctionData({
+            abi: nftImpl.abi,
+            functionName: "initialize",
+            args: [owner.account.address, treasury.address, parseEther("0.01"), mockPriceFeed.address]
+        });
+        const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+        const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
 
         await bragNFT.write.setBragToken([bragToken.address]);
         const MINTER_ROLE = await bragToken.read.MINTER_ROLE();
@@ -78,21 +97,28 @@ describe("Issue Fixes", async function () {
              const entryPoint = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
 
              // Deploy with threshold 2
-             const treasury = await viem.deployContract("Treasury", [[owner.account.address, secondOwner.account.address], 2n, entryPoint]);
+             const treasuryImpl = await viem.deployContract("Treasury");
+             const treasuryInitData = encodeFunctionData({
+                 abi: treasuryImpl.abi,
+                 functionName: "initialize",
+                 args: [[owner.account.address, secondOwner.account.address], 2n, entryPoint]
+             });
+             const treasuryProxy = await viem.deployContract("BragProxy", [treasuryImpl.address, treasuryInitData]);
+             const treasury = await viem.getContractAt("Treasury", treasuryProxy.address);
 
              const nonce = BigInt(Math.floor(Date.now() / 1000));
              const target = secondOwner.account.address;
              const value = parseEther("0.1");
              const data = "0x" as Hex;
 
-             await treasury.write.propose([target, value, data, nonce], { account: owner.account });
+             await treasury.write.propose([[target], [value], [data], nonce], { account: owner.account });
 
              const proposalCount = await treasury.read.proposalCount();
              assert.equal(proposalCount, 1n);
 
-             const proposal = await treasury.read.proposals([0n]);
-             assert.equal(proposal[0], getAddress(target));
-             assert.equal(proposal[1], value);
+             const proposal = await treasury.read.getProposal([0n]);
+             assert.equal(proposal[0][0], getAddress(target));
+             assert.equal(proposal[1][0], value);
         });
     });
 
@@ -125,18 +151,18 @@ describe("Issue Fixes", async function () {
             const tokenId = 0n;
 
             // Give BRAG to otherAccount
-            await bragToken.write.transfer([otherAccount.account.address, parseEther("200000")]);
+            await bragToken.write.transfer([otherAccount.account.address, parseEther("2000000")]);
 
             // Approve BragNFT contract to spend BRAG
-            await bragToken.write.approve([bragNFT.address, parseEther("100000")], { account: otherAccount.account });
+            await bragToken.write.approve([bragNFT.address, parseEther("1000000")], { account: otherAccount.account });
 
             const initialTreasuryBrag = await bragToken.read.balanceOf([treasury.address]);
 
-            // Top up with BRAG (Requires 100,000 BRAG)
+            // Top up with BRAG (Requires 1,000,000 BRAG)
             await bragNFT.write.topUpWithBrag([tokenId], { account: otherAccount.account });
 
             const finalTreasuryBrag = await bragToken.read.balanceOf([treasury.address]);
-            assert.equal(finalTreasuryBrag - initialTreasuryBrag, parseEther("100000"));
+            assert.equal(finalTreasuryBrag - initialTreasuryBrag, parseEther("1000000"));
 
             const isGlowing = await bragNFT.read.isGlowing([tokenId]);
             assert.equal(isGlowing, true);

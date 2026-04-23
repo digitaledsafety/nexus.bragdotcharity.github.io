@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, zeroAddress, decodeEventLog } from "viem";
+import { getAddress, parseEther, zeroAddress, encodeFunctionData } from "viem";
 
 describe("Bug Fixes", async function () {
   const { viem } = await network.connect();
@@ -82,8 +82,16 @@ describe("Bug Fixes", async function () {
   async function deployBragNFT() {
     const [owner] = await viem.getWalletClients();
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1")
-    , priceFeed.address]);
+
+    const nftImpl = await viem.deployContract("BragNFT");
+    const nftInitData = encodeFunctionData({
+        abi: nftImpl.abi,
+        functionName: "initialize",
+        args: [owner.account.address, owner.account.address, parseEther("0.1"), priceFeed.address]
+    });
+    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
+
     return { bragNFT };
   }
 
@@ -91,9 +99,6 @@ describe("Bug Fixes", async function () {
     const { bragNFT } = await deployBragNFT();
 
     const [owner] = await viem.getWalletClients();
-
-    const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
-
 
     const testURIs = [
       "a.mp3",       // Length 5
@@ -110,7 +115,7 @@ describe("Bug Fixes", async function () {
         await bragNFT.write.donate(["test", uri], { value: parseEther("0.1") });
         const tokenId = await bragNFT.read.totalSupply() - 1n;
         const metadataBase64 = await bragNFT.read.tokenURI([tokenId]);
-        const metadataJson = atob(metadataBase64.split(",")[1]);
+        const metadataJson = Buffer.from(metadataBase64.split(",")[1], 'base64').toString();
         const metadata = JSON.parse(metadataJson);
 
         if (uri.endsWith(".mp3") || uri.startsWith("data:audio/")) {

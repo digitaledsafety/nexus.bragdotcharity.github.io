@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, zeroAddress, keccak256, toBytes } from "viem";
+import { getAddress, parseEther, zeroAddress, keccak256, toBytes, encodeFunctionData } from "viem";
 
 describe("Contract Hardening Tests", async function () {
   const { viem } = await network.connect();
   const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-  const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
   async function setup() {
     const [owner, seller, buyer, other] = await viem.getWalletClients();
@@ -20,12 +19,28 @@ describe("Contract Hardening Tests", async function () {
 
     // BragNFT & Dependencies
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
-    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
+
+    // Deploy Treasury as Proxy
+    const treasuryImpl = await viem.deployContract("Treasury");
+    const treasuryInitData = encodeFunctionData({
+        abi: treasuryImpl.abi,
+        functionName: "initialize",
+        args: [[owner.account.address], 1n, entryPointAddress]
+    });
+    const treasuryProxy = await viem.deployContract("BragProxy", [treasuryImpl.address, treasuryInitData]);
+    const treasury = await viem.getContractAt("Treasury", treasuryProxy.address);
+
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.1")
-    , priceFeed.address]);
 
-
+    // Deploy BragNFT as Proxy
+    const nftImpl = await viem.deployContract("BragNFT");
+    const nftInitData = encodeFunctionData({
+        abi: nftImpl.abi,
+        functionName: "initialize",
+        args: [owner.account.address, treasury.address, parseEther("0.1"), priceFeed.address]
+    });
+    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
 
     // BatchGrant
     const batchGrant = await viem.deployContract("BatchGrant", [owner.account.address]);
@@ -89,7 +104,7 @@ describe("Contract Hardening Tests", async function () {
       } catch (err: any) {
         // We accept either the reentrancy error OR the raw revert if it bubbles up differently
         assert.ok(
-            err.message.includes("ReentrancyGuardReentrantCall") || err.message.includes("ERC721InvalidReceiver"),
+            err.message.includes("ReentrancyGuard: reentrant call") || err.message.includes("ERC721InvalidReceiver"),
             `Expected reentrancy or receiver error, got ${err.message}`
         );
       }
@@ -174,7 +189,7 @@ describe("Contract Hardening Tests", async function () {
 
       // Buyer makes an offer
       await bragToken.write.transfer([buyer.account.address, parseEther("100")], { account: owner.account });
-      await bragToken.write.approve([marketplace.address, parseEther("10")], { account: buyer.account });
+      await bragToken.write.approve([marketplace.address, parseEther("100")], { account: buyer.account });
       await marketplace.write.createOffer([revNFT.address, tokenId, 1n, parseEther("10")], { account: buyer.account });
 
       // Seller accepts offer -> marketplace tries to pay reverter -> should NOT revert because it's ERC20 transfer

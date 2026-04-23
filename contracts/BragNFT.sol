@@ -69,7 +69,7 @@ contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpg
     // Optional on-chain media storage
     mapping(uint256 => string) public onChainMedia;
 
-    // Reentrancy Guard (Manual implementation for upgradeable contract if OZ version is missing)
+    // Reentrancy Guard (Manual implementation for upgradeable contract)
     uint256 private _status;
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
@@ -236,6 +236,12 @@ contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpg
         _safeMint(recipient, nftTokenId);
 
         // 5. Mint Brag Tokens (1,000,000 per USD)
+        // usdValue is 8 decimals from Chainlink.
+        // Goal: 1,000,000 (10^6) tokens per $1 USD.
+        // 1 token = 10^18 base units.
+        // $1 USD = 10^8 usdValue units.
+        // We want $1 USD -> 10^6 * 10^18 = 10^24 base units.
+        // Scaling factor: 10^24 / 10^8 = 10^16.
         if (address(bragToken) != address(0) && usdValue > 0) {
             bragToken.mint(_msgSender(), usdValue * 10**16);
         }

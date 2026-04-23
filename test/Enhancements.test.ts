@@ -1,28 +1,41 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, keccak256, toBytes } from "viem";
+import { getAddress, parseEther, keccak256, toBytes, encodeFunctionData } from "viem";
 
 describe("Enhancements (Royalties & SVG Escaping)", async function () {
   const { viem } = await network.connect();
 
   async function deployAll() {
-    const [owner, seller, buyer, treasury] = await viem.getWalletClients();
+    const [owner, seller, buyer, treasuryUser] = await viem.getWalletClients();
 
     // BragToken
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("2000000")]);
 
-    // Marketplace (now with 1 arg)
+    // Marketplace
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
 
-    // BragNFT
+    // Deploy Treasury as Proxy
+    const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+    const treasuryImpl = await viem.deployContract("Treasury");
+    const treasuryInitData = encodeFunctionData({
+        abi: treasuryImpl.abi,
+        functionName: "initialize",
+        args: [[treasuryUser.account.address], 1n, entryPointAddress]
+    });
+    const treasuryProxy = await viem.deployContract("BragProxy", [treasuryImpl.address, treasuryInitData]);
+    const treasury = await viem.getContractAt("Treasury", treasuryProxy.address);
+
+    // Deploy BragNFT as Proxy
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.account.address, parseEther("0.1")
-    , priceFeed.address]);
-
-
-    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-
+    const nftImpl = await viem.deployContract("BragNFT");
+    const nftInitData = encodeFunctionData({
+        abi: nftImpl.abi,
+        functionName: "initialize",
+        args: [owner.account.address, treasury.address, parseEther("0.1"), priceFeed.address]
+    });
+    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
 
     return { marketplace, bragNFT, bragToken, owner, seller, buyer, treasury };
   }
@@ -46,18 +59,18 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
 
     // Verify royalty info
     const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
-    assert.equal(royaltyRecipient, getAddress(treasury.account.address));
+    assert.equal(royaltyRecipient, getAddress(treasury.address));
     assert.equal(royaltyAmount, parseEther("0.8")); // 8% of 10
 
     // Seller accepts
-    const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.account.address]);
+    const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.address]);
     const sellerBalanceBefore = await bragToken.read.balanceOf([seller.account.address]);
 
     await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
     await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
 
     // Verify distribution
-    const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.account.address]);
+    const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.address]);
     const sellerBalanceAfter = await bragToken.read.balanceOf([seller.account.address]);
 
     assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("0.8"));
@@ -97,7 +110,7 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     const tokenId = 0n;
 
     // Set protocol fee to 10% (1000 bps) - maximum allowed
-    await marketplace.write.setProtocolFee([1000], { account: owner.account });
+    await marketplace.write.setProtocolFee([1000n], { account: owner.account });
 
     // Royalty is fixed at 8% (total 18%)
 
@@ -113,13 +126,13 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     // Seller accepts
     await bragNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
 
-    const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.account.address]);
+    const treasuryBalanceBefore = await bragToken.read.balanceOf([treasury.address]);
     const sellerBalanceBefore = await bragToken.read.balanceOf([seller.account.address]);
     const feeRecipientBalanceBefore = await bragToken.read.balanceOf([owner.account.address]); // feeRecipient is owner by default
 
     await marketplace.write.acceptOffer([bragNFT.address, tokenId, buyer.account.address], { account: seller.account });
 
-    const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.account.address]);
+    const treasuryBalanceAfter = await bragToken.read.balanceOf([treasury.address]);
     const feeRecipientBalanceAfter = await bragToken.read.balanceOf([owner.account.address]);
     const sellerBalanceAfter = await bragToken.read.balanceOf([seller.account.address]);
 

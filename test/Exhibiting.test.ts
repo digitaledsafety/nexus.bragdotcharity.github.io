@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, encodeAbiParameters, parseAbiParameters, keccak256, toBytes } from "viem";
+import { getAddress, parseEther, encodeAbiParameters, parseAbiParameters, keccak256, toBytes, encodeFunctionData } from "viem";
 
 describe("Exhibiting System", async function () {
   const { viem } = await network.connect();
@@ -21,11 +21,16 @@ describe("Exhibiting System", async function () {
 
     // Deploy mock NFTs
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1")
-    , priceFeed.address]);
 
-    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-
+    // Deploy BragNFT as Proxy
+    const nftImpl = await viem.deployContract("BragNFT");
+    const nftInitData = encodeFunctionData({
+        abi: nftImpl.abi,
+        functionName: "initialize",
+        args: [owner.account.address, owner.account.address, parseEther("0.1"), priceFeed.address]
+    });
+    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
 
     const mock1155 = await viem.deployContract("MockERC1155", []);
 
@@ -175,7 +180,7 @@ describe("Exhibiting System", async function () {
   });
 
   it("Should correctly assign owner when minted directly to the vault", async function () {
-    const { vault1: vault, bragNFT, owner, user } = await deployContracts();
+    const { vault1: vault, bragNFT, user } = await deployContracts();
 
     // The scenario is someone calls bragNFT.donateTo(vault.address, ...)
 
