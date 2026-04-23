@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { parseEther, keccak256, toBytes } from "viem";
+import { parseEther, keccak256, toBytes, encodeFunctionData } from "viem";
 
 describe("BragToken Integration", async function () {
   const { viem } = await network.connect();
@@ -12,11 +12,29 @@ describe("BragToken Integration", async function () {
 
     // Deploy contracts manually for the test to ensure clean state
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
-    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
+
+    // Deploy Treasury as Proxy
+    const treasuryImpl = await viem.deployContract("Treasury");
+    const treasuryInitData = encodeFunctionData({
+        abi: treasuryImpl.abi,
+        functionName: "initialize",
+        args: [[owner.account.address], 1n, entryPointAddress]
+    });
+    const treasuryProxy = await viem.deployContract("BragProxy", [treasuryImpl.address, treasuryInitData]);
+    const treasury = await viem.getContractAt("Treasury", treasuryProxy.address);
 
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, 1n // 1 wei minimum
-    , priceFeed.address]);
+
+    // Deploy BragNFT as Proxy
+    const nftImpl = await viem.deployContract("BragNFT");
+    const nftInitData = encodeFunctionData({
+        abi: nftImpl.abi,
+        functionName: "initialize",
+        args: [owner.account.address, treasury.address, 1n, priceFeed.address]
+    });
+    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
+
     const bragToken = await viem.deployContract("BragToken", [
       owner.account.address,
       initialSupply,
@@ -24,7 +42,6 @@ describe("BragToken Integration", async function () {
     ]);
 
     // Setup relationships
-
     await bragNFT.write.setBragToken([bragToken.address]);
 
     // Authorize BragNFT to mint tokens
@@ -51,15 +68,15 @@ describe("BragToken Integration", async function () {
     });
 
     const balance = await bragToken.read.balanceOf([donor.account.address]);
-    // 100,000 BRAG per $1. $2500 * 100,000 = 250,000,000 BRAG
-    assert.equal(balance, parseEther("250000000"));
+    // 1,000,000 BRAG per $1. $2500 * 1,000,000 = 2,500,000,000 BRAG
+    assert.equal(balance, parseEther("2500000000"));
   });
 
   it("Should fail to mint beyond maxSupply", async function () {
     const maxSupply = parseEther("10000000"); // 10M BRAG
     const { donor, bragNFT } = await deploySystem(0n, maxSupply);
 
-    // This should fail because it exceeds maxSupply ($2500 * 100,000 = 250M > 10M BRAG)
+    // This should fail because it exceeds maxSupply ($2500 * 1,000,000 = 2.5B > 10M BRAG)
     await assert.rejects(
       bragNFT.write.donate(["too much", ""], {
         account: donor.account,
@@ -87,7 +104,7 @@ describe("BragToken Integration", async function () {
 
     // Check voting power now
     votes = await bragToken.read.getVotes([donor.account.address]);
-    assert.equal(votes, parseEther("250000000"));
+    assert.equal(votes, parseEther("2500000000"));
   });
 
   it("Should fail if someone else tries to mint tokens directly", async function () {

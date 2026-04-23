@@ -1,23 +1,37 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, keccak256, toBytes } from "viem";
+import { getAddress, parseEther, keccak256, toBytes, encodeFunctionData } from "viem";
 
 describe("Batch Operations", async function () {
   const { viem } = await network.connect();
 
   async function deployAll() {
-    const [owner, seller, buyer, treasury] = await viem.getWalletClients();
+    const [owner, seller, buyer, treasuryUser] = await viem.getWalletClients();
 
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, parseEther("1000000"), parseEther("2000000")]);
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.account.address, parseEther("0.1")
-    , priceFeed.address]);
 
+    // Deploy Treasury as Proxy
+    const treasuryImpl = await viem.deployContract("Treasury");
+    const treasuryInitData = encodeFunctionData({
+        abi: treasuryImpl.abi,
+        functionName: "initialize",
+        args: [[treasuryUser.account.address], 1n, "0x0000000071727De22E5E9d8BAf0edAc6f37da032"]
+    });
+    const treasuryProxy = await viem.deployContract("BragProxy", [treasuryImpl.address, treasuryInitData]);
+    const treasury = await viem.getContractAt("Treasury", treasuryProxy.address);
 
-    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-
+    // Deploy BragNFT as Proxy
+    const nftImpl = await viem.deployContract("BragNFT");
+    const nftInitData = encodeFunctionData({
+        abi: nftImpl.abi,
+        functionName: "initialize",
+        args: [owner.account.address, treasury.address, parseEther("0.1"), priceFeed.address]
+    });
+    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
 
     const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
     const vault1 = await viem.deployContract("ExhibitVault", [registry.address]);
@@ -54,10 +68,7 @@ describe("Batch Operations", async function () {
   });
 
   it("ExhibitVault: Should batch move ERC721 tokens", async function () {
-    const { bragNFT, vault1, vault2, user: seller } = await (async () => {
-        const res = await deployAll();
-        return { ...res, user: res.seller };
-    })();
+    const { bragNFT, vault1, vault2, seller } = await deployAll();
 
     await bragNFT.write.donate(["nft1", ""], { account: seller.account, value: parseEther("0.1") });
     await bragNFT.write.donate(["nft2", ""], { account: seller.account, value: parseEther("0.1") });

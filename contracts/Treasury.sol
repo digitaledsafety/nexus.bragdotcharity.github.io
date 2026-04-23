@@ -9,6 +9,8 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title Treasury
@@ -16,20 +18,20 @@ import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155
  * Supports a "proposal and multi-transaction" flow for M-of-N operations.
  * Also supports direct 1-of-1 execution via AA or direct calls.
  */
-contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
+contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271, Initializable, UUPSUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     EnumerableSet.AddressSet private _owners;
     uint256 public threshold;
-    IEntryPoint private immutable _entryPoint;
+    IEntryPoint private _entryPoint; // Changed from immutable for upgradeability
 
     // Nonce -> Signer (to attribute actions across validation and execution)
     mapping(uint256 => address) private _signerByNonce;
 
     struct Proposal {
-        address target;
-        uint256 value;
-        bytes data;
+        address[] targets;
+        uint256[] values;
+        bytes[] datas;
         bool executed;
         bool canceled;
         address proposer;
@@ -43,7 +45,7 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     event OwnerAdded(address indexed owner);
     event OwnerRemoved(address indexed owner);
     event ThresholdChanged(uint256 threshold);
-    event Proposed(uint256 indexed proposalId, address indexed proposer, address target, uint256 value, bytes data);
+    event Proposed(uint256 indexed proposalId, address indexed proposer, address[] targets, uint256[] values, bytes[] datas);
     event Approved(uint256 indexed proposalId, address indexed owner);
     event Executed(uint256 indexed proposalId);
     event Canceled(uint256 indexed proposalId);
@@ -59,6 +61,12 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     error ExecutionFailed();
     error NotProposer();
     error InvalidOwner();
+    error MismatchedArrays();
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
      * @dev Initialize the treasury with owners and threshold.
@@ -66,7 +74,7 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
      * @param initialThreshold Required number of approvals for M-of-N operations.
      * @param entryPointAddress The EIP-4337 EntryPoint contract address.
      */
-    constructor(address[] memory initialOwners, uint256 initialThreshold, address entryPointAddress) {
+    function initialize(address[] memory initialOwners, uint256 initialThreshold, address entryPointAddress) public initializer {
         require(initialOwners.length > 0, "No owners provided");
         require(initialThreshold > 0 && initialThreshold <= initialOwners.length, "Invalid threshold");
         require(entryPointAddress != address(0), "Invalid EntryPoint");
@@ -82,6 +90,8 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
         _entryPoint = IEntryPoint(entryPointAddress);
         emit ThresholdChanged(threshold);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlySelf {}
 
     modifier onlyOwner(uint256 nonce) {
         _checkOwner(_getMsgSender(nonce));
@@ -134,19 +144,21 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     // --- Multi-sig Logic (Proposal Flow) ---
 
     /**
-     * @dev Propose a transaction. The proposer auto-approves it.
+     * @dev Propose a batch of transactions. The proposer auto-approves it.
      */
-    function propose(address target, uint256 value, bytes calldata data, uint256 nonce) external onlyOwner(nonce) returns (uint256) {
+    function propose(address[] calldata targets, uint256[] calldata values, bytes[] calldata datas, uint256 nonce) external onlyOwner(nonce) returns (uint256) {
+        if (targets.length != values.length || targets.length != datas.length) revert MismatchedArrays();
+
         address proposer = _getMsgSender(nonce);
         uint256 proposalId = proposalCount++;
 
         Proposal storage p = proposals[proposalId];
-        p.target = target;
-        p.value = value;
-        p.data = data;
+        p.targets = targets;
+        p.values = values;
+        p.datas = datas;
         p.proposer = proposer;
 
-        emit Proposed(proposalId, proposer, target, value, data);
+        emit Proposed(proposalId, proposer, targets, values, datas);
 
         p.approved[proposer] = true;
         p.approvalCount = 1;
@@ -186,8 +198,10 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
         p.executed = true;
 
-        (bool success, ) = p.target.call{value: p.value}(p.data);
-        if (!success) revert ExecutionFailed();
+        for (uint256 i = 0; i < p.targets.length; i++) {
+            (bool success, ) = p.targets[i].call{value: p.values[i]}(p.datas[i]);
+            if (!success) revert ExecutionFailed();
+        }
 
         emit Executed(proposalId);
     }
@@ -227,6 +241,30 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
         (bool success, ) = target.call{value: value}(data);
         if (!success) revert ExecutionFailed();
+
+        // Clean up signer data if called by EntryPoint
+        if (msg.sender == address(entryPoint())) {
+            delete _signerByNonce[nonce];
+        }
+    }
+
+    /**
+     * @dev Batch direct execution. Same rules as execute().
+     */
+    function executeBatch(address[] calldata targets, uint256[] calldata values, bytes[] calldata datas, uint256 nonce) external {
+        if (targets.length != values.length || targets.length != datas.length) revert MismatchedArrays();
+
+        if (msg.sender == address(entryPoint())) {
+            if (threshold != 1) revert InvalidThreshold();
+        } else if (msg.sender != address(this)) {
+            _checkOwner(msg.sender);
+            if (threshold != 1) revert InvalidThreshold();
+        }
+
+        for (uint256 i = 0; i < targets.length; i++) {
+            (bool success, ) = targets[i].call{value: values[i]}(datas[i]);
+            if (!success) revert ExecutionFailed();
+        }
 
         // Clean up signer data if called by EntryPoint
         if (msg.sender == address(entryPoint())) {
@@ -278,6 +316,19 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
     function hasApproved(uint256 proposalId, address owner) external view returns (bool) {
         return proposals[proposalId].approved[owner];
+    }
+
+    function getProposal(uint256 proposalId) external view returns (
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory datas,
+        bool executed,
+        bool canceled,
+        address proposer,
+        uint256 approvalCount
+    ) {
+        Proposal storage p = proposals[proposalId];
+        return (p.targets, p.values, p.datas, p.executed, p.canceled, p.proposer, p.approvalCount);
     }
 
     function isValidSignature(bytes32 hash, bytes calldata signature) external view override returns (bytes4) {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther } from "viem";
+import { getAddress, parseEther, encodeFunctionData } from "viem";
 
 describe("BragNFT Raw Transfer", async function () {
   const { viem } = await network.connect();
@@ -9,15 +9,17 @@ describe("BragNFT Raw Transfer", async function () {
   async function deployContracts() {
     const [owner, donor, treasury] = await viem.getWalletClients();
 
-
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.account.address, parseEther("0.1")
-    , priceFeed.address]);
 
-    // Setup: Authorize BragNFT to mint receipts
-    const { keccak256, toBytes } = await import("viem");
-    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
-
+    // Deploy BragNFT as Proxy
+    const nftImpl = await viem.deployContract("BragNFT");
+    const nftInitData = encodeFunctionData({
+        abi: nftImpl.abi,
+        functionName: "initialize",
+        args: [owner.account.address, treasury.account.address, parseEther("0.1"), priceFeed.address]
+    });
+    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
+    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
 
     return { bragNFT, donor, treasury };
   }
