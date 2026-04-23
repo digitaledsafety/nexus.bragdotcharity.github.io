@@ -113,9 +113,10 @@ async function main() {
     const scaAddress = smartAccountClient.account.address;
     console.log(`Smart Contract Account Address: ${scaAddress}`);
 
-    async function deploy(name: string, args: any[]) {
+    async function deploy(name: string, args: any[], artifactFile?: string) {
         console.log(`Deploying ${name}...`);
-        const artifactPath = path.join(process.cwd(), `artifacts/contracts/${name}.sol/${name}.json`);
+        const fileName = artifactFile || `${name}.sol/${name}.json`;
+        const artifactPath = path.join(process.cwd(), `artifacts/contracts/${fileName}`);
         const { abi, bytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
         const deployData = encodeDeployData({ abi, args, bytecode });
@@ -154,6 +155,20 @@ async function main() {
         }
     }
 
+    async function deployProxy(implementationName: string, initArgs: any[]) {
+        console.log(`Deploying proxy for ${implementationName}...`);
+        const impl = await deploy(implementationName, []);
+
+        const initData = encodeFunctionData({
+            abi: impl.abi,
+            functionName: "initialize",
+            args: initArgs
+        });
+
+        const proxy = await deploy("BragProxy", [impl.address, initData], "Proxy.sol/BragProxy.json");
+        return { address: proxy.address, abi: impl.abi };
+    }
+
     // --- Contract Deployments ---
     const minimumDonation = 1n;
     const externalTreasury = process.env.TREASURY_ADDRESS;
@@ -166,16 +181,16 @@ async function main() {
         const treasuryArtifact = JSON.parse(fs.readFileSync(path.join(process.cwd(), "artifacts/contracts/Treasury.sol/Treasury.json"), "utf8"));
         treasury = { address: getAddress(externalTreasury), abi: treasuryArtifact.abi };
     } else {
-        // Deploy Treasury as 1-of-1 multi-sig with scaAddress as initial owner
-        treasury = await deploy("Treasury", [[scaAddress], 1n, entryPointAddress]);
+        // Deploy Treasury as upgradeable proxy
+        treasury = await deployProxy("Treasury", [[scaAddress], 1n, entryPointAddress]);
     }
 
     const exhibitRegistry = await deploy("ExhibitRegistry", [scaAddress]);
     const mockPriceFeed = await deploy("MockPriceFeed", [250000000000n]); // 2500 USD/ETH
-    const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation, mockPriceFeed.address]);
+    const bragNFT = await deployProxy("BragNFT", [scaAddress, treasury.address, minimumDonation, mockPriceFeed.address]);
 
     const initialSupply = 0n;
-    const maxSupply = 1000000000000000000000000000n;
+    const maxSupply = 1000000000000000n * 10n**18n; // 1 Quadrillion
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
     const marketplace = await deploy("NFTMarketplace", [scaAddress, bragToken.address]);
 
@@ -271,17 +286,8 @@ async function main() {
         to: treasury.address,
         data: encodeFunctionData({
             abi: treasury.abi,
-            functionName: "execute",
-            args: [
-                treasury.address,
-                0n,
-                encodeFunctionData({
-                    abi: treasury.abi,
-                    functionName: "addOwner",
-                    args: [eoaAddress]
-                }),
-                0n
-            ]
+            functionName: "addOwner",
+            args: [eoaAddress]
         })
     });
 
