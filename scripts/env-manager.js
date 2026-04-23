@@ -38,7 +38,8 @@ const services = {
         process: null,
         status: 'stopped',
         logs: [],
-        cwd: path.join(ROOT, 'external', 'bedrock-server-manager')
+        cwd: path.join(ROOT, 'external', 'bedrock-server-manager'),
+        env: { PORT: '9003' }
     }
 };
 
@@ -62,7 +63,7 @@ function startService(name) {
     svc.process = spawn(svc.command, svc.args, {
         cwd: svc.cwd || ROOT,
         shell: true,
-        env: { ...process.env, FORCE_COLOR: 'true' }
+        env: { ...process.env, ...svc.env, FORCE_COLOR: 'true' }
     });
 
     svc.status = 'running';
