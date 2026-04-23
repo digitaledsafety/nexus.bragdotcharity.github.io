@@ -130,7 +130,17 @@ async function main() {
                 const uoResponse = await smartAccountClient.sendUserOperation({
                     uo: { target: factoryAddress, data }
                 });
-                const txHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
+                console.log(`UserOp sent: ${uoResponse.hash}. Waiting for transaction...`);
+
+                const txHash = await smartAccountClient.waitForUserOperationTransaction({
+                    hash: uoResponse.hash,
+                    retries: {
+                        maxRetries: 20,
+                        intervalMs: 5000,
+                        multiplier: 1.5
+                    }
+                });
+                console.log(`Transaction found: ${txHash}. Waiting for confirmation...`);
                 await publicClient.waitForTransactionReceipt({ hash: txHash });
 
                 const deployedAddress = getContractAddress({
@@ -298,8 +308,17 @@ async function main() {
             data: tx.data
         }))
     });
-    
-    const batchTxHash = await smartAccountClient.waitForUserOperationTransaction(uoResponse);
+    console.log(`Batch UserOp sent: ${uoResponse.hash}. Waiting for transaction...`);
+
+    const batchTxHash = await smartAccountClient.waitForUserOperationTransaction({
+        hash: uoResponse.hash,
+        retries: {
+            maxRetries: 20,
+            intervalMs: 5000,
+            multiplier: 1.5
+        }
+    });
+    console.log(`Batch transaction found: ${batchTxHash}. Waiting for confirmation...`);
     await publicClient.waitForTransactionReceipt({ hash: batchTxHash });
     console.log("Batch setup complete!");
 
