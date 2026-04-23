@@ -25,6 +25,7 @@ const mockWorld = {
 };
 
 const SERVER_ID = "server-1";
+const NEXUS_ADDRESS = "0x1234567890123456789012345678901234567890";
 
 // Logic copied from addons/minecraft-bedrock-addon/development_behavior_packs/behavior_pack_sample/scripts/main.js
 async function checkNftStatus(player: any, world: any) {
@@ -71,6 +72,9 @@ async function handleChat(event: any, world: any) {
         } catch (error) {
             player.sendMessage("§cBridge server error.§r");
         }
+    } else if (message.toLowerCase() === "!nexus") {
+        event.cancel = true;
+        player.sendMessage(`§6[Nexus]§r Contract Address: §f${NEXUS_ADDRESS}§r`);
     }
 }
 
@@ -127,6 +131,15 @@ describe('Minecraft Script Logic', () => {
 
             assert.strictEqual(event.cancel, false);
             assert.strictEqual(mockDimension.runCommand.mock.calls.length, 0);
+        });
+
+        it('should display Nexus address when !nexus is typed', async () => {
+            const event = { message: "!nexus", sender: mockPlayer, cancel: false };
+            await handleChat(event, mockWorld);
+
+            assert.strictEqual(event.cancel, true);
+            assert.strictEqual(mockPlayer.sendMessage.mock.calls.length, 1);
+            assert.ok(mockPlayer.sendMessage.mock.calls[0].arguments[0].includes(NEXUS_ADDRESS));
         });
     });
 });

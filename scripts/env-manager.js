@@ -5,12 +5,12 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.join(__dirname, '..');
+export const ROOT = path.join(__dirname, '..');
 const PORT = 9002;
-const APP_ENV = process.env.APP_ENV || 'local';
-const IS_STAGING = APP_ENV === 'staging';
+export const getAppEnv = () => process.env.APP_ENV || 'local';
+export const isStaging = () => getAppEnv() === 'staging';
 
-const services = {
+export const services = {
     hardhat: {
         command: 'npx',
         args: ['hardhat', 'node'],
@@ -44,7 +44,7 @@ const services = {
 };
 
 // Placeholder for Bedrock Server Manager API URL
-let MANAGER_API_URL = IS_STAGING ? process.env.STAGING_MANAGER_URL : (process.env.MANAGER_API_URL || 'http://localhost:9003');
+const getManagerApiUrl = () => isStaging() ? process.env.STAGING_MANAGER_URL : (process.env.MANAGER_API_URL || 'http://localhost:9003');
 
 function log(service, data) {
     const message = data.toString().trim();
@@ -91,14 +91,14 @@ function stopService(name) {
 
 async function checkManagerStatus() {
     try {
-        const res = await fetch(`${MANAGER_API_URL}/api/status`);
+        const res = await fetch(`${getManagerApiUrl()}/api/status`);
         return res.ok;
     } catch (e) {
         return false;
     }
 }
 
-async function prepareAddon() {
+export async function prepareAddon() {
     console.log('Preparing NFT addon...');
     const sourceDir = path.join(ROOT, 'addons', 'minecraft-bedrock-addon');
     const targetDir = path.join(ROOT, 'temp_addon');
@@ -117,7 +117,7 @@ async function prepareAddon() {
     let serverId = process.env.SERVER_ID || 'local-dev';
     let nexusAddress = '0x0000000000000000000000000000000000000000';
 
-    if (IS_STAGING) {
+    if (isStaging()) {
         wsUrl = process.env.STAGING_BRIDGE_URL || wsUrl;
         nexusAddress = process.env.STAGING_BRAGNFT_ADDRESS || nexusAddress;
     } else {
@@ -141,9 +141,9 @@ async function initEnvironment() {
     if (services.hardhat.status === 'initializing') return;
     services.hardhat.status = 'initializing';
 
-    console.log(`--- Initializing Environment (${APP_ENV}) ---`);
+    console.log(`--- Initializing Environment (${getAppEnv()}) ---`);
 
-    if (IS_STAGING) {
+    if (isStaging()) {
         if (!process.env.STAGING_BRIDGE_URL || !process.env.STAGING_MANAGER_URL) {
             console.error('STAGING_BRIDGE_URL and STAGING_MANAGER_URL must be set for staging environment.');
             services.hardhat.status = 'stopped';
@@ -151,7 +151,7 @@ async function initEnvironment() {
         }
         console.log('Verifying staging connectivity...');
         try {
-            const res = await fetch(`${MANAGER_API_URL}/api/status`);
+            const res = await fetch(`${getManagerApiUrl()}/api/status`);
             if (res.ok) {
                 console.log('Connected to Staging Manager.');
             } else {
@@ -210,7 +210,7 @@ async function initEnvironment() {
 
         // 5. Inject Addon
         console.log('Injecting addon into local manager...');
-        await fetch(`${MANAGER_API_URL}/api/inject`, {
+        await fetch(`${getManagerApiUrl()}/api/inject`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: addonPath })
@@ -242,7 +242,7 @@ const server = http.createServer((req, res) => {
             const status = {
                 services: {},
                 minecraft: {
-                    managerUrl: MANAGER_API_URL,
+                    managerUrl: getManagerApiUrl(),
                     connected: connected
                 }
             };
@@ -286,8 +286,8 @@ const server = http.createServer((req, res) => {
         res.writeHead(200);
         res.end(JSON.stringify({ success: true, message: 'Initialization started' }));
     } else if (url.pathname === '/minecraft/start' && req.method === 'POST') {
-        console.log(`Requesting Minecraft server start via ${MANAGER_API_URL}`);
-        fetch(`${MANAGER_API_URL}/api/start`, { method: 'POST' })
+        console.log(`Requesting Minecraft server start via ${getManagerApiUrl()}`);
+        fetch(`${getManagerApiUrl()}/api/start`, { method: 'POST' })
             .then(r => r.json())
             .then(data => {
                 res.writeHead(200);
@@ -297,8 +297,8 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({ error: err.message }));
             });
     } else if (url.pathname === '/minecraft/stop' && req.method === 'POST') {
-        console.log(`Requesting Minecraft server stop via ${MANAGER_API_URL}`);
-        fetch(`${MANAGER_API_URL}/api/stop`, { method: 'POST' })
+        console.log(`Requesting Minecraft server stop via ${getManagerApiUrl()}`);
+        fetch(`${getManagerApiUrl()}/api/stop`, { method: 'POST' })
             .then(r => r.json())
             .then(data => {
                 res.writeHead(200);
@@ -308,8 +308,8 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({ error: err.message }));
             });
     } else if (url.pathname === '/minecraft/restart' && req.method === 'POST') {
-        console.log(`Requesting Minecraft server restart via ${MANAGER_API_URL}`);
-        fetch(`${MANAGER_API_URL}/api/restart`, { method: 'POST' })
+        console.log(`Requesting Minecraft server restart via ${getManagerApiUrl()}`);
+        fetch(`${getManagerApiUrl()}/api/restart`, { method: 'POST' })
             .then(r => r.json())
             .then(data => {
                 res.writeHead(200);
@@ -327,9 +327,9 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        console.log(`Injecting addon from ${addonPath} to ${MANAGER_API_URL}`);
+        console.log(`Injecting addon from ${addonPath} to ${getManagerApiUrl()}`);
 
-        fetch(`${MANAGER_API_URL}/api/inject`, {
+        fetch(`${getManagerApiUrl()}/api/inject`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: addonPath })
@@ -350,13 +350,13 @@ const server = http.createServer((req, res) => {
 const mode = process.argv[2];
 if (mode === 'init') {
     initEnvironment().then(() => {
-        if (!IS_STAGING) {
+        if (!isStaging()) {
             startService('bridge');
             startService('frontend');
         }
     });
 } else if (mode === 'start') {
-    if (!IS_STAGING) {
+    if (!isStaging()) {
         startService('hardhat');
         startService('bridge');
         startService('frontend');
@@ -366,9 +366,11 @@ if (mode === 'init') {
     }
 }
 
-server.listen(PORT, () => {
-    console.log(`Environment Manager running at http://localhost:${PORT}`);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+    server.listen(PORT, () => {
+        console.log(`Environment Manager running at http://localhost:${PORT}`);
+    });
+}
 
 process.on('SIGINT', () => {
     console.log('Shutting down services...');
