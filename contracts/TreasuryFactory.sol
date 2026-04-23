@@ -3,23 +3,16 @@ pragma solidity ^0.8.20;
 
 import {Treasury} from "./Treasury.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /**
  * @title TreasuryFactory
- * @dev Factory for deploying Treasury instances as upgradeable proxies with predictable addresses.
+ * @dev Factory for deploying Treasury instances with predictable addresses.
  */
 contract TreasuryFactory {
-    event TreasuryCreated(address indexed proxy, address indexed implementation, address[] owners, uint256 threshold);
-
-    address public immutable implementation;
-
-    constructor(address _implementation) {
-        implementation = _implementation;
-    }
+    event TreasuryCreated(address indexed treasury, address[] owners, uint256 threshold);
 
     /**
-     * @dev Deploys a new Treasury proxy instance using CREATE2.
+     * @dev Deploys a new Treasury instance using CREATE2.
      * @param owners Initial owners of the treasury.
      * @param threshold Required number of approvals for the treasury.
      * @param entryPoint Address of the EIP-4337 EntryPoint.
@@ -31,22 +24,13 @@ contract TreasuryFactory {
         address entryPoint,
         bytes32 salt
     ) external returns (address) {
-        bytes memory initData = abi.encodeWithSelector(
-            Treasury.initialize.selector,
-            owners,
-            threshold,
-            entryPoint
-        );
-
-        ERC1967Proxy proxy = new ERC1967Proxy{salt: salt}(implementation, initData);
-        address proxyAddr = address(proxy);
-
-        emit TreasuryCreated(proxyAddr, implementation, owners, threshold);
-        return proxyAddr;
+        address treasury = address(new Treasury{salt: salt}(owners, threshold, entryPoint));
+        emit TreasuryCreated(treasury, owners, threshold);
+        return treasury;
     }
 
     /**
-     * @dev Predicts the address of a Treasury proxy instance.
+     * @dev Predicts the address of a Treasury instance.
      */
     function getAddress(
         address[] memory owners,
@@ -54,15 +38,9 @@ contract TreasuryFactory {
         address entryPoint,
         bytes32 salt
     ) external view returns (address) {
-        bytes memory initData = abi.encodeWithSelector(
-            Treasury.initialize.selector,
-            owners,
-            threshold,
-            entryPoint
-        );
         bytes memory bytecode = abi.encodePacked(
-            type(ERC1967Proxy).creationCode,
-            abi.encode(implementation, initData)
+            type(Treasury).creationCode,
+            abi.encode(owners, threshold, entryPoint)
         );
         return Create2.computeAddress(salt, keccak256(bytecode));
     }

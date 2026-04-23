@@ -1,24 +1,6 @@
 <!-- Main Content -->
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full relative">
-
-    <!-- Coming Soon Overlay -->
-    <div class="absolute inset-0 z-10 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center rounded-[2.5rem]">
-        <div class="glass-card p-12 rounded-[3rem] text-center shadow-2xl border border-indigo-500/30 max-w-lg mx-4">
-            <div class="w-20 h-20 brag-gradient rounded-3xl flex items-center justify-center mx-auto mb-8 text-3xl shadow-xl shadow-indigo-500/20">
-                <i class="fas fa-rocket animate-bounce"></i>
-            </div>
-            <h2 class="text-4xl font-black mb-4 tracking-tight uppercase">Coming <span class="brag-gradient-text">Soon</span></h2>
-            <p class="text-slate-300 text-lg leading-relaxed mb-8">
-                The decentralized marketplace for impact-verified NFTs is launching soon. Get ready to trade, collect, and showcase your contributions.
-            </p>
-            <div class="space-y-4">
-                <button onclick="router.navigateTo('home', '#donate')" class="w-full btn-primary py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg">Mint Your First NFT</button>
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Early Donors Receive Governance Rewards</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 opacity-30 pointer-events-none">
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
         <div class="space-y-2">
             <h1 class="text-4xl font-black tracking-tight">Marketplace</h1>
             <p class="text-slate-500 text-sm">Discover and collect proof-of-impact NFTs from the community.</p>
@@ -38,7 +20,7 @@
     </div>
 
     <!-- NFT Grid -->
-    <div id="nftGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 opacity-30 pointer-events-none">
+    <div id="nftGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         <!-- Loading States -->
         <div class="glass-card rounded-[2rem] overflow-hidden animate-pulse">
             <div class="aspect-square bg-white/5"></div>

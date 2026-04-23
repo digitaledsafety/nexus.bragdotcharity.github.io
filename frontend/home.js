@@ -6,8 +6,7 @@
 let ethPrice = 0;
 let selectedUsdAmount = 50; // Default
 
-const CAUSE_NAME = "Engineering (STEM Program)";
-const FOUNDATION_NAME = "Digital Education and Safety Foundation Inc.";
+const CAUSE_NAME = "Empowering STEM Education";
 
 async function initHome() {
     await coreReady;
@@ -89,8 +88,7 @@ function setupHomeListeners() {
 
 function updateDynamicRewards() {
     if (ethPrice > 0) {
-        // Updated to 1,000,000 BRAG per $1 USD -> 1M * ethPrice per 1 ETH
-        const bragPerEth = (ethPrice * 1000000).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        const bragPerEth = (ethPrice * 100000).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
         const el = document.getElementById('bragPerEth');
         if (el) {
             el.innerText = `Earn ${bragPerEth} BRAG for every 1 ETH donated.`;
@@ -103,8 +101,7 @@ function updateHomeConversion() {
     if (selectedUsdAmount > 0 && ethPrice > 0) {
         const eth = selectedUsdAmount / ethPrice;
         const ethStr = eth.toFixed(4);
-        // Updated to 1,000,000 BRAG per $1 USD
-        const bragAmount = (selectedUsdAmount * 1000000).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
+        const bragAmount = (selectedUsdAmount * 100000).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
         document.getElementById('ethAmount').innerText = ethStr;
         document.getElementById('bragRewardAmount').innerText = bragAmount;
         ethDisplay.classList.remove('hidden');
@@ -162,7 +159,7 @@ let lastReceipt = null;
 
 function handleHomeSuccess(receipt) {
     lastReceipt = receipt;
-    const bragAmount = (selectedUsdAmount * 1000000).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
+    const bragAmount = (selectedUsdAmount * 100000).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
     document.getElementById('statusTitle').innerText = "Impact Verified!";
     document.getElementById('statusDesc').innerHTML = `Your contribution has been recorded. You've minted a unique AI NFT and received <span class="text-indigo-400 font-black">${bragAmount} BRAG</span> tokens. Thank you!`;
     document.getElementById('statusIcon').innerHTML = '<i class="fas fa-check text-white"></i>';
@@ -194,22 +191,17 @@ async function generateHomePDF() {
     doc.setFontSize(12);
     doc.setTextColor(100, 116, 139);
     doc.text(`Campaign: ${CAUSE_NAME}`, 20, 60);
-    doc.text(`Organization: ${FOUNDATION_NAME}`, 20, 70);
-    doc.text(`Program: brag.charity Revenue Program`, 20, 80);
-    doc.text(`Date: ${date}`, 20, 90);
+    doc.text(`Organization: DESF Inc.`, 20, 70);
+    doc.text(`Date: ${date}`, 20, 80);
 
-    doc.line(20, 100, 190, 100);
-    doc.text(`Donor Wallet: ${userAddress}`, 20, 115);
-    doc.text(`Amount: $${selectedUsdAmount} USD equivalent`, 20, 125);
-    doc.text(`Transaction: ${lastReceipt.transactionHash}`, 20, 135, { maxWidth: 160 });
-
-    doc.setFontSize(10);
-    doc.text("Statement of Benefit:", 20, 160);
-    doc.setFontSize(9);
-    doc.text("No goods or services were provided by the organization in return for the contribution, other than intangible commemorative tokens of minimal value (commemorative NFT).", 20, 165, { maxWidth: 170 });
+    doc.line(20, 90, 190, 90);
+    doc.text(`Donor Wallet: ${userAddress}`, 20, 105);
+    doc.text(`Amount: $${selectedUsdAmount} USD equivalent`, 20, 115);
+    doc.text(`Transaction: ${lastReceipt.transactionHash}`, 20, 125, { maxWidth: 160 });
 
     doc.setFontSize(14);
-    doc.text("Thank you for your support!", 105, 190, { align: "center" });
+    doc.text("Thank you for your support!", 105, 160, { align: "center" });
 
     doc.save(`Brag_Receipt_${lastReceipt.transactionHash.substring(0, 8)}.pdf`);
 }
+

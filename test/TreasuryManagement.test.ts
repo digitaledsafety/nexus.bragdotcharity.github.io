@@ -14,30 +14,16 @@ describe("Treasury Management", async function () {
     const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
 
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
-
-    // Deploy Treasury Proxy
-    const treasuryImpl = await viem.deployContract("Treasury");
-    const treasuryInitData = encodeFunctionData({
-        abi: treasuryImpl.abi,
-        functionName: "initialize",
-        args: [[owner.account.address], 1n, entryPointAddress]
-    });
-    const treasuryProxy = await viem.deployContract("BragProxy", [treasuryImpl.address, treasuryInitData]);
-    const treasury = await viem.getContractAt("Treasury", treasuryProxy.address);
+    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, entryPointAddress]);
 
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-
-    // Deploy BragNFT Proxy
-    const nftImpl = await viem.deployContract("BragNFT");
-    const nftInitData = encodeFunctionData({
-        abi: nftImpl.abi,
-        functionName: "initialize",
-        args: [owner.account.address, treasury.address, parseEther("0.1"), priceFeed.address]
-    });
-    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
-    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
-
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.1")
+    , priceFeed.address]);
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
+
+    // Setup: Authorize BragNFT to mint receipts
+    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
+
 
     return { treasury, bragNFT, marketplace, bragToken, owner, donor, buyer };
   }

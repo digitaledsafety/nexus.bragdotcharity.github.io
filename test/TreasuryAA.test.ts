@@ -31,8 +31,7 @@ describe("Treasury Multi-sig Smart Wallet", async function () {
     nonOwner = wallets[3];
 
     entryPoint = await viem.deployContract("MockEntryPoint");
-    const treasuryImpl = await viem.deployContract("Treasury");
-    factory = await viem.deployContract("TreasuryFactory", [treasuryImpl.address]);
+    factory = await viem.deployContract("TreasuryFactory");
   });
 
   describe("Deployment", async () => {
@@ -48,7 +47,7 @@ describe("Treasury Multi-sig Smart Wallet", async function () {
         eventName: "TreasuryCreated",
       });
 
-      const treasuryAddress = logs[0].args.proxy;
+      const treasuryAddress = logs[0].args.treasury;
       treasury = await viem.getContractAt("Treasury", treasuryAddress);
 
       assert.equal(await treasury.read.threshold(), threshold);
@@ -65,7 +64,7 @@ describe("Treasury Multi-sig Smart Wallet", async function () {
       const salt = keccak256(toHex(`salt-${Math.random()}`));
       await factory.write.createTreasury([owners, threshold, entryPoint.address, salt]);
       const logs = await publicClient.getContractEvents({ address: factory.address, abi: factory.abi, eventName: "TreasuryCreated" });
-      treasury = await viem.getContractAt("Treasury", logs[logs.length - 1].args.proxy);
+      treasury = await viem.getContractAt("Treasury", logs[logs.length - 1].args.treasury);
 
       await owner1.sendTransaction({
         to: treasury.address,
@@ -76,22 +75,22 @@ describe("Treasury Multi-sig Smart Wallet", async function () {
     it("Should allow an owner to propose a transaction", async () => {
       const target = nonOwner.account.address;
       const value = parseEther("0.1");
-      const data = "0x" as `0x${string}`;
+      const data = "0x";
 
-      await treasury.write.propose([[target], [value], [data], 0n], { account: owner1.account });
+      await treasury.write.propose([target, value, data, 0n], { account: owner1.account });
 
-      const proposal = await treasury.read.getProposal([0n]);
-      assert.equal(proposal[0][0], getAddress(target));
-      assert.equal(proposal[1][0], value);
+      const proposal = await treasury.read.proposals([0n]);
+      assert.equal(proposal[0], getAddress(target));
+      assert.equal(proposal[1], value);
       assert.equal(proposal[5], getAddress(owner1.account.address));
       assert.equal(proposal[6], 1n);
     });
 
     it("Should allow other owners to approve", async () => {
-      await treasury.write.propose([[nonOwner.account.address], [parseEther("0.1")], ["0x"], 0n], { account: owner1.account });
+      await treasury.write.propose([nonOwner.account.address, parseEther("0.1"), "0x", 0n], { account: owner1.account });
       await treasury.write.approve([0n, 0n], { account: owner2.account });
 
-      const proposal = await treasury.read.getProposal([0n]);
+      const proposal = await treasury.read.proposals([0n]);
       assert.equal(proposal[6], 2n);
       assert.ok(await treasury.read.hasApproved([0n, owner2.account.address]));
     });
@@ -101,7 +100,7 @@ describe("Treasury Multi-sig Smart Wallet", async function () {
       const value = parseEther("0.1");
       const initialBalance = await publicClient.getBalance({ address: target });
 
-      await treasury.write.propose([[target], [value], ["0x"], 0n], { account: owner1.account });
+      await treasury.write.propose([target, value, "0x", 0n], { account: owner1.account });
       await treasury.write.approve([0n, 0n], { account: owner2.account });
 
       await treasury.write.executeProposal([0n]);
@@ -121,7 +120,7 @@ describe("Treasury Multi-sig Smart Wallet", async function () {
         const salt = keccak256(toHex("aa-test"));
         await factory.write.createTreasury([owners, threshold, entryPoint.address, salt]);
         const logs = await publicClient.getContractEvents({ address: factory.address, abi: factory.abi, eventName: "TreasuryCreated" });
-        treasury = await viem.getContractAt("Treasury", logs[0].args.proxy);
+        treasury = await viem.getContractAt("Treasury", logs[0].args.treasury);
 
         const target = nonOwner.account.address;
         const value = parseEther("0.05");

@@ -259,7 +259,7 @@ function setupProductActions(contractAddr, tokenId, metadata) {
             btnTopUpBrag.onclick = async () => {
                 const bragNFT = getContract('BragNFT');
                 const bragToken = getContract('BragToken');
-                const bragAmount = ethers.utils.parseEther("1000000"); // Updated to 1,000,000 BRAG
+                const bragAmount = ethers.utils.parseEther("100000");
 
                 try {
                     const owner = isGaslessMode ? scaAddress : userAddress;
@@ -353,28 +353,24 @@ function generateTaxPDF(tokenId, metadata) {
     // Details
     doc.setFontSize(14);
     doc.setTextColor(30, 41, 59); // Slate-800
-    doc.text(`Organization: Digital Education and Safety Foundation Inc.`, 20, 55);
-    doc.text(`Program: Engineering (STEM)`, 20, 65);
-    doc.text(`Asset: BragNFT #${tokenId}`, 20, 75);
-    doc.text(`Donor Wallet: ${userAddress}`, 20, 85);
+    doc.text(`Asset: BragNFT #${tokenId}`, 20, 60);
+    doc.text(`Donor Wallet: ${userAddress}`, 20, 70);
 
     const usdValue = document.getElementById('taxValue').textContent;
     doc.setFontSize(16);
-    doc.text(`Verified Fair Market Value: ${usdValue} USD`, 20, 100);
+    doc.text(`Verified Fair Market Value: ${usdValue} USD`, 20, 85);
 
     const timestamp = new Date().toLocaleDateString();
     doc.setFontSize(10);
-    doc.text(`Date of Export: ${timestamp}`, 20, 115);
+    doc.text(`Date of Export: ${timestamp}`, 20, 100);
 
     doc.setFontSize(10);
     doc.setTextColor(100, 116, 139);
-    doc.text("Nexus Impact Gallery | Digital Education & Safety Foundation (EIN: 00-0000000)", 20, 130);
-    doc.text("The funds collected are used to support STEM education in underserved communities.", 20, 135);
+    doc.text("Nexus Impact Gallery | Digital Education & Safety Foundation (EIN: 00-0000000)", 20, 115);
+    doc.text("The funds collected are used to support STEM education in underserved communities.", 20, 120);
 
-    doc.setFontSize(9);
-    doc.text("No goods or services were provided by the organization in return for the contribution, other than intangible commemorative tokens of minimal value (commemorative NFT).", 20, 145, { maxWidth: 170 });
-
-    doc.text("Audit Provenance Link: " + window.location.href, 20, 160);
+    doc.text("Audit Provenance Link: " + window.location.href, 20, 135);
 
     doc.save(`brag-receipt-nft-${tokenId}.pdf`);
 }
+
