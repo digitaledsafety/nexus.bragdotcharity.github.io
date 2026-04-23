@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ERC721URIStorageUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
-import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Base64.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface IBragToken {
     function mint(address to, uint256 amount) external;
@@ -36,9 +33,8 @@ interface AggregatorV3Interface {
  * @title BragNFT
  * @dev A Dual-State NFT that combines tradable art with a soulbound tax receipt.
  * Implements EIP-2981 for royalties and EIP-6454 for transferability signaling.
- * Upgradeable via UUPS.
  */
-contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpgradeable, IERC2981, IERC6454, UUPSUpgradeable {
+contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, IERC6454 {
     using Strings for uint256;
 
     enum TaxStatus { Pending, Verified, Claimed, Flagged }
@@ -69,41 +65,19 @@ contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpg
     // Optional on-chain media storage
     mapping(uint256 => string) public onChainMedia;
 
-    // Reentrancy Guard (Manual implementation for upgradeable contract)
-    uint256 private _status;
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private constant _ENTERED = 2;
-
     event Donated(address indexed donor, uint256 amount, uint256 usdValue, uint256 tokenId, string message);
     event TopUp(uint256 indexed tokenId, address indexed donor, uint256 amount);
 
-    modifier nonReentrant() {
-        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
-        _status = _ENTERED;
-        _;
-        _status = _NOT_ENTERED;
-    }
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(address _initialOwner, address _treasury, uint256 _minimumDonation, address _priceFeed) public initializer {
-        __ERC721_init("BragNFT", "BRAGNFT");
-        __ERC721URIStorage_init();
-        __AccessControl_init();
-
+    constructor(address _initialOwner, address _treasury, uint256 _minimumDonation, address _priceFeed)
+        ERC721("BragNFT", "BRAGNFT")
+    {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         treasury = _treasury;
         royaltyRecipient = _treasury;
         minimumDonation = _minimumDonation;
         priceFeed = AggregatorV3Interface(_priceFeed);
-        maxSupply = 10000; // Updated default max supply
-        _status = _NOT_ENTERED;
+        maxSupply = 100; // Default max supply
     }
-
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     function totalSupply() public view returns (uint256) {
         return nextTokenId;
@@ -113,7 +87,7 @@ contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpg
         maxSupply = _maxSupply;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721URIStorageUpgradeable, AccessControlUpgradeable, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721URIStorage, AccessControl, IERC165) returns (bool) {
         return interfaceId == type(IERC2981).interfaceId ||
                interfaceId == type(IERC6454).interfaceId ||
                super.supportsInterface(interfaceId);
@@ -194,7 +168,7 @@ contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpg
      * @dev Fallback to handle raw ETH transfers.
      */
     receive() external payable nonReentrant {
-        _donate(_msgSender(), "Direct donation", "", false);
+        _donate(msg.sender, "Direct donation", "", false);
     }
 
     /**
@@ -218,7 +192,7 @@ contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpg
 
         // 2. Create Permanent Record (Effect)
         taxRegistry[nftTokenId] = PermanentRecord({
-            originalDonor: _msgSender(),
+            originalDonor: msg.sender,
             usdValue: usdValue,
             timestamp: block.timestamp,
             status: TaxStatus.Pending,
@@ -235,22 +209,16 @@ contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpg
         // 4. Mint the transferable BragNFT
         _safeMint(recipient, nftTokenId);
 
-        // 5. Mint Brag Tokens (1,000,000 per USD)
-        // usdValue is 8 decimals from Chainlink.
-        // Goal: 1,000,000 (10^6) tokens per $1 USD.
-        // 1 token = 10^18 base units.
-        // $1 USD = 10^8 usdValue units.
-        // We want $1 USD -> 10^6 * 10^18 = 10^24 base units.
-        // Scaling factor: 10^24 / 10^8 = 10^16.
+        // 5. Mint Brag Tokens (100,000 per USD)
         if (address(bragToken) != address(0) && usdValue > 0) {
-            bragToken.mint(_msgSender(), usdValue * 10**16);
+            bragToken.mint(msg.sender, usdValue * 10**15);
         }
 
         // 6. Transfer to treasury
         (bool success, ) = treasury.call{value: msg.value}("");
         require(success, "Transfer to treasury failed");
 
-        emit Donated(_msgSender(), msg.value, usdValue, nftTokenId, message);
+        emit Donated(msg.sender, msg.value, usdValue, nftTokenId, message);
     }
 
     /**
@@ -276,22 +244,22 @@ contract BragNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpg
         (bool success, ) = treasury.call{value: msg.value}("");
         require(success, "Transfer to treasury failed");
 
-        emit TopUp(tokenId, _msgSender(), msg.value);
+        emit TopUp(tokenId, msg.sender, msg.value);
     }
 
     /**
      * @dev Recharge the "glow" of an NFT using BRAG tokens.
-     * Requires 1,000,000 BRAG tokens (fixed at $1 value).
+     * Requires 100,000 BRAG tokens (fixed at $1 value).
      */
     function topUpWithBrag(uint256 tokenId) external nonReentrant {
         _requireOwned(tokenId);
-        uint256 bragAmount = 1_000_000 * 10**18; // 1,000,000 BRAG tokens
+        uint256 bragAmount = 100_000 * 10**18; // 100,000 BRAG tokens
 
         require(address(bragToken) != address(0), "BRAG token not set");
-        require(bragToken.transferFrom(_msgSender(), treasury, bragAmount), "BRAG transfer failed");
+        require(bragToken.transferFrom(msg.sender, treasury, bragAmount), "BRAG transfer failed");
 
         lastTopUpTimestamp[tokenId] = block.timestamp;
-        emit TopUp(tokenId, _msgSender(), bragAmount);
+        emit TopUp(tokenId, msg.sender, bragAmount);
     }
 
     /**

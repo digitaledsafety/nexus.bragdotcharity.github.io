@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, encodeFunctionData } from "viem";
+import { getAddress, parseEther, zeroAddress, decodeEventLog } from "viem";
 
 describe("New Features", async function () {
   const { viem } = await network.connect();
@@ -25,16 +25,12 @@ describe("New Features", async function () {
     const mock721 = await viem.deployContract("MockRoyaltyNFT", ["Mock721", "M721"]);
     const mock1155 = await viem.deployContract("MockERC1155", []);
 
-    // Deploy BragNFT as Proxy
+    // Deploy BragNFT
     const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const nftImpl = await viem.deployContract("BragNFT");
-    const nftInitData = encodeFunctionData({
-        abi: nftImpl.abi,
-        functionName: "initialize",
-        args: [owner.account.address, owner.account.address, parseEther("0.1"), priceFeed.address]
-    });
-    const nftProxy = await viem.deployContract("BragProxy", [nftImpl.address, nftInitData]);
-    const bragNFT = await viem.getContractAt("BragNFT", nftProxy.address);
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1"), priceFeed.address]);
+
+    const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
+
 
     return { owner, user1, user2, vault, registry, bragToken, marketplace, mock721, mock1155, bragNFT };
   }
