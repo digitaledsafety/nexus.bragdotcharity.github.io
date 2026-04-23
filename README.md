@@ -51,6 +51,53 @@ The Environment Manager runs a control API on port `9002`. You can verify the st
 
 Once running, the interactive gallery and manager are available at `http://localhost:3000`.
 
+### 4. System Architecture & Flow
+
+```text
+    [ LOCAL DEVELOPMENT ]              [ STAGING / PRODUCTION ]
+
+    +-----------------------+          +-----------------------+
+    | Developer Machine     |          | Shared Infrastructure |
+    |                       |          |                       |
+    |  +-----------------+  |          |  +-----------------+  |
+    |  | Hardhat Node    |  |          |  | Sepolia/Mainnet |  |
+    |  +--------+--------+  |          |  +--------+--------+  |
+    |           |           |          |           |           |
+    |  +--------v--------+  |          |  +--------v--------+  |
+    |  | NFT Bridge      |  |          |  | Live NFT Bridge |  |
+    |  | (Local)         |  |          |  | (Shared)        |  |
+    |  +--------+--------+  |          |  +--------+--------+  |
+    |           |           |          |           |           |
+    |  +--------v--------+  |          |  +--------v--------+  |
+    |  | Bedrock Manager |  |          |  | Live Manager    |  |
+    |  | (Local Clone)   |  |          |  | (Shared)        |  |
+    |  +--------+--------+  |          |  +--------+--------+  |
+    |           |           |          |           |           |
+    |  +--------v--------+  |          |  +--------v--------+  |
+    |  | Minecraft Edu   |  |          |  | Minecraft Edu   |  |
+    |  | Server (Local)  |  |          |  | Server (Remote) |  |
+    |  +-----------------+  |          |  +-----------------+  |
+    |                       |          |                       |
+    +-----------------------+          +-----------------------+
+```
+
+### 5. Running in Staging Mode
+
+To point your local environment to staging services (shared bridge, shared manager, and Sepolia contracts):
+
+1.  Set `APP_ENV=staging` in your `.env` file.
+2.  Provide the staging service URLs:
+    ```shell
+    STAGING_BRIDGE_URL="ws://staging-bridge.brag.charity:9001"
+    STAGING_MANAGER_URL="http://staging-manager.brag.charity:9003"
+    STAGING_BRAGNFT_ADDRESS="0x..."
+    ```
+3.  Initialize the environment:
+    ```shell
+    npm run env:init
+    ```
+    This will verify connectivity to the staging manager and prepare the NFT addon with staging configurations.
+
 ---
 
 ## 3. Configuration & Integration
