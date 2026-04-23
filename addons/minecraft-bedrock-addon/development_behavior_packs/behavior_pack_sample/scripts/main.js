@@ -5,8 +5,9 @@ import { world, system, DynamicPropertiesDefinition } from "@minecraft/server";
  * The project uses a unified Node.js Bridge (scripts/nft-bridge.js) which supports
  * Sign-In with Ethereum (SIWE) for secure wallet linking and WebSockets for real-time updates.
  */
-const WS_URL = "localhost:9001"; // Point to scripts/nft-bridge.js (WS port)
-const SERVER_ID = "server-1"; // Unique ID for this Minecraft server
+const WS_URL = "__WS_URL__"; // Injected at runtime
+const SERVER_ID = "__SERVER_ID__"; // Injected at runtime
+const NEXUS_ADDRESS = "__NEXUS_ADDRESS__"; // Injected at runtime
 
 /**
  * Handles checking NFT status when a player spawns.
@@ -81,6 +82,9 @@ async function handleChat(event) {
         } catch (error) {
             player.sendMessage("§cBridge server error.§r");
         }
+    } else if (message.toLowerCase() === "!nexus") {
+        event.cancel = true;
+        player.sendMessage(`§6[Nexus]§r Contract Address: §f${NEXUS_ADDRESS}§r`);
     } else if (message.toLowerCase() === "!reconnect") {
         event.cancel = true;
         player.sendMessage("§bAttempting to reconnect to bridge...§r");

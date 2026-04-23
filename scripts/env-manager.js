@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const PORT = 9002;
+const APP_ENV = process.env.APP_ENV || 'local';
+const IS_STAGING = APP_ENV === 'staging';
 
 const services = {
     hardhat: {
@@ -29,11 +31,19 @@ const services = {
         process: null,
         status: 'stopped',
         logs: []
+    },
+    manager: {
+        command: 'npm',
+        args: ['start'],
+        process: null,
+        status: 'stopped',
+        logs: [],
+        cwd: path.join(ROOT, 'external', 'bedrock-server-manager')
     }
 };
 
 // Placeholder for Bedrock Server Manager API URL
-let MANAGER_API_URL = process.env.MANAGER_API_URL || 'http://localhost:9003';
+let MANAGER_API_URL = IS_STAGING ? process.env.STAGING_MANAGER_URL : (process.env.MANAGER_API_URL || 'http://localhost:9003');
 
 function log(service, data) {
     const message = data.toString().trim();
@@ -50,7 +60,7 @@ function startService(name) {
     console.log(`Starting ${name}...`);
     const svc = services[name];
     svc.process = spawn(svc.command, svc.args, {
-        cwd: ROOT,
+        cwd: svc.cwd || ROOT,
         shell: true,
         env: { ...process.env, FORCE_COLOR: 'true' }
     });
@@ -87,11 +97,75 @@ async function checkManagerStatus() {
     }
 }
 
+async function prepareAddon() {
+    console.log('Preparing NFT addon...');
+    const sourceDir = path.join(ROOT, 'addons', 'minecraft-bedrock-addon');
+    const targetDir = path.join(ROOT, 'temp_addon');
+
+    // Create a clean copy in temp_addon
+    if (fs.existsSync(targetDir)) {
+        fs.rmSync(targetDir, { recursive: true, force: true });
+    }
+    fs.cpSync(sourceDir, targetDir, { recursive: true });
+
+    // Inject configuration into main.js
+    const mainJsPath = path.join(targetDir, 'development_behavior_packs', 'behavior_pack_sample', 'scripts', 'main.js');
+    let content = fs.readFileSync(mainJsPath, 'utf8');
+
+    let wsUrl = 'localhost:9001';
+    let serverId = process.env.SERVER_ID || 'local-dev';
+    let nexusAddress = '0x0000000000000000000000000000000000000000';
+
+    if (IS_STAGING) {
+        wsUrl = process.env.STAGING_BRIDGE_URL || wsUrl;
+        nexusAddress = process.env.STAGING_BRAGNFT_ADDRESS || nexusAddress;
+    } else {
+        const deploymentPath = path.join(ROOT, 'ignition', 'deployments', 'chain-31337', 'deployed_addresses.json');
+        if (fs.existsSync(deploymentPath)) {
+            const deployments = JSON.parse(fs.readFileSync(deploymentPath, 'utf8'));
+            nexusAddress = deployments['AppModule#BragNFT'] || nexusAddress;
+        }
+    }
+
+    content = content.replace('__WS_URL__', wsUrl)
+                     .replace('__SERVER_ID__', serverId)
+                     .replace('__NEXUS_ADDRESS__', nexusAddress);
+
+    fs.writeFileSync(mainJsPath, content);
+    console.log(`Addon prepared with WS_URL=${wsUrl}, SERVER_ID=${serverId}, NEXUS=${nexusAddress}`);
+    return targetDir;
+}
+
 async function initEnvironment() {
     if (services.hardhat.status === 'initializing') return;
     services.hardhat.status = 'initializing';
 
-    console.log('--- Initializing Environment ---');
+    console.log(`--- Initializing Environment (${APP_ENV}) ---`);
+
+    if (IS_STAGING) {
+        if (!process.env.STAGING_BRIDGE_URL || !process.env.STAGING_MANAGER_URL) {
+            console.error('STAGING_BRIDGE_URL and STAGING_MANAGER_URL must be set for staging environment.');
+            services.hardhat.status = 'stopped';
+            return;
+        }
+        console.log('Verifying staging connectivity...');
+        try {
+            const res = await fetch(`${MANAGER_API_URL}/api/status`);
+            if (res.ok) {
+                console.log('Connected to Staging Manager.');
+            } else {
+                throw new Error('Staging Manager returned non-OK status.');
+            }
+        } catch (e) {
+            console.error('Failed to connect to Staging Manager:', e.message);
+            services.hardhat.status = 'stopped';
+            return;
+        }
+        await prepareAddon();
+        console.log('Staging environment ready. Manual addon injection may be required.');
+        services.hardhat.status = 'running';
+        return;
+    }
 
     try {
         // 1. Start Hardhat Node
@@ -114,6 +188,31 @@ async function initEnvironment() {
             child.stdout.on('data', d => log('hardhat', d));
             child.stderr.on('data', d => log('hardhat', d));
             child.on('close', code => code === 0 ? resolve() : reject(new Error('Seed failed')));
+        });
+
+        // 2. Clone and setup Manager
+        const managerPath = path.join(ROOT, 'external', 'bedrock-server-manager');
+        if (!fs.existsSync(managerPath)) {
+            console.log('Cloning Bedrock Server Manager...');
+            fs.mkdirSync(path.join(ROOT, 'external'), { recursive: true });
+            execSync(`git clone https://github.com/digitaledsafety/bedrock-server-manager ${managerPath}`);
+            console.log('Installing Manager dependencies...');
+            execSync(`npm install`, { cwd: managerPath });
+        }
+
+        // 3. Prepare Addon
+        const addonPath = await prepareAddon();
+
+        // 4. Start Manager
+        startService('manager');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // 5. Inject Addon
+        console.log('Injecting addon into local manager...');
+        await fetch(`${MANAGER_API_URL}/api/inject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: addonPath })
         });
 
         console.log('Environment initialized successfully.');
@@ -220,7 +319,13 @@ const server = http.createServer((req, res) => {
             });
     } else if (url.pathname === '/minecraft/inject' && req.method === 'POST') {
         // Proxy to bedrock-server-manager
-        const addonPath = path.join(ROOT, 'addons', 'minecraft-bedrock-addon');
+        const addonPath = path.join(ROOT, 'temp_addon');
+        if (!fs.existsSync(addonPath)) {
+            res.writeHead(400);
+            res.end(JSON.stringify({ error: 'Addon not prepared. Run /init first.' }));
+            return;
+        }
+
         console.log(`Injecting addon from ${addonPath} to ${MANAGER_API_URL}`);
 
         fetch(`${MANAGER_API_URL}/api/inject`, {
@@ -244,13 +349,20 @@ const server = http.createServer((req, res) => {
 const mode = process.argv[2];
 if (mode === 'init') {
     initEnvironment().then(() => {
-        startService('bridge');
-        startService('frontend');
+        if (!IS_STAGING) {
+            startService('bridge');
+            startService('frontend');
+        }
     });
 } else if (mode === 'start') {
-    startService('hardhat');
-    startService('bridge');
-    startService('frontend');
+    if (!IS_STAGING) {
+        startService('hardhat');
+        startService('bridge');
+        startService('frontend');
+        startService('manager');
+    } else {
+        console.log('In staging mode, services are expected to be running externally.');
+    }
 }
 
 server.listen(PORT, () => {
