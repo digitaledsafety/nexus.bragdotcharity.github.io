@@ -34,7 +34,9 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
         bool canceled;
         address proposer;
         uint256 approvalCount;
+        uint256 rejectionCount;
         mapping(address => bool) approved;
+        mapping(address => bool) rejected;
     }
 
     mapping(uint256 => Proposal) public proposals;
@@ -45,6 +47,7 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     event ThresholdChanged(uint256 threshold);
     event Proposed(uint256 indexed proposalId, address indexed proposer, address target, uint256 value, bytes data);
     event Approved(uint256 indexed proposalId, address indexed owner);
+    event Rejected(uint256 indexed proposalId, address indexed owner);
     event Executed(uint256 indexed proposalId);
     event Canceled(uint256 indexed proposalId);
 
@@ -55,6 +58,7 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     error AlreadyExecuted();
     error AlreadyCanceled();
     error AlreadyApproved();
+    error AlreadyRejected();
     error ThresholdNotMet();
     error ExecutionFailed();
     error NotProposer();
@@ -166,11 +170,36 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
         if (p.executed) revert AlreadyExecuted();
         if (p.canceled) revert AlreadyCanceled();
         if (p.approved[owner]) revert AlreadyApproved();
+        if (p.rejected[owner]) revert AlreadyRejected();
 
         p.approved[owner] = true;
         p.approvalCount++;
 
         emit Approved(proposalId, owner);
+    }
+
+    /**
+     * @dev Reject an existing proposal.
+     */
+    function rejectProposal(uint256 proposalId, uint256 nonce) public onlyOwner(nonce) {
+        address owner = _getMsgSender(nonce);
+        if (proposalId >= proposalCount) revert ProposalNotFound();
+
+        Proposal storage p = proposals[proposalId];
+        if (p.executed) revert AlreadyExecuted();
+        if (p.canceled) revert AlreadyCanceled();
+        if (p.approved[owner]) revert AlreadyApproved();
+        if (p.rejected[owner]) revert AlreadyRejected();
+
+        p.rejected[owner] = true;
+        p.rejectionCount++;
+
+        emit Rejected(proposalId, owner);
+
+        if (p.rejectionCount >= threshold) {
+            p.canceled = true;
+            emit Canceled(proposalId);
+        }
     }
 
     /**
@@ -278,6 +307,10 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
     function hasApproved(uint256 proposalId, address owner) external view returns (bool) {
         return proposals[proposalId].approved[owner];
+    }
+
+    function hasRejected(uint256 proposalId, address owner) external view returns (bool) {
+        return proposals[proposalId].rejected[owner];
     }
 
     function isValidSignature(bytes32 hash, bytes calldata signature) external view override returns (bytes4) {

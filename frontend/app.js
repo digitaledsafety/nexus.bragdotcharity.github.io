@@ -498,6 +498,7 @@ async function renderProposals(treasury) {
         for (let i = count.sub(1); i.gte(start); i = i.sub(1)) {
             const p = await treasury.proposals(i);
             const isApproved = userAddress ? await treasury.hasApproved(i, userAddress) : false;
+            const isRejected = userAddress ? await treasury.hasRejected(i, userAddress) : false;
             const threshold = await treasury.threshold();
 
             const div = document.createElement('div');
@@ -506,7 +507,10 @@ async function renderProposals(treasury) {
             let statusTag = '';
             if (p.executed) statusTag = '<span class="text-[8px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 uppercase font-black">Executed</span>';
             else if (p.canceled) statusTag = '<span class="text-[8px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 uppercase font-black">Canceled</span>';
-            else statusTag = `<span class="text-[8px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 uppercase font-black">${p.approvalCount} / ${threshold} Approved</span>`;
+            else {
+                const rejectStatus = p.rejectionCount > 0 ? `<span class="text-[8px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 uppercase font-black ml-2">${p.rejectionCount} Rejected</span>` : '';
+                statusTag = `<div class="flex items-center"><span class="text-[8px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 uppercase font-black">${p.approvalCount} / ${threshold} Approved</span>${rejectStatus}</div>`;
+            }
 
             div.innerHTML = `
                 <div class="flex items-center justify-between">
@@ -519,7 +523,8 @@ async function renderProposals(treasury) {
                 </div>
                 ${!p.executed && !p.canceled ? `
                 <div class="flex space-x-2 pt-2">
-                    ${!isApproved ? `<button class="btn-approve btn-primary px-3 py-1.5 rounded-lg text-[9px] font-black uppercase" data-id="${i}">Approve</button>` : ''}
+                    ${(!isApproved && !isRejected) ? `<button class="btn-approve btn-primary px-3 py-1.5 rounded-lg text-[9px] font-black uppercase" data-id="${i}">Approve</button>` : ''}
+                    ${(!isApproved && !isRejected) ? `<button class="btn-reject btn-secondary px-3 py-1.5 rounded-lg text-[9px] font-black uppercase border border-rose-500/30 text-rose-400" data-id="${i}">Reject</button>` : ''}
                     ${p.approvalCount.gte(threshold) ? `<button class="btn-execute-prop btn-secondary px-3 py-1.5 rounded-lg text-[9px] font-black uppercase" data-id="${i}">Execute</button>` : ''}
                 </div>
                 ` : ''}
@@ -529,6 +534,12 @@ async function renderProposals(treasury) {
             div.querySelector('.btn-approve')?.addEventListener('click', async () => {
                 const nonce = Math.floor(Date.now() / 1000);
                 await txHandler(treasury, 'approve', [i, nonce], `Proposal #${i} Approved`);
+                refreshTreasuryInfo();
+            });
+
+            div.querySelector('.btn-reject')?.addEventListener('click', async () => {
+                const nonce = Math.floor(Date.now() / 1000);
+                await txHandler(treasury, 'rejectProposal', [i, nonce], `Proposal #${i} Rejected`);
                 refreshTreasuryInfo();
             });
 
