@@ -32,5 +32,7 @@ contract MaliciousBuyer is IERC721Receiver {
         return this.onERC721Received.selector;
     }
 
-    receive() external payable {}
+    receive() external payable {
+        revert("I am malicious");
+    }
 }

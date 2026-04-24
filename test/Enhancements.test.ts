@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, keccak256, toBytes } from "viem";
+import { getAddress, parseEther, keccak256, toBytes, zeroAddress } from "viem";
 
 describe("Enhancements (Royalties & SVG Escaping)", async function () {
   const { viem } = await network.connect();
@@ -129,5 +129,188 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     assert.equal(treasuryBalanceAfter - treasuryBalanceBefore, parseEther("8"));
     // Seller proceeds: 100 - 10 - 8 = 82 ETH
     assert.equal(sellerBalanceAfter - sellerBalanceBefore, parseEther("82"));
+  });
+});
+
+describe("Enhancements (New)", function () {
+  async function setup() {
+    const { viem } = await network.connect();
+    const [owner, otherAccount, thirdAccount] = await viem.getWalletClients();
+    const publicClient = await viem.getPublicClient();
+
+    // 1. Setup Treasury
+    const mockEntryPoint = await viem.deployContract("MockEntryPoint");
+    const owners = [owner.account.address, otherAccount.account.address, thirdAccount.account.address];
+    const threshold = 2n;
+    const treasury = await viem.deployContract("Treasury", [owners, threshold, mockEntryPoint.address]);
+
+    // 2. Setup BatchGrant
+    const batchGrant = await viem.deployContract("BatchGrant", [owner.account.address]);
+
+    // 3. Setup NFTMarketplace
+    const mockUsdc = await viem.deployContract("MockUSDC");
+    const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, mockUsdc.address]);
+
+    // 4. Setup ExhibitVault
+    const mockRegistry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
+    const vault1 = await viem.deployContract("ExhibitVault", [mockRegistry.address]);
+    const vault2 = await viem.deployContract("ExhibitVault", [mockRegistry.address]);
+    await mockRegistry.write.verifyVault([vault1.address, 0, "Vault 1", "Desc"], { account: owner.account });
+    await mockRegistry.write.verifyVault([vault2.address, 0, "Vault 2", "Desc"], { account: owner.account });
+
+    const mock1155 = await viem.deployContract("MockERC1155");
+
+    return {
+      viem,
+      publicClient,
+      owner,
+      otherAccount,
+      thirdAccount,
+      treasury,
+      batchGrant,
+      marketplace,
+      mockUsdc,
+      vault1,
+      vault2,
+      mock1155,
+      mockRegistry
+    };
+  }
+
+  describe("Treasury Rejection Mechanism", function () {
+    it("should allow owners to reject a proposal", async function () {
+      const { treasury, owner, otherAccount } = await setup();
+      const nonce = 1n;
+      await treasury.write.propose([otherAccount.account.address, 0n, "0x", nonce], { account: owner.account });
+
+      const proposalId = 0n;
+      await treasury.write.rejectProposal([proposalId, nonce + 1n], { account: otherAccount.account });
+
+      const proposal = await treasury.read.proposals([proposalId]);
+      assert.equal(proposal[7], 1n); // rejectionCount
+      assert.equal(await treasury.read.hasRejected([proposalId, otherAccount.account.address]), true);
+    });
+
+    it("should cancel proposal when rejection threshold is reached", async function () {
+      const { treasury, owner, otherAccount, thirdAccount } = await setup();
+      const nonce = 1n;
+      await treasury.write.propose([otherAccount.account.address, 0n, "0x", nonce], { account: owner.account });
+
+      const proposalId = 0n;
+      await treasury.write.rejectProposal([proposalId, nonce + 1n], { account: otherAccount.account });
+      await treasury.write.rejectProposal([proposalId, nonce + 2n], { account: thirdAccount.account });
+
+      const proposal = await treasury.read.proposals([proposalId]);
+      assert.equal(proposal[4], true); // canceled
+    });
+
+    it("should not allow approving a rejected proposal by the same owner", async function () {
+      const { treasury, owner, otherAccount } = await setup();
+      const nonce = 1n;
+      await treasury.write.propose([otherAccount.account.address, 0n, "0x", nonce], { account: owner.account });
+
+      const proposalId = 0n;
+      await treasury.write.rejectProposal([proposalId, nonce + 1n], { account: otherAccount.account });
+
+      await assert.rejects(
+        treasury.write.approve([proposalId, nonce + 2n], { account: otherAccount.account }),
+        /AlreadyRejected/
+      );
+    });
+  });
+
+  describe("BatchGrant Non-Atomic Distribution", function () {
+    it("should continue distribution even if one transfer fails", async function () {
+      const { batchGrant, owner, otherAccount, publicClient, viem } = await setup();
+      // Use a contract that reverts on ETH receipt
+      const revertingContract = await viem.deployContract("MaliciousBuyer", [zeroAddress, zeroAddress]);
+
+      const recipients = [otherAccount.account.address, revertingContract.address];
+      const amounts = [parseEther("1"), parseEther("1")];
+      const total = parseEther("2");
+
+      const balanceBefore = await publicClient.getBalance({ address: otherAccount.account.address });
+
+      await batchGrant.write.distributeETHNonAtomic([recipients, amounts], {
+        account: owner.account,
+        value: total,
+      });
+
+      const balanceAfter = await publicClient.getBalance({ address: otherAccount.account.address });
+      assert.equal(balanceAfter, balanceBefore + parseEther("1"));
+
+      // Check for event
+      const logs = await publicClient.getContractEvents({
+        address: batchGrant.address,
+        abi: batchGrant.abi,
+        eventName: 'DistributionFailed'
+      });
+      assert.equal(logs.length, 1);
+      assert.equal(logs[0].args.recipient.toLowerCase(), revertingContract.address.toLowerCase());
+    });
+  });
+
+  describe("NFTMarketplace Zero-Value Proceeds", function () {
+    it("should not revert when seller proceeds are zero", async function () {
+      const { marketplace, owner, otherAccount, mockUsdc, viem } = await setup();
+
+      // Set protocol fee to 10% (1000 bps)
+      await marketplace.write.setProtocolFee([1000n], { account: owner.account });
+
+      const mockNFT = await viem.deployContract("MockRoyaltyNFT", ["Mock", "MCK"]);
+      const tokenId = 1n;
+      await mockNFT.write.mint([owner.account.address, tokenId]);
+      await mockNFT.write.approve([marketplace.address, tokenId], { account: owner.account });
+
+      const price = 1000n;
+      await mockUsdc.write.mint([otherAccount.account.address, price]);
+      await mockUsdc.write.approve([marketplace.address, price], { account: otherAccount.account });
+
+      await marketplace.write.createOffer([mockNFT.address, tokenId, 1n, price], { account: otherAccount.account });
+
+      // This would have reverted if it tried to transfer 0 proceeds and the token didn't support it.
+      // Even if MockUSDC supports it, we are testing that the code path works.
+      await marketplace.write.acceptOffer([mockNFT.address, tokenId, otherAccount.account.address], { account: owner.account });
+
+      const offer = await marketplace.read.offers([mockNFT.address, tokenId, otherAccount.account.address]);
+      assert.equal(offer[0], 0n);
+    });
+  });
+
+  describe("ExhibitVault ERC1155 Batch Operations", function () {
+    it("should withdraw multiple 1155 tokens in one batch", async function () {
+      const { vault1, owner, mock1155 } = await setup();
+      const ids = [1n, 2n];
+      const amounts = [100n, 200n];
+
+      await mock1155.write.mintBatch([owner.account.address, ids, amounts]);
+      await mock1155.write.setApprovalForAll([vault1.address, true]);
+
+      await mock1155.write.safeBatchTransferFrom([owner.account.address, vault1.address, ids, amounts, "0x"]);
+
+      assert.equal(await vault1.read.balances1155([mock1155.address, 1n, owner.account.address]), 100n);
+      assert.equal(await vault1.read.balances1155([mock1155.address, 2n, owner.account.address]), 200n);
+
+      await vault1.write.withdrawBatch1155([mock1155.address, ids, amounts], { account: owner.account });
+
+      assert.equal(await vault1.read.balances1155([mock1155.address, 1n, owner.account.address]), 0n);
+      assert.equal(await vault1.read.balances1155([mock1155.address, 2n, owner.account.address]), 0n);
+      assert.equal(await mock1155.read.balanceOf([owner.account.address, 1n]), 100n);
+    });
+
+    it("should move multiple 1155 tokens in one batch", async function () {
+        const { vault1, vault2, owner, mock1155 } = await setup();
+        const ids = [1n, 2n];
+        const amounts = [50n, 60n];
+
+        await mock1155.write.mintBatch([owner.account.address, ids, amounts]);
+        await mock1155.write.setApprovalForAll([vault1.address, true]);
+        await mock1155.write.safeBatchTransferFrom([owner.account.address, vault1.address, ids, amounts, "0x"]);
+
+        await vault1.write.moveBatch1155([mock1155.address, ids, amounts, vault2.address], { account: owner.account });
+
+        assert.equal(await vault1.read.balances1155([mock1155.address, 1n, owner.account.address]), 0n);
+        assert.equal(await vault2.read.balances1155([mock1155.address, 1n, owner.account.address]), 50n);
+    });
   });
 });

@@ -124,7 +124,9 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         if (royaltyFee > 0) {
             paymentToken.safeTransfer(royaltyRecipient, royaltyFee);
         }
-        paymentToken.safeTransfer(msg.sender, sellerProceeds);
+        if (sellerProceeds > 0) {
+            paymentToken.safeTransfer(msg.sender, sellerProceeds);
+        }
 
         emit OfferAccepted(nftContract, tokenId, msg.sender, offer.price, offer.amount);
     }
