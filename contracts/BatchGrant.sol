@@ -16,6 +16,8 @@ contract BatchGrant is AccessControl {
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
     }
 
+    event DistributionFailed(address indexed recipient, uint256 amount);
+
     /**
      * @dev Allows the contract to receive ETH.
      */
@@ -74,6 +76,27 @@ contract BatchGrant is AccessControl {
         for (uint256 i = 0; i < recipients.length; i++) {
             (bool success, ) = recipients[i].call{value: amounts[i]}("");
             require(success, "ETH transfer failed");
+        }
+    }
+
+    /**
+     * @dev Distributes native ETH to multiple recipients, continuing even if some transfers fail.
+     * @param recipients Array of recipient addresses.
+     * @param amounts Array of amounts to transfer to each recipient.
+     */
+    function distributeETHNonAtomic(address[] calldata recipients, uint256[] calldata amounts) external payable {
+        require(recipients.length == amounts.length, "Mismatched arrays");
+        uint256 total = 0;
+        for (uint256 i = 0; i < recipients.length; i++) {
+            total += amounts[i];
+        }
+        require(msg.value >= total, "Incorrect ETH amount sent");
+
+        for (uint256 i = 0; i < recipients.length; i++) {
+            (bool success, ) = recipients[i].call{value: amounts[i]}("");
+            if (!success) {
+                emit DistributionFailed(recipients[i], amounts[i]);
+            }
         }
     }
 }

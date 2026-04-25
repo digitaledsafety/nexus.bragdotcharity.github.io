@@ -90,9 +90,16 @@ describe("Issue Fixes", async function () {
              const proposalCount = await treasury.read.proposalCount();
              assert.equal(proposalCount, 1n);
 
+             const calls = await treasury.read.getProposalCalls([0n]);
+             assert.equal(calls.length, 1);
+             assert.equal(getAddress(calls[0].target), getAddress(target));
+             assert.equal(calls[0].value, value);
+
              const proposal = await treasury.read.proposals([0n]);
-             assert.equal(proposal[0], getAddress(target));
-             assert.equal(proposal[1], value);
+             assert.equal(proposal[0], false); // executed
+             assert.equal(proposal[1], false); // canceled
+             assert.equal(getAddress(proposal[2]), getAddress(owner.account.address)); // proposer
+             assert.equal(proposal[3], 1n); // approvalCount
         });
     });
 

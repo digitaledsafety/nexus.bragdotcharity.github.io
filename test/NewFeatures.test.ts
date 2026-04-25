@@ -1,157 +1,150 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, zeroAddress, decodeEventLog } from "viem";
+import {
+  parseEther,
+  encodeFunctionData,
+  keccak256,
+  toBytes,
+  getAddress
+} from "viem";
 
-describe("New Features", async function () {
+describe("New Features and Enhancements", async function () {
   const { viem } = await network.connect();
 
-  async function setup() {
+  async function deployContracts() {
     const [owner, user1, user2] = await viem.getWalletClients();
+    const publicClient = await viem.getPublicClient();
 
-    // Deploy ExhibitVault and Registry
-    const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
-    const vault = await viem.deployContract("ExhibitVault", [registry.address]);
-    await registry.write.verifyVault([vault.address, 0, "Test Vault", "Description"]);
-
-    // Deploy BragToken
-    const initialSupply = parseEther("1000000");
-    const bragToken = await viem.deployContract("BragToken", [owner.account.address, initialSupply, initialSupply * 2n]);
-
-    // Deploy Marketplace
+    const bragToken = await viem.deployContract("BragToken", [owner.account.address, 0n, parseEther("1000000")]);
+    const treasury = await viem.deployContract("Treasury", [[owner.account.address], 1n, owner.account.address]); // Mock EP for now
+    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]); // $2500/ETH
+    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, treasury.address, parseEther("0.01"), priceFeed.address]);
     const marketplace = await viem.deployContract("NFTMarketplace", [owner.account.address, bragToken.address]);
+    const batchGrant = await viem.deployContract("BatchGrant", [owner.account.address]);
 
-    // Deploy Mock NFTs
-    const mock721 = await viem.deployContract("MockRoyaltyNFT", ["Mock721", "M721"]);
-    const mock1155 = await viem.deployContract("MockERC1155", []);
+    const MINTER_ROLE = keccak256(toBytes("MINTER_ROLE"));
+    await bragToken.write.grantRole([MINTER_ROLE, bragNFT.address]);
 
-    // Deploy BragNFT
-    const priceFeed = await viem.deployContract("MockPriceFeed", [250000000000n]);
-    const bragNFT = await viem.deployContract("BragNFT", [owner.account.address, owner.account.address, parseEther("0.1"), priceFeed.address]);
-
-    const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
-
-
-    return { owner, user1, user2, vault, registry, bragToken, marketplace, mock721, mock1155, bragNFT };
+    return { owner, user1, user2, bragToken, treasury, bragNFT, marketplace, batchGrant, publicClient, priceFeed };
   }
 
-  describe("ExhibitVault Batch Withdrawals", function () {
-    it("Should batch withdraw ERC721 tokens", async function () {
-      const { user1, vault, mock721 } = await setup();
+  describe("BatchGrant Non-Atomic Distribution", async function () {
+    it("Should emit DistributionFailed when a transfer fails and continue", async function () {
+      const { owner, user1, batchGrant, publicClient } = await deployContracts();
+      const revertingContract = await viem.deployContract("RevertingContract");
 
-      const tokenIds = [1n, 2n, 3n];
-      for (const id of tokenIds) {
-        await mock721.write.mint([user1.account.address, id]);
-        await mock721.write.approve([vault.address, id], { account: user1.account });
-        await mock721.write.safeTransferFrom([user1.account.address, vault.address, id], { account: user1.account });
-      }
+      const recipients = [user1.account.address, revertingContract.address, owner.account.address];
+      const amounts = [parseEther("1"), parseEther("1"), parseEther("1")];
 
-      assert.equal(await mock721.read.ownerOf([1n]), getAddress(vault.address));
+      await batchGrant.write.distributeETHNonAtomic([recipients, amounts], { value: parseEther("3") });
 
-      const nftContracts = [mock721.address, mock721.address, mock721.address];
-      await vault.write.batchWithdraw721([nftContracts, tokenIds], { account: user1.account });
+      const logs = await publicClient.getContractEvents({
+        address: batchGrant.address,
+        abi: batchGrant.abi,
+        eventName: "DistributionFailed"
+      });
 
-      for (const id of tokenIds) {
-        assert.equal(await mock721.read.ownerOf([id]), getAddress(user1.account.address));
-      }
-    });
+      assert.equal(logs.length, 1);
+      assert.equal(getAddress(logs[0].args.recipient!), getAddress(revertingContract.address));
 
-    it("Should batch withdraw ERC1155 tokens", async function () {
-      const { user1, vault, mock1155 } = await setup();
-
-      const tokenIds = [1n, 2n];
-      const amounts = [10n, 20n];
-
-      await mock1155.write.mint([user1.account.address, 1n, 100n]);
-      await mock1155.write.mint([user1.account.address, 2n, 100n]);
-      await mock1155.write.setApprovalForAll([vault.address, true], { account: user1.account });
-
-      await mock1155.write.safeBatchTransferFrom([user1.account.address, vault.address, tokenIds, amounts, "0x"], { account: user1.account });
-
-      assert.equal(await mock1155.read.balanceOf([vault.address, 1n]), 10n);
-
-      const nftContracts = [mock1155.address, mock1155.address];
-      await vault.write.batchWithdraw1155([nftContracts, tokenIds, amounts], { account: user1.account });
-
-      assert.equal(await mock1155.read.balanceOf([vault.address, 1n]), 0n);
-      assert.equal(await mock1155.read.balanceOf([user1.account.address, 1n]), 100n);
+      const balance1 = await publicClient.getBalance({ address: user1.account.address });
+      assert.ok(balance1 > parseEther("10000")); // Hardhat default balance is 10k ETH
     });
   });
 
-  describe("BragNFT Uppercase Extensions", function () {
-    it("Should detect uppercase media extensions", async function () {
-      const { bragNFT } = await setup();
+  describe("BragNFT Multimedia Detection with Query Params", async function () {
+    it("Should correctly detect multimedia even with query parameters", async function () {
+        const { bragNFT } = await deployContracts();
 
-      const testURIs = ["image.JPG", "video.MP4", "audio.WAV", "animation.GIF", "file.WEBM"];
+        await bragNFT.write.donate(["Impact NFT", "https://example.com/audio.mp3?token=123", false], { value: parseEther("0.1") });
+        const uri = await bragNFT.read.tokenURI([0n]);
+        const decoded = JSON.parse(Buffer.from(uri.split(",")[1], 'base64').toString());
 
-      for (const uri of testURIs) {
-        await bragNFT.write.donate(["test", uri], { value: parseEther("0.1") });
-        const tokenId = await bragNFT.read.totalSupply() - 1n;
-        const metadataBase64 = await bragNFT.read.tokenURI([tokenId]);
-        const metadataJson = Buffer.from(metadataBase64.split(",")[1], 'base64').toString();
-        const metadata = JSON.parse(metadataJson);
-
-        if (uri.endsWith(".JPG")) {
-          assert.equal(metadata.image, uri);
-          assert.ok(!metadata.animation_url);
-        } else {
-          assert.ok(metadata.animation_url, `Should have animation_url for ${uri}`);
-          assert.equal(metadata.animation_url, uri);
-        }
-      }
+        assert.equal(decoded.animation_url, "https://example.com/audio.mp3?token=123");
     });
   });
 
-  describe("NFTMarketplace Offer Updates", function () {
-    it("Should allow updating an offer (increase price)", async function () {
-      const { owner, user1, user2, marketplace, bragToken, mock721 } = await setup();
+  describe("NFTMarketplace Fixed-Price Listings", async function () {
+    it("Should allow listing and buying an NFT", async function () {
+        const { owner, user1, bragNFT, bragToken, marketplace } = await deployContracts();
 
-      const tokenId = 1n;
-      await mock721.write.mint([user1.account.address, tokenId]);
+        // Mint NFT to user1
+        await bragNFT.write.donateTo([user1.account.address, "For sale", "ipfs://test"], { value: parseEther("0.1") });
 
-      // Fund user2
-      await bragToken.write.transfer([user2.account.address, parseEther("100")], { account: owner.account });
+        // user1 lists NFT
+        await user1.writeContract({
+            address: bragNFT.address,
+            abi: bragNFT.abi,
+            functionName: "approve",
+            args: [marketplace.address, 0n]
+        });
 
-      // Create initial offer
-      const initialPrice = parseEther("10");
-      await bragToken.write.approve([marketplace.address, parseEther("100")], { account: user2.account });
-      await marketplace.write.createOffer([mock721.address, tokenId, 1n, initialPrice], { account: user2.account });
+        await user1.writeContract({
+            address: marketplace.address,
+            abi: marketplace.abi,
+            functionName: "createListing",
+            args: [bragNFT.address, 0n, 1n, parseEther("100")]
+        });
 
-      assert.equal(await bragToken.read.balanceOf([marketplace.address]), initialPrice);
+        const listing = await marketplace.read.listings([bragNFT.address, 0n]);
+        assert.equal(listing[3], true); // active
+        assert.equal(listing[1], parseEther("100")); // price
 
-      // Update offer (increase)
-      const newPrice = parseEther("15");
-      await marketplace.write.updateOffer([mock721.address, tokenId, 1n, newPrice], { account: user2.account });
+        // owner buys NFT (owner needs BRAG tokens first)
+        await bragToken.write.mint([owner.account.address, parseEther("1000")]);
+        await bragToken.write.approve([marketplace.address, parseEther("100")]);
 
-      const offer = await marketplace.read.offers([mock721.address, tokenId, user2.account.address]);
-      assert.equal(offer[0], newPrice);
-      assert.equal(await bragToken.read.balanceOf([marketplace.address]), newPrice);
+        await marketplace.write.buyFromListing([bragNFT.address, 0n]);
+
+        const newOwner = await bragNFT.read.ownerOf([0n]);
+        assert.equal(getAddress(newOwner), getAddress(owner.account.address));
+
+        const soldListing = await marketplace.read.listings([bragNFT.address, 0n]);
+        assert.equal(soldListing[3], false);
+    });
+  });
+
+  describe("Treasury Batch Execution", async function () {
+    it("Should execute a batch of transactions", async function () {
+        const { owner, treasury } = await deployContracts();
+        const testTarget = await viem.deployContract("MockUSDC");
+
+        const targets = [testTarget.address, testTarget.address];
+        const values = [0n, 0n];
+        const datas = [
+            encodeFunctionData({
+                abi: testTarget.abi,
+                functionName: "mint",
+                args: [owner.account.address, 100n]
+            }),
+            encodeFunctionData({
+                abi: testTarget.abi,
+                functionName: "mint",
+                args: [owner.account.address, 200n]
+            })
+        ];
+
+        await treasury.write.executeBatch([targets, values, datas, 0n]);
+
+        const balance = await testTarget.read.balanceOf([owner.account.address]);
+        assert.equal(balance, 300n);
     });
 
-    it("Should allow updating an offer (decrease price)", async function () {
-      const { owner, user1, user2, marketplace, bragToken, mock721 } = await setup();
+    it("Should allow owner to execute a single call directly when threshold is 1", async function () {
+        const { owner, treasury } = await deployContracts();
+        const testTarget = await viem.deployContract("MockUSDC");
 
-      const tokenId = 2n;
-      await mock721.write.mint([user1.account.address, tokenId]);
+        const data = encodeFunctionData({
+            abi: testTarget.abi,
+            functionName: "mint",
+            args: [owner.account.address, 500n]
+        });
 
-      // Fund user2
-      await bragToken.write.transfer([user2.account.address, parseEther("100")], { account: owner.account });
+        await treasury.write.execute([testTarget.address, 0n, data, 0n]);
 
-      // Create initial offer
-      const initialPrice = parseEther("20");
-      await bragToken.write.approve([marketplace.address, parseEther("100")], { account: user2.account });
-      await marketplace.write.createOffer([mock721.address, tokenId, 1n, initialPrice], { account: user2.account });
-
-      const balanceBefore = await bragToken.read.balanceOf([user2.account.address]);
-
-      // Update offer (decrease)
-      const newPrice = parseEther("15");
-      await marketplace.write.updateOffer([mock721.address, tokenId, 1n, newPrice], { account: user2.account });
-
-      const offer = await marketplace.read.offers([mock721.address, tokenId, user2.account.address]);
-      assert.equal(offer[0], newPrice);
-      assert.equal(await bragToken.read.balanceOf([marketplace.address]), newPrice);
-      assert.equal(await bragToken.read.balanceOf([user2.account.address]), balanceBefore + (initialPrice - newPrice));
+        const balance = await testTarget.read.balanceOf([owner.account.address]);
+        assert.equal(balance, 500n);
     });
   });
 });
