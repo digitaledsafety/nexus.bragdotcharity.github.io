@@ -26,10 +26,14 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
     // Nonce -> Signer (to attribute actions across validation and execution)
     mapping(uint256 => address) private _signerByNonce;
 
-    struct Proposal {
+    struct Call {
         address target;
         uint256 value;
         bytes data;
+    }
+
+    struct Proposal {
+        Call[] calls;
         bool executed;
         bool canceled;
         address proposer;
@@ -141,12 +145,33 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
         uint256 proposalId = proposalCount++;
 
         Proposal storage p = proposals[proposalId];
-        p.target = target;
-        p.value = value;
-        p.data = data;
+        p.calls.push(Call({target: target, value: value, data: data}));
         p.proposer = proposer;
 
         emit Proposed(proposalId, proposer, target, value, data);
+
+        p.approved[proposer] = true;
+        p.approvalCount = 1;
+        emit Approved(proposalId, proposer);
+
+        return proposalId;
+    }
+
+    /**
+     * @dev Propose multiple transactions. The proposer auto-approves it.
+     */
+    function proposeBatch(address[] calldata targets, uint256[] calldata values, bytes[] calldata datas, uint256 nonce) external onlyOwner(nonce) returns (uint256) {
+        require(targets.length == values.length && values.length == datas.length, "Mismatched arrays");
+        address proposer = _getMsgSender(nonce);
+        uint256 proposalId = proposalCount++;
+
+        Proposal storage p = proposals[proposalId];
+        p.proposer = proposer;
+
+        for (uint256 i = 0; i < targets.length; i++) {
+            p.calls.push(Call({target: targets[i], value: values[i], data: datas[i]}));
+            emit Proposed(proposalId, proposer, targets[i], values[i], datas[i]);
+        }
 
         p.approved[proposer] = true;
         p.approvalCount = 1;
@@ -186,8 +211,10 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
         p.executed = true;
 
-        (bool success, ) = p.target.call{value: p.value}(p.data);
-        if (!success) revert ExecutionFailed();
+        for (uint256 i = 0; i < p.calls.length; i++) {
+            (bool success, ) = p.calls[i].target.call{value: p.calls[i].value}(p.calls[i].data);
+            if (!success) revert ExecutionFailed();
+        }
 
         emit Executed(proposalId);
     }
@@ -227,6 +254,30 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
         (bool success, ) = target.call{value: value}(data);
         if (!success) revert ExecutionFailed();
+
+        // Clean up signer data if called by EntryPoint
+        if (msg.sender == address(entryPoint())) {
+            delete _signerByNonce[nonce];
+        }
+    }
+
+    /**
+     * @dev Direct batch execution. Same rules as execute().
+     */
+    function executeBatch(address[] calldata targets, uint256[] calldata values, bytes[] calldata datas, uint256 nonce) external {
+        require(targets.length == values.length && values.length == datas.length, "Mismatched arrays");
+
+        if (msg.sender == address(entryPoint())) {
+            if (threshold != 1) revert InvalidThreshold();
+        } else if (msg.sender != address(this)) {
+            _checkOwner(msg.sender);
+            if (threshold != 1) revert InvalidThreshold();
+        }
+
+        for (uint256 i = 0; i < targets.length; i++) {
+            (bool success, ) = targets[i].call{value: values[i]}(datas[i]);
+            if (!success) revert ExecutionFailed();
+        }
 
         // Clean up signer data if called by EntryPoint
         if (msg.sender == address(entryPoint())) {
@@ -274,6 +325,10 @@ contract Treasury is Account, ERC721Holder, ERC1155Holder, IERC1271 {
 
     function getOwners() external view returns (address[] memory) {
         return _owners.values();
+    }
+
+    function getProposalCalls(uint256 proposalId) external view returns (Call[] memory) {
+        return proposals[proposalId].calls;
     }
 
     function hasApproved(uint256 proposalId, address owner) external view returns (bool) {

@@ -159,9 +159,21 @@ async function loadProductData(contractAddr, tokenId) {
             document.getElementById('nftImage').src = metadata.image;
         }
 
-        // Marketplace State - Find highest active offer
+        // Marketplace State - Find highest active offer & active listing
         if (marketplace) {
             try {
+                const listing = await marketplace.listings(contractAddr, tokenId);
+                if (listing.active) {
+                    document.getElementById('listingExists').classList.remove('hidden');
+                    document.getElementById('listingPrice').textContent = `${ethers.utils.formatEther(listing.price)} BRAG`;
+                    document.getElementById('listingSeller').textContent = `by ${listing.seller.substring(0, 6)}...${listing.seller.substring(38)}`;
+
+                    if (listing.seller.toLowerCase() === (userAddress || '').toLowerCase()) {
+                        document.getElementById('btnBuyNow').classList.add('hidden');
+                        document.getElementById('btnCancelListing').classList.remove('hidden');
+                    }
+                }
+
                 const offerFilter = marketplace.filters.OfferCreated(contractAddr, tokenId);
                 let offerEvents = [];
                 try {
@@ -207,6 +219,11 @@ async function loadProductData(contractAddr, tokenId) {
             collBadge.className = 'px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase tracking-widest ml-2';
             collBadge.textContent = externalColl.name;
             document.getElementById('nftName').appendChild(collBadge);
+        }
+
+        // Seller Actions Visibility
+        if (owner.toLowerCase() === (userAddress || '').toLowerCase()) {
+            document.getElementById('sellerActions').classList.remove('hidden');
         }
 
         // Buttons
@@ -332,6 +349,83 @@ function setupProductActions(contractAddr, tokenId, metadata) {
             image: metadata.image
         });
     };
+
+    const btnCreateListing = document.getElementById('btnCreateListing');
+    if (btnCreateListing) {
+        btnCreateListing.onclick = async () => {
+            const priceStr = document.getElementById('listPrice').value;
+            if (!priceStr || parseFloat(priceStr) <= 0) return alert('Enter valid BRAG price');
+
+            const marketplace = getContract('NFTMarketplace');
+            const genericNFT = getContract('IERC721', contractAddr);
+
+            try {
+                const price = ethers.utils.parseEther(priceStr);
+                const amount = 1;
+
+                const owner = isGaslessMode ? scaAddress : userAddress;
+                const isApproved = await genericNFT.isApprovedForAll(owner, marketplace.address);
+
+                if (!isApproved) {
+                    alert('Approval required for marketplace.');
+                    const appTx = await txHandler(genericNFT, 'setApprovalForAll', [marketplace.address, true], 'Approval successful');
+                    if (!appTx) return;
+                    if (appTx.wait) await appTx.wait();
+                }
+
+                const tx = await txHandler(marketplace, 'createListing', [contractAddr, tokenId, amount, price]);
+                alert('Listing created!');
+                await tx.wait();
+                window.location.reload();
+            } catch (e) {
+                alert('Listing failed: ' + (e.reason || e.message));
+            }
+        };
+    }
+
+    const btnCancelListing = document.getElementById('btnCancelListing');
+    if (btnCancelListing) {
+        btnCancelListing.onclick = async () => {
+            const marketplace = getContract('NFTMarketplace');
+            try {
+                const tx = await txHandler(marketplace, 'cancelListing', [contractAddr, tokenId]);
+                alert('Listing canceled!');
+                await tx.wait();
+                window.location.reload();
+            } catch (e) {
+                alert('Cancel failed: ' + (e.reason || e.message));
+            }
+        };
+    }
+
+    const btnBuyNow = document.getElementById('btnBuyNow');
+    if (btnBuyNow) {
+        btnBuyNow.onclick = async () => {
+            const marketplace = getContract('NFTMarketplace');
+            const bragToken = getContract('BragToken');
+            try {
+                const listing = await marketplace.listings(contractAddr, tokenId);
+                const price = listing.price;
+
+                const owner = isGaslessMode ? scaAddress : userAddress;
+                const allowance = await bragToken.allowance(owner, marketplace.address);
+
+                if (allowance.lt(price)) {
+                    alert('Approval required for BRAG tokens.');
+                    const appTx = await txHandler(bragToken, 'approve', [marketplace.address, price], 'Approval successful');
+                    if (!appTx) return;
+                    if (appTx.wait) await appTx.wait();
+                }
+
+                const tx = await txHandler(marketplace, 'buyFromListing', [contractAddr, tokenId]);
+                alert('Purchase successful!');
+                await tx.wait();
+                window.location.reload();
+            } catch (e) {
+                alert('Purchase failed: ' + (e.reason || e.message));
+            }
+        };
+    }
 }
 
 function generateTaxPDF(tokenId, metadata) {
