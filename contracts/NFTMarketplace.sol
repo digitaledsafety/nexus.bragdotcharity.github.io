@@ -26,6 +26,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
 
     uint256 public protocolFeeBps; // e.g., 250 for 2.5%
     address public feeRecipient;
+    uint256 public minOfferPrice;
 
     event OfferCreated(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 amount);
     event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, uint256 price, uint256 amount);
@@ -34,6 +35,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     event OfferRejected(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller);
     event FeeRecipientUpdated(address indexed newRecipient);
     event ProtocolFeeUpdated(uint256 newFeeBps);
+    event MinOfferPriceUpdated(uint256 newMinPrice);
 
     constructor(address initialAdmin, address _paymentToken) {
         paymentToken = IERC20(_paymentToken);
@@ -49,6 +51,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
      * @param price Total price in payment tokens
      */
     function createOffer(address nftContract, uint256 tokenId, uint256 amount, uint256 price) external nonReentrant {
+        require(price >= minOfferPrice, "Offer price below minimum");
         require(price > 0, "Offer price must be greater than 0");
         require(amount > 0, "Amount must be greater than 0");
         require(offers[nftContract][tokenId][msg.sender].price == 0, "Offer already exists");
@@ -76,10 +79,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         Offer memory offer = offers[nftContract][tokenId][buyer];
         require(offer.price > 0, "No valid offer exists");
 
-        // CEI: Clear the offer first
-        delete offers[nftContract][tokenId][buyer];
-
-        if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
+        if (IERC165(nftContract).supportsInterface(type(IERC721).interfaceId)) { // IERC721
             require(offer.amount == 1, "ERC721 offer must have amount 1");
             IERC721 nft = IERC721(nftContract);
             require(nft.ownerOf(tokenId) == msg.sender, "You do not own this NFT");
@@ -89,7 +89,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
             );
             // Transfer the NFT to the buyer
             nft.safeTransferFrom(msg.sender, buyer, tokenId);
-        } else if (IERC165(nftContract).supportsInterface(0xd9b67a26)) { // IERC1155
+        } else if (IERC165(nftContract).supportsInterface(type(IERC1155).interfaceId)) { // IERC1155
             IERC1155 nft = IERC1155(nftContract);
             require(nft.balanceOf(msg.sender, tokenId) >= offer.amount, "Insufficient balance");
             require(nft.isApprovedForAll(msg.sender, address(this)), "Contract not approved to transfer NFT");
@@ -98,6 +98,9 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         } else {
             revert("Unsupported NFT type");
         }
+
+        // CEI: Clear the offer after ownership check but before token transfers
+        delete offers[nftContract][tokenId][buyer];
 
         // Pay the seller and handle fees/royalties
         uint256 protocolFee = (offer.price * protocolFeeBps) / 10000;
@@ -157,6 +160,7 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
     function updateOffer(address nftContract, uint256 tokenId, uint256 newAmount, uint256 newPrice) external nonReentrant {
         Offer storage offer = offers[nftContract][tokenId][msg.sender];
         require(offer.price > 0, "Offer does not exist");
+        require(newPrice >= minOfferPrice, "New price below minimum");
         require(newPrice > 0, "New price must be greater than 0");
         require(newAmount > 0, "New amount must be greater than 0");
 
@@ -207,9 +211,9 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         require(offer.price > 0, "No valid offer exists");
 
         // Verify ownership
-        if (IERC165(nftContract).supportsInterface(0x80ac58cd)) { // IERC721
+        if (IERC165(nftContract).supportsInterface(type(IERC721).interfaceId)) { // IERC721
             require(IERC721(nftContract).ownerOf(tokenId) == msg.sender, "You do not own this NFT");
-        } else if (IERC165(nftContract).supportsInterface(0xd9b67a26)) { // IERC1155
+        } else if (IERC165(nftContract).supportsInterface(type(IERC1155).interfaceId)) { // IERC1155
             require(IERC1155(nftContract).balanceOf(msg.sender, tokenId) >= offer.amount, "Insufficient balance");
         } else {
             revert("Unsupported NFT type");
@@ -234,5 +238,10 @@ contract NFTMarketplace is ReentrancyGuard, AccessControl {
         require(_recipient != address(0), "Invalid address");
         feeRecipient = _recipient;
         emit FeeRecipientUpdated(_recipient);
+    }
+
+    function setMinOfferPrice(uint256 _minPrice) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        minOfferPrice = _minPrice;
+        emit MinOfferPriceUpdated(_minPrice);
     }
 }

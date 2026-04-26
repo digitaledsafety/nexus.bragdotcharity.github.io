@@ -50,17 +50,13 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         registry = IExhibitRegistry(_registry);
     }
 
-    /**
-     * @dev ERC721 tokens are exhibited by sending them to this contract via safeTransferFrom.
-     */
-    function onERC721Received(
-        address operator,
+    function _parseDepositData(
         address from,
-        uint256 tokenId,
+        address operator,
         bytes memory data
-    ) public override nonReentrant returns (bytes4) {
-        address actualOwner = (from == address(0)) ? operator : from;
-        uint256 duration = 0;
+    ) internal view returns (address actualOwner, uint256 duration) {
+        actualOwner = (from == address(0)) ? operator : from;
+        duration = 0;
 
         if (data.length == 32) {
             if (registry.isVerified(from)) {
@@ -75,6 +71,18 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
                 duration = abi.decode(data, (uint256));
             }
         }
+    }
+
+    /**
+     * @dev ERC721 tokens are exhibited by sending them to this contract via safeTransferFrom.
+     */
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes memory data
+    ) public override nonReentrant returns (bytes4) {
+        (address actualOwner, uint256 duration) = _parseDepositData(from, operator, data);
 
         owner721[msg.sender][tokenId] = actualOwner;
         uint256 newExpiry = duration > 0 ? block.timestamp + duration : 0;
@@ -98,22 +106,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256 value,
         bytes memory data
     ) public override nonReentrant returns (bytes4) {
-        address actualOwner = (from == address(0)) ? operator : from;
-        uint256 duration = 0;
-
-        if (data.length == 32) {
-            if (registry.isVerified(from)) {
-                actualOwner = abi.decode(data, (address));
-            } else {
-                duration = abi.decode(data, (uint256));
-            }
-        } else if (data.length == 64) {
-            if (registry.isVerified(from)) {
-                (actualOwner, duration) = abi.decode(data, (address, uint256));
-            } else {
-                duration = abi.decode(data, (uint256));
-            }
-        }
+        (address actualOwner, uint256 duration) = _parseDepositData(from, operator, data);
 
         balances1155[msg.sender][id][actualOwner] += value;
         uint256 newExpiry = duration > 0 ? block.timestamp + duration : 0;
@@ -134,22 +127,7 @@ contract ExhibitVault is ERC721Holder, ERC1155Holder, ReentrancyGuard {
         uint256[] memory values,
         bytes memory data
     ) public override nonReentrant returns (bytes4) {
-        address actualOwner = (from == address(0)) ? operator : from;
-        uint256 duration = 0;
-
-        if (data.length == 32) {
-            if (registry.isVerified(from)) {
-                actualOwner = abi.decode(data, (address));
-            } else {
-                duration = abi.decode(data, (uint256));
-            }
-        } else if (data.length == 64) {
-            if (registry.isVerified(from)) {
-                (actualOwner, duration) = abi.decode(data, (address, uint256));
-            } else {
-                duration = abi.decode(data, (uint256));
-            }
-        }
+        (address actualOwner, uint256 duration) = _parseDepositData(from, operator, data);
 
         uint256 newExpiry = duration > 0 ? block.timestamp + duration : 0;
         string memory location = registry.getVaultInfo(address(this)).name;
