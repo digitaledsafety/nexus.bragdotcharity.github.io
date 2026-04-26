@@ -212,9 +212,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
         // 4. Mint the transferable BragNFT
         _safeMint(recipient, nftTokenId);
 
-        // 5. Mint Brag Tokens (100,000 per USD)
+        // 5. Mint Brag Tokens (1,000,000 per USD)
         if (address(bragToken) != address(0) && usdValue > 0) {
-            bragToken.mint(msg.sender, usdValue * 10**15);
+            bragToken.mint(msg.sender, usdValue * 10**16);
         }
 
         // 6. Transfer to treasury
@@ -254,11 +254,11 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
 
     /**
      * @dev Recharge the "glow" of an NFT using BRAG tokens.
-     * Requires 100,000 BRAG tokens (fixed at $1 value).
+     * Requires 1,000,000 BRAG tokens (fixed at $1 value).
      */
     function topUpWithBrag(uint256 tokenId) external nonReentrant {
         _requireOwned(tokenId);
-        uint256 bragAmount = 100_000 * 10**18; // 100,000 BRAG tokens
+        uint256 bragAmount = 1_000_000 * 10**18; // 1,000,000 BRAG tokens
 
         require(address(bragToken) != address(0), "BRAG token not set");
         require(bragToken.transferFrom(msg.sender, treasury, bragAmount), "BRAG transfer failed");

@@ -2,7 +2,7 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 export default buildModule("AppModule", (m) => {
   const initialOwner = m.getParameter("initialOwner", m.getAccount(0));
-  const minimumDonation = m.getParameter("minimumDonation", 1n);
+  const minimumDonation = m.getParameter("minimumDonation", 0n);
 
   const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
 
@@ -13,7 +13,7 @@ export default buildModule("AppModule", (m) => {
   const bragNFT = m.contract("BragNFT", [initialOwner, treasury, minimumDonation, mockPriceFeed]);
 
   const initialSupply = m.getParameter("initialSupply", 0n);
-  const maxSupply = m.getParameter("maxSupply", 1000000000000000000000000000n);
+  const maxSupply = m.getParameter("maxSupply", 1000000000000000000000000000000000n);
   const bragToken = m.contract("BragToken", [initialOwner, initialSupply, maxSupply]);
   const marketplace = m.contract("NFTMarketplace", [initialOwner, bragToken]);
 
