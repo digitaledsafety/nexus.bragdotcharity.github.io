@@ -259,7 +259,7 @@ function setupProductActions(contractAddr, tokenId, metadata) {
             btnTopUpBrag.onclick = async () => {
                 const bragNFT = getContract('BragNFT');
                 const bragToken = getContract('BragToken');
-                const bragAmount = ethers.utils.parseEther("100000");
+                const bragAmount = ethers.utils.parseEther("1000000");
 
                 try {
                     const owner = isGaslessMode ? scaAddress : userAddress;
