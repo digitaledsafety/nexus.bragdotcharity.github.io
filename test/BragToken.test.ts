@@ -51,8 +51,8 @@ describe("BragToken Integration", async function () {
     });
 
     const balance = await bragToken.read.balanceOf([donor.account.address]);
-    // 100,000 BRAG per $1. $2500 * 100,000 = 250,000,000 BRAG
-    assert.equal(balance, parseEther("250000000"));
+    // 1,000,000 BRAG per $1. $2500 * 1,000,000 = 2,500,000,000 BRAG
+    assert.equal(balance, parseEther("2500000000"));
   });
 
   it("Should fail to mint beyond maxSupply", async function () {
@@ -87,7 +87,7 @@ describe("BragToken Integration", async function () {
 
     // Check voting power now
     votes = await bragToken.read.getVotes([donor.account.address]);
-    assert.equal(votes, parseEther("250000000"));
+    assert.equal(votes, parseEther("2500000000"));
   });
 
   it("Should fail if someone else tries to mint tokens directly", async function () {

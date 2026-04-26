@@ -68,8 +68,8 @@ describe("BragNFT Dual-State Model", async function () {
 
     // 2.5 Check BragToken reward
     const balance = await bragToken.read.balanceOf([donor.account.address]);
-    // 100,000 BRAG per $1. $1250 * 100,000 = 125,000,000 BRAG
-    assert.equal(balance, parseEther("125000000"));
+    // 1,000,000 BRAG per $1. $1250 * 1,000,000 = 1,250,000,000 BRAG
+    assert.equal(balance, parseEther("1250000000"));
 
     // 3. Check Treasury
     const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.account.address });

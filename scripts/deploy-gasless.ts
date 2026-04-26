@@ -155,7 +155,7 @@ async function main() {
     }
 
     // --- Contract Deployments ---
-    const minimumDonation = 1n;
+    const minimumDonation = 0n;
     const externalTreasury = process.env.TREASURY_ADDRESS;
     const entryPointAddress = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"; // v0.7.0
 
@@ -175,7 +175,7 @@ async function main() {
     const bragNFT = await deploy("BragNFT", [scaAddress, treasury.address, minimumDonation, mockPriceFeed.address]);
 
     const initialSupply = 0n;
-    const maxSupply = 1000000000000000000000000000n;
+    const maxSupply = 1000000000000000000000000000000000n;
     const bragToken = await deploy("BragToken", [scaAddress, initialSupply, maxSupply]);
     const marketplace = await deploy("NFTMarketplace", [scaAddress, bragToken.address]);
 
