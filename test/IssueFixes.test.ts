@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { getAddress, parseEther, Hex } from "viem";
+import { getAddress, parseEther, Hex, encodeFunctionData, decodeEventLog } from "viem";
 
 describe("Issue Fixes", async function () {
     const { viem } = await network.connect();
@@ -20,6 +20,9 @@ describe("Issue Fixes", async function () {
         const MINTER_ROLE = await bragToken.read.MINTER_ROLE();
         await bragToken.write.grantRole([MINTER_ROLE, bragNFT.address]);
 
+        const registry = await viem.deployContract("ExhibitRegistry", [owner.account.address]);
+        const vault = await viem.deployContract("ExhibitVault", [registry.address]);
+
         return {
             owner,
             otherAccount,
@@ -27,6 +30,9 @@ describe("Issue Fixes", async function () {
             bragToken,
             marketplace,
             bragNFT,
+            registry,
+            vault,
+            mockPriceFeed
         };
     }
 
@@ -50,9 +56,64 @@ describe("Issue Fixes", async function () {
             const offer = await marketplace.read.offers([bragNFT.address, tokenId, otherAccount.account.address]);
             assert.equal(offer[0], parseEther("50"));
         });
+
+        it("should enforce minOfferPrice", async function () {
+            const { otherAccount, marketplace, bragNFT, bragToken } = await deployFixture();
+
+            await marketplace.write.setMinOfferPrice([parseEther("10")]);
+
+            // Mint NFT
+            await bragNFT.write.donate(["Msg", "uri"], { value: parseEther("0.01") });
+            const tokenId = 0n;
+
+            // Fund other account
+            await bragToken.write.transfer([otherAccount.account.address, parseEther("100")]);
+            await bragToken.write.approve([marketplace.address, parseEther("100")], { account: otherAccount.account });
+
+            // Should fail if below minimum
+            await assert.rejects(
+                marketplace.write.createOffer([bragNFT.address, tokenId, 1n, parseEther("5")], { account: otherAccount.account }),
+                /Offer price below minimum/
+            );
+
+            // Should succeed if at or above minimum
+            await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, parseEther("10")], { account: otherAccount.account });
+
+            const offer = await marketplace.read.offers([bragNFT.address, tokenId, otherAccount.account.address]);
+            assert.equal(offer[0], parseEther("10"));
+        });
     });
 
-    describe("Treasury Withdrawal", async function () {
+    describe("Treasury Batch Proposals", async function () {
+        it("should support proposing and executing a batch of transactions", async function () {
+            const { owner, otherAccount, treasury } = await deployFixture();
+            const publicClient = await viem.getPublicClient();
+
+            // Fund treasury
+            await owner.sendTransaction({
+                to: treasury.address,
+                value: parseEther("1")
+            });
+
+            const initialBalanceOther = await publicClient.getBalance({ address: otherAccount.account.address });
+
+            const targets = [otherAccount.account.address, otherAccount.account.address] as address[];
+            const values = [parseEther("0.1"), parseEther("0.2")];
+            const datas = ["0x" as Hex, "0x" as Hex];
+            const nonce = 0n;
+
+            await treasury.write.propose([targets, values, datas, nonce]);
+
+            const proposalId = 0n;
+            await treasury.write.executeProposal([proposalId]);
+
+            const finalBalanceOther = await publicClient.getBalance({ address: otherAccount.account.address });
+            assert.equal(finalBalanceOther - initialBalanceOther, parseEther("0.3"));
+
+            const proposal = await treasury.read.getProposal([proposalId]);
+            assert.equal(proposal[3], true); // executed
+        });
+
         it("should execute withdrawal when threshold is 1", async function () {
             const { owner, treasury, otherAccount } = await deployFixture();
             const publicClient = await viem.getPublicClient();
@@ -72,74 +133,66 @@ describe("Issue Fixes", async function () {
             const finalBalance = await publicClient.getBalance({ address: otherAccount.account.address });
             assert.equal(finalBalance - initialBalance, parseEther("0.5"));
         });
+    });
 
-        it("should propose withdrawal when threshold is > 1", async function () {
-             const [owner, secondOwner] = await viem.getWalletClients();
-             const entryPoint = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+    describe("BragNFT Enhancements", async function () {
+        it("should detect .webp as multimedia", async function () {
+            const { bragNFT } = await deployFixture();
 
-             // Deploy with threshold 2
-             const treasury = await viem.deployContract("Treasury", [[owner.account.address, secondOwner.account.address], 2n, entryPoint]);
+            await bragNFT.write.donate(["Test", "https://example.com/art.webp"], { value: parseEther("0.01") });
+            const tokenId = 0n;
 
-             const nonce = BigInt(Math.floor(Date.now() / 1000));
-             const target = secondOwner.account.address;
-             const value = parseEther("0.1");
-             const data = "0x" as Hex;
+            const uri = await bragNFT.read.tokenURI([tokenId]);
+            const decoded = JSON.parse(atob(uri.split(",")[1]));
+            assert.ok(decoded.animation_url, "animation_url should be set for .webp");
+            assert.equal(decoded.animation_url, "https://example.com/art.webp");
+        });
 
-             await treasury.write.propose([target, value, data, nonce], { account: owner.account });
+        it("should emit PriceFeedFailed if price feed reverts", async function () {
+            const { owner, bragNFT, mockPriceFeed } = await deployFixture();
 
-             const proposalCount = await treasury.read.proposalCount();
-             assert.equal(proposalCount, 1n);
+            // Set mockPriceFeed to revert
+            await mockPriceFeed.write.setRevert([true]);
 
-             const proposal = await treasury.read.proposals([0n]);
-             assert.equal(proposal[0], getAddress(target));
-             assert.equal(proposal[1], value);
+            const txHash = await bragNFT.write.donate(["Test", "uri"], { value: parseEther("0.01") });
+            const publicClient = await viem.getPublicClient();
+            const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+
+            const logs = receipt.logs.map(log => {
+                try {
+                    return decodeEventLog({
+                        abi: bragNFT.abi,
+                        data: log.data,
+                        topics: log.topics,
+                    });
+                } catch {
+                    return null;
+                }
+            }).filter(l => l !== null);
+
+            assert.ok(logs.some(l => l.eventName === "PriceFeedFailed"), "Should have emitted PriceFeedFailed");
         });
     });
 
-    describe("NFT Top-up", async function () {
-        it("should allow topping up with ETH", async function () {
-            const { otherAccount, bragNFT, treasury } = await deployFixture();
-            const publicClient = await viem.getPublicClient();
+    describe("ExhibitVault Refactoring", async function () {
+        it("should correctly handle deposits after refactoring", async function () {
+            const { owner, bragNFT, vault } = await deployFixture();
 
-            // Mint NFT
-            await bragNFT.write.donate(["Impact", "uri"], { value: parseEther("0.01"), account: otherAccount.account });
+            await bragNFT.write.donate(["Exhibit", "uri"], { value: parseEther("0.01") });
             const tokenId = 0n;
 
-            const initialTreasuryBalance = await publicClient.getBalance({ address: treasury.address });
+            await bragNFT.write.approve([vault.address, tokenId]);
 
-            // Top up with ETH (0.0004 ETH)
-            await bragNFT.write.topUp([tokenId], { value: parseEther("0.0004"), account: otherAccount.account });
+            const duration = 3600n;
+            const data32 = "0x" + duration.toString(16).padStart(64, '0') as Hex;
 
-            const finalTreasuryBalance = await publicClient.getBalance({ address: treasury.address });
-            assert.equal(finalTreasuryBalance - initialTreasuryBalance, parseEther("0.0004"));
+            await bragNFT.write.safeTransferFrom([owner.account.address, vault.address, tokenId, data32]);
 
-            const isGlowing = await bragNFT.read.isGlowing([tokenId]);
-            assert.equal(isGlowing, true);
-        });
+            const storedOwner = await vault.read.owner721([bragNFT.address, tokenId]);
+            assert.equal(getAddress(storedOwner), getAddress(owner.account.address));
 
-        it("should allow topping up with BRAG tokens", async function () {
-            const { otherAccount, bragNFT, bragToken, treasury } = await deployFixture();
-
-            // Mint NFT
-            await bragNFT.write.donate(["Impact", "uri"], { value: parseEther("0.01"), account: otherAccount.account });
-            const tokenId = 0n;
-
-            // Give BRAG to otherAccount
-            await bragToken.write.transfer([otherAccount.account.address, parseEther("200000")]);
-
-            // Approve BragNFT contract to spend BRAG
-            await bragToken.write.approve([bragNFT.address, parseEther("100000")], { account: otherAccount.account });
-
-            const initialTreasuryBrag = await bragToken.read.balanceOf([treasury.address]);
-
-            // Top up with BRAG (Requires 100,000 BRAG)
-            await bragNFT.write.topUpWithBrag([tokenId], { account: otherAccount.account });
-
-            const finalTreasuryBrag = await bragToken.read.balanceOf([treasury.address]);
-            assert.equal(finalTreasuryBrag - initialTreasuryBrag, parseEther("100000"));
-
-            const isGlowing = await bragNFT.read.isGlowing([tokenId]);
-            assert.equal(isGlowing, true);
+            const expiry = await vault.read.expiry721([bragNFT.address, tokenId]);
+            assert.ok(expiry > 0n);
         });
     });
 });

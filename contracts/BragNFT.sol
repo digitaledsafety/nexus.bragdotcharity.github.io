@@ -67,6 +67,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
 
     event Donated(address indexed donor, uint256 amount, uint256 usdValue, uint256 tokenId, string message);
     event TopUp(uint256 indexed tokenId, address indexed donor, uint256 amount);
+    event PriceFeedFailed();
 
     constructor(address _initialOwner, address _treasury, uint256 _minimumDonation, address _priceFeed)
         ERC721("BragNFT", "BRAGNFT")
@@ -187,7 +188,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
                 if (answer > 0) {
                     usdValue = (uint256(answer) * msg.value) / 1e18;
                 }
-            } catch {}
+            } catch {
+                emit PriceFeedFailed();
+            }
         }
 
         // 2. Create Permanent Record (Effect)
@@ -234,7 +237,9 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
                 if (answer > 0) {
                     usdValue = (uint256(answer) * msg.value) / 1e18;
                 }
-            } catch {}
+            } catch {
+                emit PriceFeedFailed();
+            }
         }
 
         require(usdValue >= 1e8, "Top-up requires $1.00 USD");
@@ -376,7 +381,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
             if (b1 == 'g' && b2 == 'i' && b3 == 'f') return true;
         }
 
-        // Check for 4-letter extensions: .webm
+        // Check for 4-letter extensions: .webm, .webp
         if (len >= 5 && b[len - 5] == '.') {
             bytes1 b1 = _toLower(b[len - 4]);
             bytes1 b2 = _toLower(b[len - 3]);
@@ -384,6 +389,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
             bytes1 b4 = _toLower(b[len - 1]);
 
             if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'm') return true;
+            if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'p') return true;
         }
 
         return false;
