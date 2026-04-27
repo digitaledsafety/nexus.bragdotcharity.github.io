@@ -125,6 +125,33 @@ function setupManagerListeners() {
         };
     }
 
+    const btnPreviewSVG = document.getElementById('btnPreviewSVG');
+    if (btnPreviewSVG) {
+        btnPreviewSVG.onclick = () => {
+            const message = document.getElementById('mintMessage').value || "BragNFT #Preview";
+            const svg = `
+                <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">
+                    <style>.base { fill: white; font-family: sans-serif; font-size: 20px; font-weight: bold; }</style>
+                    <rect width="100%" height="100%" fill="#6366f1" />
+                    <g>
+                        <text x="50%" y="50%" class="base" dominant-baseline="middle" text-anchor="middle">${message}</text>
+                    </g>
+                </svg>
+            `;
+            const base64 = btoa(svg);
+            const dataUri = `data:image/svg+xml;base64,${base64}`;
+
+            document.getElementById('mintTokenURI').value = '';
+            document.getElementById('mintOnChain').checked = false;
+
+            const preview = document.getElementById('aiPreview');
+            const previewImg = document.getElementById('aiPreviewImg');
+            previewImg.src = dataUri;
+            preview.classList.remove('hidden');
+            log('Previewing on-chain SVG fallback', 'success');
+        };
+    }
+
     const btnAI = document.getElementById('btnGenerateAI');
     if (btnAI) {
         btnAI.onclick = async () => {
@@ -366,8 +393,25 @@ async function txHandler(contractOrTarget, functionNameOrData, argsOrValue = [],
             return receipt;
         }
     } catch (error) {
-        console.error(error);
-        const errMsg = error.reason || error.message || "Unknown error";
+        console.error("Transaction Error:", error);
+
+        let errMsg = error.reason || error.message || "Unknown error";
+
+        // Try to extract nested revert reasons from common provider error structures
+        if (error.data && error.data.message) {
+            errMsg = error.data.message;
+        } else if (error.error && error.error.data && error.error.data.message) {
+            errMsg = error.error.data.message;
+        } else if (error.info && error.info.error && error.info.error.message) {
+             errMsg = error.info.error.message;
+        }
+
+        // Handle Alchemy AA SDK specific error patterns
+        if (errMsg.includes("UserOperation reverted")) {
+            const match = errMsg.match(/reason: "(.*?)"/);
+            if (match) errMsg = `SCA Revert: ${match[1]}`;
+        }
+
         log(`Transaction failed: ${errMsg}`, 'error');
         throw error;
     }

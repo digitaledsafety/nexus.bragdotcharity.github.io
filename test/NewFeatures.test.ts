@@ -115,13 +115,13 @@ describe("New Features", async function () {
       // Create initial offer
       const initialPrice = parseEther("10");
       await bragToken.write.approve([marketplace.address, parseEther("100")], { account: user2.account });
-      await marketplace.write.createOffer([mock721.address, tokenId, 1n, initialPrice], { account: user2.account });
+      await marketplace.write.createOffer([mock721.address, tokenId, 1n, initialPrice, 0n], { account: user2.account });
 
       assert.equal(await bragToken.read.balanceOf([marketplace.address]), initialPrice);
 
       // Update offer (increase)
       const newPrice = parseEther("15");
-      await marketplace.write.updateOffer([mock721.address, tokenId, 1n, newPrice], { account: user2.account });
+      await marketplace.write.updateOffer([mock721.address, tokenId, 1n, newPrice, 0n], { account: user2.account });
 
       const offer = await marketplace.read.offers([mock721.address, tokenId, user2.account.address]);
       assert.equal(offer[0], newPrice);
@@ -140,13 +140,13 @@ describe("New Features", async function () {
       // Create initial offer
       const initialPrice = parseEther("20");
       await bragToken.write.approve([marketplace.address, parseEther("100")], { account: user2.account });
-      await marketplace.write.createOffer([mock721.address, tokenId, 1n, initialPrice], { account: user2.account });
+      await marketplace.write.createOffer([mock721.address, tokenId, 1n, initialPrice, 0n], { account: user2.account });
 
       const balanceBefore = await bragToken.read.balanceOf([user2.account.address]);
 
       // Update offer (decrease)
       const newPrice = parseEther("15");
-      await marketplace.write.updateOffer([mock721.address, tokenId, 1n, newPrice], { account: user2.account });
+      await marketplace.write.updateOffer([mock721.address, tokenId, 1n, newPrice, 0n], { account: user2.account });
 
       const offer = await marketplace.read.offers([mock721.address, tokenId, user2.account.address]);
       assert.equal(offer[0], newPrice);

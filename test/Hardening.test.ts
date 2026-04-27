@@ -49,7 +49,7 @@ describe("Contract Hardening Tests", async function () {
       const victimTokenId = 0n;
       const victimOfferPrice = parseEther("5");
       await bragToken.write.approve([marketplace.address, victimOfferPrice], { account: victim.account });
-      await marketplace.write.createOffer([bragNFT.address, victimTokenId, 1n, victimOfferPrice], { account: victim.account });
+      await marketplace.write.createOffer([bragNFT.address, victimTokenId, 1n, victimOfferPrice, 0n], { account: victim.account });
 
       // Seller mints NFT to sell to Attacker
       await bragNFT.write.donate(["attacker target", ""], { account: seller.account, value: parseEther("0.1") });
@@ -175,7 +175,7 @@ describe("Contract Hardening Tests", async function () {
       // Buyer makes an offer
       await bragToken.write.transfer([buyer.account.address, parseEther("100")], { account: owner.account });
       await bragToken.write.approve([marketplace.address, parseEther("10")], { account: buyer.account });
-      await marketplace.write.createOffer([revNFT.address, tokenId, 1n, parseEther("10")], { account: buyer.account });
+      await marketplace.write.createOffer([revNFT.address, tokenId, 1n, parseEther("10"), 0n], { account: buyer.account });
 
       // Seller accepts offer -> marketplace tries to pay reverter -> should NOT revert because it's ERC20 transfer
       await revNFT.write.approve([marketplace.address, tokenId], { account: owner.account });

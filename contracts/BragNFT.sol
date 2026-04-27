@@ -354,42 +354,23 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
         uint256 len = b.length;
         if (len < 4) return false;
 
-        // Check for "data:audio/", "data:video/" or "data:image/gif" prefix
-        if (len >= 11) {
-            if (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':') {
-                if (b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') return true;
-                if (b[5] == 'v' && b[6] == 'i' && b[7] == 'd' && b[8] == 'e' && b[9] == 'o' && b[10] == '/') return true;
-                if (len >= 14 && b[5] == 'i' && b[6] == 'm' && b[7] == 'a' && b[8] == 'g' && b[9] == 'e' && b[10] == '/' && b[11] == 'g' && b[12] == 'i' && b[13] == 'f') return true;
-            }
+        // Check for data: prefixes
+        if (len >= 11 && b[0] == "d" && b[1] == "a" && b[2] == "t" && b[3] == "a" && b[4] == ":") {
+            bytes5 prefix = bytes5(abi.encodePacked(b[5], b[6], b[7], b[8], b[9]));
+            if (prefix == "audio" || prefix == "video") return true;
+            if (len >= 14 && bytes9(abi.encodePacked(b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13])) == "image/gif") return true;
         }
 
-        // Check for 3-letter extensions: .mp3, .wav, .ogg, .m4a, .aac, .mp4, .mov, .ogv, .m4v, .gif
-        if (b[len - 4] == '.') {
-            bytes1 b1 = _toLower(b[len - 3]);
-            bytes1 b2 = _toLower(b[len - 2]);
-            bytes1 b3 = _toLower(b[len - 1]);
-
-            if (b1 == 'm' && b2 == 'p' && b3 == '3') return true;
-            if (b1 == 'w' && b2 == 'a' && b3 == 'v') return true;
-            if (b1 == 'o' && b2 == 'g' && b3 == 'g') return true;
-            if (b1 == 'm' && b2 == '4' && b3 == 'a') return true;
-            if (b1 == 'a' && b2 == 'a' && b3 == 'c') return true;
-            if (b1 == 'm' && b2 == 'p' && b3 == '4') return true;
-            if (b1 == 'm' && b2 == 'o' && b3 == 'v') return true;
-            if (b1 == 'o' && b2 == 'g' && b3 == 'v') return true;
-            if (b1 == 'm' && b2 == '4' && b3 == 'v') return true;
-            if (b1 == 'g' && b2 == 'i' && b3 == 'f') return true;
+        // Check for 3-letter extensions
+        if (b[len - 4] == ".") {
+            bytes3 ext = bytes3(abi.encodePacked(_toLower(b[len - 3]), _toLower(b[len - 2]), _toLower(b[len - 1])));
+            if (ext == "mp3" || ext == "wav" || ext == "ogg" || ext == "m4a" || ext == "aac" || ext == "mp4" || ext == "mov" || ext == "ogv" || ext == "m4v" || ext == "gif") return true;
         }
 
-        // Check for 4-letter extensions: .webm, .webp
-        if (len >= 5 && b[len - 5] == '.') {
-            bytes1 b1 = _toLower(b[len - 4]);
-            bytes1 b2 = _toLower(b[len - 3]);
-            bytes1 b3 = _toLower(b[len - 2]);
-            bytes1 b4 = _toLower(b[len - 1]);
-
-            if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'm') return true;
-            if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'p') return true;
+        // Check for 4-letter extensions
+        if (len >= 5 && b[len - 5] == ".") {
+            bytes4 ext = bytes4(abi.encodePacked(_toLower(b[len - 4]), _toLower(b[len - 3]), _toLower(b[len - 2]), _toLower(b[len - 1])));
+            if (ext == "webm" || ext == "webp") return true;
         }
 
         return false;

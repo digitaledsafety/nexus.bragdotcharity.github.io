@@ -42,7 +42,7 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     // Buyer makes an offer
     const offerPrice = parseEther("10");
     await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice, 0n], { account: buyer.account });
 
     // Verify royalty info
     const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);
@@ -104,7 +104,7 @@ describe("Enhancements (Royalties & SVG Escaping)", async function () {
     // Buyer makes an offer
     const offerPrice = parseEther("100");
     await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, offerPrice, 0n], { account: buyer.account });
 
     // Verify royalty info (8 ETH)
     const [royaltyRecipient, royaltyAmount] = await bragNFT.read.royaltyInfo([tokenId, offerPrice]);

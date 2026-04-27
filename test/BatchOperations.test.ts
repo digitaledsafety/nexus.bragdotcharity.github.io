@@ -41,8 +41,8 @@ describe("Batch Operations", async function () {
     await bragToken.write.transfer([buyer.account.address, parseEther("10")], { account: owner.account });
     await bragToken.write.approve([marketplace.address, parseEther("10")], { account: buyer.account });
 
-    await marketplace.write.createOffer([bragNFT.address, 0n, 1n, parseEther("1")], { account: buyer.account });
-    await marketplace.write.createOffer([bragNFT.address, 1n, 1n, parseEther("2")], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, 0n, 1n, parseEther("1"), 0n], { account: buyer.account });
+    await marketplace.write.createOffer([bragNFT.address, 1n, 1n, parseEther("2"), 0n], { account: buyer.account });
 
     assert.equal(await bragToken.read.balanceOf([marketplace.address]), parseEther("3"));
 

@@ -51,7 +51,7 @@ describe("Issue Fixes", async function () {
             await bragToken.write.approve([marketplace.address, parseEther("50")], { account: otherAccount.account });
 
             // Create offer
-            await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, parseEther("50")], { account: otherAccount.account });
+            await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, parseEther("50"), 0n], { account: otherAccount.account });
 
             const offer = await marketplace.read.offers([bragNFT.address, tokenId, otherAccount.account.address]);
             assert.equal(offer[0], parseEther("50"));
@@ -72,12 +72,12 @@ describe("Issue Fixes", async function () {
 
             // Should fail if below minimum
             await assert.rejects(
-                marketplace.write.createOffer([bragNFT.address, tokenId, 1n, parseEther("5")], { account: otherAccount.account }),
+                marketplace.write.createOffer([bragNFT.address, tokenId, 1n, parseEther("5"), 0n], { account: otherAccount.account }),
                 /Offer price below minimum/
             );
 
             // Should succeed if at or above minimum
-            await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, parseEther("10")], { account: otherAccount.account });
+            await marketplace.write.createOffer([bragNFT.address, tokenId, 1n, parseEther("10"), 0n], { account: otherAccount.account });
 
             const offer = await marketplace.read.offers([bragNFT.address, tokenId, otherAccount.account.address]);
             assert.equal(offer[0], parseEther("10"));

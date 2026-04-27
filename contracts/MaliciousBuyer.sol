@@ -18,7 +18,7 @@ contract MaliciousBuyer is IERC721Receiver {
         IERC20 token = marketplace.paymentToken();
         token.transferFrom(msg.sender, address(this), price);
         token.approve(address(marketplace), price);
-        marketplace.createOffer(nftContract, tokenId, 1, price);
+        marketplace.createOffer(nftContract, tokenId, 1, price, 0);
     }
 
     function onERC721Received(

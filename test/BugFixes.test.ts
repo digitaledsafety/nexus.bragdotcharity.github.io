@@ -37,7 +37,7 @@ describe("Bug Fixes", async function () {
     // Buyer makes an offer
     const offerPrice = parseEther("1");
     await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([mockNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([mockNFT.address, tokenId, 1n, offerPrice, 0n], { account: buyer.account });
 
     // Seller approves and accepts
     await mockNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
@@ -65,7 +65,7 @@ describe("Bug Fixes", async function () {
     // Buyer makes an offer
     const offerPrice = parseEther("1");
     await bragToken.write.approve([marketplace.address, offerPrice], { account: buyer.account });
-    await marketplace.write.createOffer([mockNFT.address, tokenId, 1n, offerPrice], { account: buyer.account });
+    await marketplace.write.createOffer([mockNFT.address, tokenId, 1n, offerPrice, 0n], { account: buyer.account });
 
     // Seller approves and accepts
     await mockNFT.write.approve([marketplace.address, tokenId], { account: seller.account });
