@@ -314,8 +314,15 @@ function setupProductActions(contractAddr, tokenId, metadata) {
                 if (appTx.wait) await appTx.wait();
             }
 
+            // Read expiry
+            const expiryDays = parseInt(document.getElementById('offerExpiry').value);
+            let expiry = 0;
+            if (expiryDays > 0) {
+                expiry = Math.floor(Date.now() / 1000) + (expiryDays * 24 * 60 * 60);
+            }
+
             // Use unified txHandler
-            const tx = await txHandler(marketplace, 'createOffer', [contractAddr, tokenId, amount, price]);
+            const tx = await txHandler(marketplace, 'createOffer', [contractAddr, tokenId, amount, price, expiry]);
             alert('Offer submitted!');
             await tx.wait();
             window.location.reload();

@@ -348,6 +348,7 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
 
     /**
      * @dev Detect if a media string is an audio/video data URI or has a common multimedia extension.
+     * Uses optimized bytesN comparisons for better gas efficiency.
      */
     function _isMultimedia(string memory _media) internal pure returns (bool) {
         bytes memory b = bytes(_media);
@@ -356,51 +357,75 @@ contract BragNFT is ERC721URIStorage, AccessControl, ReentrancyGuard, IERC2981, 
 
         // Check for "data:audio/", "data:video/" or "data:image/gif" prefix
         if (len >= 11) {
-            if (b[0] == 'd' && b[1] == 'a' && b[2] == 't' && b[3] == 'a' && b[4] == ':') {
-                if (b[5] == 'a' && b[6] == 'u' && b[7] == 'd' && b[8] == 'i' && b[9] == 'o' && b[10] == '/') return true;
-                if (b[5] == 'v' && b[6] == 'i' && b[7] == 'd' && b[8] == 'e' && b[9] == 'o' && b[10] == '/') return true;
-                if (len >= 14 && b[5] == 'i' && b[6] == 'm' && b[7] == 'a' && b[8] == 'g' && b[9] == 'e' && b[10] == '/' && b[11] == 'g' && b[12] == 'i' && b[13] == 'f') return true;
+            bytes11 prefix11;
+            assembly {
+                prefix11 := mload(add(b, 32))
+            }
+            if (prefix11 == "data:audio/") return true;
+            if (prefix11 == "data:video/") return true;
+
+            if (len >= 14) {
+                bytes14 prefix14;
+                assembly {
+                    prefix14 := mload(add(b, 32))
+                }
+                if (prefix14 == "data:image/gif") return true;
             }
         }
 
-        // Check for 3-letter extensions: .mp3, .wav, .ogg, .m4a, .aac, .mp4, .mov, .ogv, .m4v, .gif
-        if (b[len - 4] == '.') {
-            bytes1 b1 = _toLower(b[len - 3]);
-            bytes1 b2 = _toLower(b[len - 2]);
-            bytes1 b3 = _toLower(b[len - 1]);
+        // Check for common extensions
+        if (len >= 4) {
+            bytes4 ext4;
+            // Extract last 4 bytes for 3-char extensions + dot
+            uint256 offset = len - 4;
+            assembly {
+                ext4 := mload(add(add(b, 32), offset))
+            }
 
-            if (b1 == 'm' && b2 == 'p' && b3 == '3') return true;
-            if (b1 == 'w' && b2 == 'a' && b3 == 'v') return true;
-            if (b1 == 'o' && b2 == 'g' && b3 == 'g') return true;
-            if (b1 == 'm' && b2 == '4' && b3 == 'a') return true;
-            if (b1 == 'a' && b2 == 'a' && b3 == 'c') return true;
-            if (b1 == 'm' && b2 == 'p' && b3 == '4') return true;
-            if (b1 == 'm' && b2 == 'o' && b3 == 'v') return true;
-            if (b1 == 'o' && b2 == 'g' && b3 == 'v') return true;
-            if (b1 == 'm' && b2 == '4' && b3 == 'v') return true;
-            if (b1 == 'g' && b2 == 'i' && b3 == 'f') return true;
+            // Normalize to lowercase for comparison
+            bytes4 lowExt4 = _toLower4(ext4);
+            if (lowExt4 == ".mp3" || lowExt4 == ".wav" || lowExt4 == ".ogg" ||
+                lowExt4 == ".m4a" || lowExt4 == ".aac" || lowExt4 == ".mp4" ||
+                lowExt4 == ".mov" || lowExt4 == ".ogv" || lowExt4 == ".m4v" ||
+                lowExt4 == ".gif" || lowExt4 == ".glb") return true;
         }
 
-        // Check for 4-letter extensions: .webm, .webp
-        if (len >= 5 && b[len - 5] == '.') {
-            bytes1 b1 = _toLower(b[len - 4]);
-            bytes1 b2 = _toLower(b[len - 3]);
-            bytes1 b3 = _toLower(b[len - 2]);
-            bytes1 b4 = _toLower(b[len - 1]);
-
-            if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'm') return true;
-            if (b1 == 'w' && b2 == 'e' && b3 == 'b' && b4 == 'p') return true;
+        if (len >= 5) {
+            bytes5 ext5;
+            uint256 offset = len - 5;
+            assembly {
+                ext5 := mload(add(add(b, 32), offset))
+            }
+            bytes5 lowExt5 = _toLower5(ext5);
+            if (lowExt5 == ".webm" || lowExt5 == ".webp" || lowExt5 == ".gltf") return true;
         }
 
         return false;
     }
 
-    function _toLower(bytes1 b) internal pure returns (bytes1) {
-        if (uint8(b) >= 65 && uint8(b) <= 90) {
-            return bytes1(uint8(b) + 32);
+    function _toLower4(bytes4 b) internal pure returns (bytes4) {
+        bytes4 result = b;
+        for (uint256 i = 0; i < 4; i++) {
+            uint8 char = uint8(b[i]);
+            if (char >= 65 && char <= 90) {
+                // Apply bitwise OR to set the 6th bit (difference between Upper and Lower case)
+                result = result | bytes4(uint32(0x20) << (uint32(24) - uint32(i * 8)));
+            }
         }
-        return b;
+        return result;
     }
+
+    function _toLower5(bytes5 b) internal pure returns (bytes5) {
+        bytes5 result = b;
+        for (uint256 i = 0; i < 5; i++) {
+            uint8 char = uint8(b[i]);
+            if (char >= 65 && char <= 90) {
+                result = result | bytes5(uint40(0x20) << (uint40(32) - uint40(i * 8)));
+            }
+        }
+        return result;
+    }
+
 
     /**
      * @dev Generates a simple SVG image with the donation message and optional glow.
